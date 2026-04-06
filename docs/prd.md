@@ -903,3 +903,9 @@
 > - 참고: 노션 원본 CSV는 resource/MSP 고객 DB 디렉토리에 보존
 
 > [!WARNING] OPEN ITEM: 고객-계약 관계 M:N 전환 시점. 현재 CRM v2는 1:N (contracts.client_id). tt_team DB는 client_contract 브릿지로 M:N 지원 (공동 교육 등). 최종 NXT DB 통합 시 M:N 전환 필요할 수 있음. Phase 3 또는 통합 시점에 결정.
+
+> [!WARNING] OPEN ITEM: 통합 등급(clients.grade, A~E) 산정 기준 미확정. 교육 계약 + MSP 등급 등을 종합한 전사 등급. 진성님과 확정 필요.
+
+> [!WARNING] OPEN ITEM: 교육 등급(client_edu_details.edu_grade, A~F) 산정 기준 미확정. tt_team에서는 계약 횟수 + 넥클 제공 플랫폼 수로 산정. 교육팀 팀장님과 확정 필요.
+
+> [!WARNING] OPEN ITEM: 등급 체계 3종 확정. 통합 등급(A~E, clients.grade), MSP 등급(None/FREE/MSP10/MSP15/MSP20/ETC, client_msp_details.msp_grade), 교육 등급(A~F, client_edu_details.edu_grade). 각 산정 기준 및 상호 관계 정의 필요.
