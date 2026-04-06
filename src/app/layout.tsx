@@ -1,24 +1,31 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
+import { QueryProvider } from '@/providers/query-provider';
+import { AuthProvider } from '@/providers/auth-provider';
+import { Toaster } from '@/components/ui/sonner';
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'NXT CRM v2',
-  description: 'NXT CRM - Customer Relationship Management System',
+  title: 'NXT CRM',
+  description: 'NXT Cloud CRM v2',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="ko" className={cn("h-full", "font-sans", geist.variable)}>
-      <body className="min-h-full bg-bg-page text-text-primary antialiased">
-        {children}
+    <html lang="ko">
+      <body className={inter.className}>
+        <QueryProvider>
+          <AuthProvider>
+            {children}
+            <Toaster position="top-right" />
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );
