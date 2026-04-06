@@ -892,3 +892,14 @@
 > **잠정 결정**: A안(순수 그룹핑)으로 개발 진행. 부모 고객은 기본 정보 + 하위 고객 + 관련 계약(자식 합산)만 표시. 확정 후 변경 가능.
 
 > [!WARNING] OPEN ITEM: MSP 고객 추가 시 필요한 입력 필드 확정 필요. 현재: 고객명, 고객 유형, 등급, 상위 고객, 메모. MSP 고객 특유의 추가 필드(산업 분야, 기업 규모 등)를 등록 시 받을지, 등록 후 상세 페이지에서 입력할지 동식님과 확정 필요.
+
+> [!WARNING] OPEN ITEM: 노션 MSP 고객 DB → CRM v2 매핑 시 모호한 필드들 (동식님 확정 필요):
+> - **`상태` (활성/진행중/비활성)**: clients 테이블에 status 컬럼으로 추가할지? 정의 확정 필요
+> - **`담당 영업`**: 고객 레벨(client_msp_details)인지 계약 레벨(contract_msp_details)인지?
+> - **`AWS 담당 AM`**: AWS 측 담당자 — client_msp_details.aws_am으로 추가 예정
+> - **`alias (빌링온)`**: 빌링온 별칭 — contract_msp_details에 추가할지?
+> - **`Account ID` vs `계정 ID`**: 동일한 AWS 계정 ID인지 별도 값인지?
+> - **전송 관련 (마지막 전송일, 전송 이력, 전송 카운트, 접촉 예정일)**: CRM v2 스코프에 포함할지?
+> - 참고: 노션 원본 CSV는 resource/MSP 고객 DB 디렉토리에 보존
+
+> [!WARNING] OPEN ITEM: 고객-계약 관계 M:N 전환 시점. 현재 CRM v2는 1:N (contracts.client_id). tt_team DB는 client_contract 브릿지로 M:N 지원 (공동 교육 등). 최종 NXT DB 통합 시 M:N 전환 필요할 수 있음. Phase 3 또는 통합 시점에 결정.
