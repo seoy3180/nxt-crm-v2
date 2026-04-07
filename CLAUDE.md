@@ -33,6 +33,10 @@ Phase 8:   기록 → docs/conversations/
 - 작업 중 계획 변경 시 plan.md, 진행 상태 변경 시 progress.md, 중요 결정 시 memory.md, 조사/발견 시 findings.md를 업데이트한다.
 - compact 복구 리마인더가 오면 위 파일들을 반드시 읽는다.
 
+## DB 규칙
+- DB 테이블/컬럼 삭제(DROP TABLE, DROP COLUMN 등)는 절대 직접 실행하지 않는다. 쿼리만 알려주고 사용자가 직접 실행한다.
+- DB 마이그레이션 생성(CREATE, ALTER 추가)은 사용자 확인 후 진행 가능.
+
 ## Defaults
 - Prefer editing existing files over creating new ones.
 - Don't create documentation files (README, etc.) unless asked.

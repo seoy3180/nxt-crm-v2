@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Pencil } from 'lucide-react';
 import { CLIENT_TYPES, CLIENT_GRADES, BUSINESS_TYPES } from '@/lib/constants';
 import { clientUpdateSchema } from '@/lib/validators/client';
@@ -48,101 +47,128 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
 
   if (editing) {
     return (
-      <form onSubmit={handleSave}>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">기본 정보</CardTitle>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setEditing(false)}>취소</Button>
-              <Button type="submit" size="sm" disabled={updateClient.isPending}>저장</Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>고객사명</Label>
-                <Input name="name" defaultValue={client.name} />
-              </div>
-              <div className="space-y-2">
-                <Label>유형</Label>
-                <Select name="clientType" defaultValue={client.client_type}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(CLIENT_TYPES).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>등급</Label>
-                <Select name="grade" defaultValue={client.grade ?? ''}>
-                  <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
-                  <SelectContent>
-                    {CLIENT_GRADES.map((g) => (
-                      <SelectItem key={g} value={g}>{g}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>메모</Label>
-              <Textarea name="memo" defaultValue={client.memo ?? ''} rows={3} />
-            </div>
-          </CardContent>
-        </Card>
+      <form onSubmit={handleSave} className="rounded-xl border border-zinc-200 p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-zinc-900">고객 정보</h3>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditing(false)}>취소</Button>
+            <Button type="submit" size="sm" disabled={updateClient.isPending} className="bg-blue-600 hover:bg-blue-700">저장</Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label>고객사명</Label>
+            <Input name="name" defaultValue={client.name} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>유형</Label>
+            <Select name="clientType" defaultValue={client.client_type}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(CLIENT_TYPES).map(([k, v]) => (
+                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>등급</Label>
+            <Select name="grade" defaultValue={client.grade ?? ''}>
+              <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
+              <SelectContent>
+                {CLIENT_GRADES.map((g) => (
+                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label>메모</Label>
+          <Textarea name="memo" defaultValue={client.memo ?? ''} rows={3} />
+        </div>
       </form>
     );
   }
 
+  const BIZ_BADGE_COLORS: Record<string, string> = {
+    msp: 'bg-blue-100 text-blue-600',
+    tt: 'bg-amber-100 text-amber-700',
+    dev: 'bg-zinc-100 text-zinc-600',
+  };
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">기본 정보</CardTitle>
-        <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-          <Pencil className="mr-1 h-3 w-3" />
+    <div className="rounded-xl border border-zinc-200 p-6 space-y-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-zinc-900">고객 정보</h3>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="flex h-[30px] items-center gap-1 rounded-md border border-zinc-200 px-2.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-50"
+        >
+          <Pencil className="h-[13px] w-[13px]" />
           수정
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">고객사명</p>
-            <p className="text-sm font-medium">{client.name}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">유형</p>
-            <p className="text-sm font-medium">
-              {CLIENT_TYPES[client.client_type as keyof typeof CLIENT_TYPES]}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">등급</p>
-            <p className="text-sm font-medium">{client.grade ?? '-'}</p>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-8">
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-zinc-400">고객사명</p>
+          <p className="text-[15px] font-medium text-zinc-900">{client.name}</p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-zinc-400">고객 유형</p>
+          <p className="text-[15px] font-medium text-zinc-900">
+            {CLIENT_TYPES[client.client_type as keyof typeof CLIENT_TYPES]}
+          </p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-zinc-400">등급</p>
+          {client.grade ? (
+            <span className="inline-block rounded bg-blue-50 px-2.5 py-0.5 text-[13px] font-semibold text-blue-600">
+              {client.grade}
+            </span>
+          ) : (
+            <p className="text-[15px] font-medium text-zinc-900">-</p>
+          )}
+        </div>
+      </div>
+
+      <div className="h-px bg-zinc-100" />
+
+      <div className="grid grid-cols-3 gap-8">
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-zinc-400">비즈니스 타입</p>
+          <div className="flex gap-1.5">
+            {client.business_types && client.business_types.length > 0 ? (
+              client.business_types.map((bt: string) => (
+                <span
+                  key={bt}
+                  className={`inline-block rounded px-2.5 py-0.5 text-[11px] font-semibold ${BIZ_BADGE_COLORS[bt] ?? 'bg-zinc-100 text-zinc-600'}`}
+                >
+                  {BUSINESS_TYPES[bt as keyof typeof BUSINESS_TYPES] ?? bt}
+                </span>
+              ))
+            ) : (
+              <p className="text-[15px] font-medium text-zinc-900">-</p>
+            )}
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">비즈니스 타입</p>
-            <p className="text-sm font-medium">
-              {client.business_types?.map((bt: string) =>
-                BUSINESS_TYPES[bt as keyof typeof BUSINESS_TYPES] ?? bt,
-              ).join(', ') || '-'}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">사내 담당자</p>
-            <p className="text-sm font-medium">{client.assigned_to_name ?? '-'}</p>
-          </div>
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-zinc-400">사내 담당자</p>
+          <p className="text-[15px] font-medium text-zinc-900">{client.assigned_to_name ?? '-'}</p>
         </div>
-        {client.memo && (
-          <div className="mt-4">
-            <p className="text-sm text-muted-foreground">메모</p>
-            <p className="text-sm">{client.memo}</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        <div />
+      </div>
+
+      <div className="h-px bg-zinc-100" />
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-zinc-400">메모</p>
+        <p className="text-sm leading-relaxed text-zinc-900">
+          {client.memo || '-'}
+        </p>
+      </div>
+    </div>
   );
 }

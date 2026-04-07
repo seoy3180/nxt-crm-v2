@@ -59,43 +59,46 @@ export function ContactTable({ clientId }: ContactTableProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setFormOpen(true)}>
-          <Plus className="mr-1 h-3 w-3" />
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="pl-2 text-lg font-semibold text-zinc-900">
+          연락처 <span className="text-zinc-400">({contacts?.length ?? 0}명)</span>
+        </h3>
+        <Button onClick={() => setFormOpen(true)} className="h-9 gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium hover:bg-blue-700">
+          <Plus className="h-4 w-4" />
           연락처 추가
         </Button>
       </div>
 
-      <div className="rounded-md border">
+      <div className="overflow-hidden rounded-xl border border-zinc-200">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>이름</TableHead>
-              <TableHead>부서</TableHead>
-              <TableHead>직책</TableHead>
-              <TableHead>전화</TableHead>
-              <TableHead>이메일</TableHead>
-              <TableHead className="w-[80px]" />
+            <TableRow className="bg-zinc-50">
+              <TableHead className="h-10 px-4 text-xs font-semibold text-zinc-500">이름</TableHead>
+              <TableHead className="h-10 px-4 text-center text-xs font-semibold text-zinc-500">부서</TableHead>
+              <TableHead className="h-10 px-4 text-center text-xs font-semibold text-zinc-500">직책</TableHead>
+              <TableHead className="h-10 px-4 text-center text-xs font-semibold text-zinc-500">전화</TableHead>
+              <TableHead className="h-10 px-4 text-center text-xs font-semibold text-zinc-500">이메일</TableHead>
+              <TableHead className="h-10 w-[80px] px-4" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {(!contacts || contacts.length === 0) ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-24 text-center text-zinc-400">
                   등록된 연락처가 없습니다
                 </TableCell>
               </TableRow>
             ) : (
               contacts.map((contact) => (
-                <TableRow key={contact.id}>
-                  <TableCell className="font-medium">{contact.name}</TableCell>
-                  <TableCell>{contact.department ?? '-'}</TableCell>
-                  <TableCell>{contact.position ?? '-'}</TableCell>
-                  <TableCell>{contact.phone ?? '-'}</TableCell>
-                  <TableCell>{contact.email ?? '-'}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
+                <TableRow key={contact.id} className="h-11 border-b border-zinc-100">
+                  <TableCell className="px-4 text-sm font-medium text-zinc-900">{contact.name}</TableCell>
+                  <TableCell className="px-4 text-center text-[13px] text-zinc-500">{contact.department ?? '-'}</TableCell>
+                  <TableCell className="px-4 text-center text-[13px] text-zinc-500">{contact.position ?? '-'}</TableCell>
+                  <TableCell className="px-4 text-center text-[13px] text-zinc-500">{contact.phone ?? '-'}</TableCell>
+                  <TableCell className="px-4 text-center text-[13px] text-zinc-500">{contact.email ?? '-'}</TableCell>
+                  <TableCell className="px-4">
+                    <div className="flex justify-center gap-1">
                       <Button
                         variant="ghost"
                         size="icon"

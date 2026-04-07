@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronRight, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { CLIENT_TYPES, BUSINESS_TYPES } from '@/lib/constants';
 import type { ClientRow } from '@/lib/services/client-service';
 
@@ -68,10 +69,13 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
       <>
         <TableRow
           key={client.id}
-          className="cursor-pointer hover:bg-accent/5"
+          className={cn(
+            'h-12 cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-50',
+            isChild && 'bg-zinc-50/50',
+          )}
           onClick={() => router.push(`/clients/${client.id}`)}
         >
-          <TableCell className={isChild ? 'pl-10' : ''}>
+          <TableCell className={cn('px-4', isChild && 'pl-10')}>
             <div className="flex items-center gap-2">
               {hasChildren && (
                 <Button
@@ -124,17 +128,17 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="overflow-hidden rounded-xl border border-zinc-200">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-[280px]">고객명</TableHead>
-            <TableHead className="w-[120px]">비즈니스</TableHead>
-            <TableHead className="w-[100px]">유형</TableHead>
-            <TableHead className="w-[60px]">등급</TableHead>
-            <TableHead className="w-[120px]">사내 담당자</TableHead>
-            <TableHead className="w-[120px]">고객사 담당자</TableHead>
-            <TableHead className="w-[80px]">계약 수</TableHead>
+          <TableRow className="bg-zinc-50">
+            <TableHead className="h-11 w-[280px] px-4 text-[13px] font-medium text-zinc-500">고객명</TableHead>
+            <TableHead className="h-11 w-[120px] px-4 text-[13px] font-medium text-zinc-500">비즈니스</TableHead>
+            <TableHead className="h-11 w-[100px] px-4 text-[13px] font-medium text-zinc-500">유형</TableHead>
+            <TableHead className="h-11 w-[60px] px-4 text-[13px] font-medium text-zinc-500">등급</TableHead>
+            <TableHead className="h-11 w-[120px] px-4 text-[13px] font-medium text-zinc-500">사내 담당자</TableHead>
+            <TableHead className="h-11 w-[120px] px-4 text-[13px] font-medium text-zinc-500">고객사 담당자</TableHead>
+            <TableHead className="h-11 w-[80px] px-4 text-[13px] font-medium text-zinc-500">계약 수</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

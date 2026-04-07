@@ -31,16 +31,16 @@ export function ClientListFilters({
   onBusinessTypeChange,
 }: ClientListFiltersProps) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
       <Select
         value={clientType ?? 'all'}
         onValueChange={(v) => onClientTypeChange(v === 'all' ? undefined : v)}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="h-8 w-auto gap-1.5 rounded-md border-zinc-200 px-3 text-[13px]">
           <SelectValue placeholder="고객 유형" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">전체 유형</SelectItem>
+          <SelectItem value="all">전체 고객 유형</SelectItem>
           {Object.entries(CLIENT_TYPES).map(([key, label]) => (
             <SelectItem key={key} value={key}>
               {label}
@@ -53,11 +53,11 @@ export function ClientListFilters({
         value={businessType ?? 'all'}
         onValueChange={(v) => onBusinessTypeChange(v === 'all' ? undefined : v)}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="h-8 w-auto gap-1.5 rounded-md border-zinc-200 px-3 text-[13px]">
           <SelectValue placeholder="비즈니스" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">전체</SelectItem>
+          <SelectItem value="all">전체 비즈니스</SelectItem>
           {Object.entries(BUSINESS_TYPES).map(([key, label]) => (
             <SelectItem key={key} value={key}>
               {label}
@@ -66,20 +66,22 @@ export function ClientListFilters({
         </SelectContent>
       </Select>
 
-      <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="relative w-60">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
         <Input
           placeholder="고객명 검색..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-9"
+          className="h-9 rounded-lg border-zinc-200 pl-9 text-[13px]"
         />
       </div>
 
+      <div className="flex-1" />
+
       <Link href="/clients/new">
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          고객 추가
+        <Button className="h-9 gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium hover:bg-blue-700">
+          <Plus className="h-4 w-4" />
+          새 고객
         </Button>
       </Link>
     </div>

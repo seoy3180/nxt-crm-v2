@@ -47,9 +47,8 @@ export const clientService = {
     const to = from + pageSize - 1;
 
     let q = supabase
-      .from('clients')
-      .select('*, profiles!clients_assigned_to_fkey(name)', { count: 'exact' })
-      .is('deleted_at', null)
+      .from('client_list_view')
+      .select('*', { count: 'exact' })
       .order(sortBy, { ascending: sortOrder === 'asc' })
       .range(from, to);
 
@@ -76,20 +75,38 @@ export const clientService = {
   },
 
   async getById(id: string) {
+    // 기본 정보 + 부모 조회
     const { data, error } = await supabase
       .from('clients')
       .select(`
         *,
-        profiles!clients_assigned_to_fkey(name),
-        parent:clients!clients_parent_id_fkey(id, name, client_id),
-        children:clients!clients_parent_id_fkey(id, name, client_id, client_type, grade, business_types, status)
+        profiles!clients_assigned_to_fkey(name)
       `)
       .eq('id', id)
       .is('deleted_at', null)
       .single();
 
     if (error) throw error;
-    return data as unknown as ClientRow;
+
+    // 부모 정보 별도 조회
+    let parent = null;
+    if (data.parent_id) {
+      const { data: parentData } = await supabase
+        .from('clients')
+        .select('id, name, client_id')
+        .eq('id', data.parent_id)
+        .single();
+      parent = parentData;
+    }
+
+    // 자식 고객 별도 조회
+    const { data: children } = await supabase
+      .from('clients')
+      .select('id, name, client_id, client_type, grade, business_types, status')
+      .eq('parent_id', id)
+      .is('deleted_at', null);
+
+    return { ...data, parent, children: children ?? [] } as unknown as ClientRow;
   },
 
   async create(input: ClientCreateInput) {

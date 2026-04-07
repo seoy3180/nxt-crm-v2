@@ -4,10 +4,9 @@ import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthContext } from '@/providers/auth-provider';
 import { loginSchema, type LoginInput } from '@/lib/validators/common';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Hexagon } from 'lucide-react';
 
 function LoginFormInner() {
   const router = useRouter();
@@ -51,20 +50,32 @@ function LoginFormInner() {
   }
 
   return (
-    <Card className="w-full max-w-sm border-border">
-      <CardHeader className="text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border-2 border-accent">
-          <span className="text-xl font-bold text-accent">N</span>
+    <div className="w-[400px] rounded-2xl border border-zinc-200 bg-white p-10">
+      <div className="flex flex-col items-center gap-6">
+        {/* 로고 */}
+        <div className="flex items-center justify-center gap-2.5">
+          <div className="relative h-9 w-9">
+            <Hexagon className="h-9 w-9 text-blue-600" />
+            <span className="absolute inset-0 flex items-center justify-center text-[15px] font-bold text-blue-600">
+              N
+            </span>
+          </div>
+          <span className="text-[22px] font-bold text-zinc-900">NXT CRM</span>
         </div>
-        <CardTitle className="text-2xl font-bold text-text-primary">NXT CRM</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        {/* 타이틀 */}
+        <div className="flex flex-col items-center gap-1.5">
+          <h1 className="text-xl font-semibold text-zinc-900">로그인</h1>
+          <p className="text-sm text-zinc-500">계정 정보를 입력해주세요</p>
+        </div>
+
+        {/* 폼 */}
+        <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4">
           {errors.root && (
-            <p className="text-sm text-error">{errors.root}</p>
+            <p className="text-sm text-red-500">{errors.root}</p>
           )}
-          <div className="space-y-2">
-            <Label htmlFor="email">이메일</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="email" className="text-sm font-medium text-zinc-900">이메일</Label>
             <Input
               id="email"
               name="email"
@@ -72,30 +83,36 @@ function LoginFormInner() {
               placeholder="이메일을 입력하세요"
               autoComplete="email"
               autoFocus
+              className="h-10"
             />
             {errors.email && (
-              <p className="text-sm text-error">{errors.email}</p>
+              <p className="text-sm text-red-500">{errors.email}</p>
             )}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">비밀번호</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="password" className="text-sm font-medium text-zinc-900">비밀번호</Label>
             <Input
               id="password"
               name="password"
               type="password"
               placeholder="비밀번호를 입력하세요"
               autoComplete="current-password"
+              className="h-10"
             />
             {errors.password && (
-              <p className="text-sm text-error">{errors.password}</p>
+              <p className="text-sm text-red-500">{errors.password}</p>
             )}
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+          >
             {loading ? '로그인 중...' : '로그인'}
-          </Button>
+          </button>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

@@ -67,7 +67,7 @@ export const SIDEBAR_SECTIONS = [
     allowedRoles: ['admin', 'c_level'] as UserRole[],
     items: [
       { href: '/dashboard', label: '대시보드', icon: 'layout-dashboard' },
-      { href: '/clients', label: '고객 관리', icon: 'building-2' },
+      { href: '/clients', label: '고객 관리', icon: 'users' },
       { href: '/contracts', label: '계약 관리', icon: 'file-text' },
       { href: '/revenue', label: '매출 분석', icon: 'trending-up' },
     ],
@@ -78,10 +78,10 @@ export const SIDEBAR_SECTIONS = [
     allowedRoles: ['admin', 'c_level'] as UserRole[],
     allowedTeams: ['msp'] as TeamType[],
     items: [
-      { href: '/msp', label: '대시보드', icon: 'layout-dashboard' },
-      { href: '/msp/clients', label: '고객', icon: 'building-2' },
-      { href: '/msp/contracts', label: '계약', icon: 'file-text' },
-      { href: '/msp/contacts', label: '연락처', icon: 'contact' },
+      { href: '/msp', label: 'MSP 대시보드', icon: 'activity' },
+      { href: '/msp/clients', label: 'MSP 고객', icon: 'building' },
+      { href: '/msp/contracts', label: 'MSP 계약', icon: 'cloud' },
+      { href: '/msp/contacts', label: 'MSP 연락처', icon: 'contact' },
     ],
   },
   {
@@ -90,9 +90,9 @@ export const SIDEBAR_SECTIONS = [
     allowedRoles: ['admin', 'c_level'] as UserRole[],
     allowedTeams: ['education'] as TeamType[],
     items: [
-      { href: '/edu', label: '대시보드', icon: 'layout-dashboard' },
-      { href: '/edu/clients', label: '고객', icon: 'building-2' },
-      { href: '/edu/contracts', label: '계약', icon: 'file-text' },
+      { href: '/edu', label: '교육 대시보드', icon: 'layout-dashboard' },
+      { href: '/edu/contracts', label: '교육 계약', icon: 'graduation-cap' },
+      { href: '/edu/operations', label: '교육 운영', icon: 'calendar' },
     ],
   },
   {
@@ -101,7 +101,7 @@ export const SIDEBAR_SECTIONS = [
     allowedRoles: ['admin', 'c_level'] as UserRole[],
     allowedTeams: ['dev'] as TeamType[],
     items: [
-      { href: '/dev', label: '대시보드', icon: 'layout-dashboard' },
+      { href: '/dev', label: '준비 중...', icon: 'code', disabled: true },
     ],
   },
 ] as const;

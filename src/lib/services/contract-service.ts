@@ -27,6 +27,7 @@ export interface ContractRow {
   client_display_id?: string;
   assigned_to_name?: string;
   contact_name?: string;
+  client_contact_name?: string;
   msp_details?: MspDetailRow | null;
   tt_details?: TtDetailRow | null;
 }
@@ -92,7 +93,8 @@ export const contractService = {
       .select(`
         *,
         clients!contracts_client_id_fkey(name, client_id),
-        profiles!contracts_assigned_to_fkey(name)
+        profiles!contracts_assigned_to_fkey(name),
+        contacts!contracts_contact_id_fkey(name)
       `, { count: 'exact' })
       .is('deleted_at', null)
       .order(sortBy, { ascending: sortOrder === 'asc' })
@@ -111,8 +113,16 @@ export const contractService = {
     const { data, count, error } = await q;
     if (error) throw error;
 
+    const mapped = (data ?? []).map((row: Record<string, unknown>) => ({
+      ...row,
+      client_name: (row.clients as { name: string } | null)?.name ?? null,
+      client_display_id: (row.clients as { client_id: string } | null)?.client_id ?? null,
+      assigned_to_name: (row.profiles as { name: string } | null)?.name ?? null,
+      client_contact_name: (row.contacts as { name: string } | null)?.name ?? null,
+    }));
+
     return {
-      data: (data ?? []) as unknown as ContractRow[],
+      data: mapped as unknown as ContractRow[],
       total: count ?? 0,
       page,
       pageSize,
