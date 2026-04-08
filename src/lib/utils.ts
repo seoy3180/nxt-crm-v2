@@ -12,8 +12,10 @@ export function formatRevenue(amount: number) {
   return `₩ ${amount.toLocaleString()}`;
 }
 
-export function formatTimeAgo(dateStr: string) {
+export function formatTimeAgo(dateStr: string | null | undefined) {
+  if (!dateStr) return '-';
   const diff = Date.now() - new Date(dateStr).getTime();
+  if (isNaN(diff)) return '-';
   const mins = Math.floor(diff / 60000);
   if (mins < 60) return `${mins}분 전`;
   const hours = Math.floor(mins / 60);

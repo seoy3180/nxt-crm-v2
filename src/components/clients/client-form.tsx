@@ -17,20 +17,26 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ChevronsUpDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CLIENT_TYPES, CLIENT_GRADES, BUSINESS_TYPES } from '@/lib/constants';
+import { CLIENT_TYPES, CLIENT_GRADES, BUSINESS_TYPES, MSP_GRADES } from '@/lib/constants';
 import { clientCreateSchema } from '@/lib/validators/client';
 import { useCreateClient } from '@/hooks/use-client-mutations';
 import { useClients } from '@/hooks/use-clients';
 import { toast } from 'sonner';
 
-export function ClientForm() {
+interface ClientFormProps {
+  defaultBusinessTypes?: string[];
+  hideBusinessTypes?: boolean;
+  hideGrade?: boolean;
+}
+
+export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade }: ClientFormProps = {}) {
   const router = useRouter();
   const createClient = useCreateClient();
   const { data: clientsData } = useClients({ page: 1, pageSize: 200, sortBy: 'name', sortOrder: 'asc' });
   const allClients = clientsData?.data ?? [];
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [selectedBusinessTypes, setSelectedBusinessTypes] = useState<string[]>([]);
+  const [selectedBusinessTypes, setSelectedBusinessTypes] = useState<string[]>(defaultBusinessTypes ?? []);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [parentOpen, setParentOpen] = useState(false);
 
@@ -60,6 +66,33 @@ export function ClientForm() {
     }
 
     const data = await createClient.mutateAsync(result.data);
+
+    // 비즈니스 타입별 상세 저장
+    const { createClient: createSupabase } = await import('@/lib/supabase/client');
+    const supabase = createSupabase();
+
+    if (selectedBusinessTypes.includes('msp')) {
+      const mspData = {
+        client_id: data.id,
+        msp_grade: formData.get('mspGrade') || null,
+        industry: formData.get('industry') || null,
+        company_size: formData.get('companySize') || null,
+        aws_am: formData.get('awsAm') || null,
+        aws_account_ids: (formData.get('awsAccountIds') as string)?.split(',').map(s => s.trim()).filter(Boolean) ?? [],
+        tags: (formData.get('tags') as string)?.split(',').map(s => s.trim()).filter(Boolean) ?? [],
+        memo: formData.get('mspMemo') || null,
+      };
+      await supabase.from('client_msp_details').insert(mspData as { client_id: string });
+    }
+
+    if (selectedBusinessTypes.includes('tt')) {
+      const eduData = {
+        client_id: data.id,
+        memo: formData.get('eduMemo') || null,
+      };
+      await supabase.from('client_edu_details').insert(eduData as { client_id: string });
+    }
+
     toast.success('고객이 등록되었습니다');
     router.push(`/clients/${data.id}`);
   }
@@ -72,6 +105,26 @@ export function ClientForm() {
 
   return (
     <form onSubmit={handleSubmit} className="w-[640px] space-y-5">
+      {/* 비즈니스 타입 */}
+      {!hideBusinessTypes && (
+        <div className="space-y-1.5">
+          <Label>비즈니스 타입</Label>
+          <div className="flex gap-2">
+            {Object.entries(BUSINESS_TYPES).map(([key, label]) => (
+              <Button
+                key={key}
+                type="button"
+                variant={selectedBusinessTypes.includes(key) ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => toggleBusinessType(key)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 고객명 */}
       <div className="space-y-1.5">
         <Label htmlFor="name">고객명 *</Label>
@@ -95,19 +148,21 @@ export function ClientForm() {
           </Select>
           {errors.clientType && <p className="text-sm text-red-500">{errors.clientType}</p>}
         </div>
-        <div className="flex-1 space-y-1.5">
-          <Label htmlFor="grade">등급</Label>
-          <Select name="grade">
-            <SelectTrigger>
-              <SelectValue placeholder="등급 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {CLIENT_GRADES.map((g) => (
-                <SelectItem key={g} value={g}>{g}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!hideGrade && (
+          <div className="flex-1 space-y-1.5">
+            <Label htmlFor="grade">등급</Label>
+            <Select name="grade">
+              <SelectTrigger>
+                <SelectValue placeholder="등급 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {CLIENT_GRADES.map((g) => (
+                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* 상위 고객 */}
@@ -155,29 +210,89 @@ export function ClientForm() {
         </Popover>
       </div>
 
-      {/* 비즈니스 타입 */}
-      <div className="space-y-1.5">
-        <Label>비즈니스 타입</Label>
-        <div className="flex gap-2">
-          {Object.entries(BUSINESS_TYPES).map(([key, label]) => (
-            <Button
-              key={key}
-              type="button"
-              variant={selectedBusinessTypes.includes(key) ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => toggleBusinessType(key)}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-      </div>
-
       {/* 메모 */}
       <div className="space-y-1.5">
         <Label htmlFor="memo">메모</Label>
-        <Textarea id="memo" name="memo" placeholder="메모를 입력하세요" rows={3} />
+        <Textarea id="memo" name="memo" placeholder={selectedBusinessTypes.length > 0 ? "전사 공유 메모 (다른 팀과 공유되는 정보)" : "메모를 입력하세요"} rows={3} />
       </div>
+
+      {/* MSP 상세 */}
+      {selectedBusinessTypes.includes('msp') && (
+        <>
+          <div className="h-px bg-zinc-200" />
+          <h3 className="text-base font-semibold text-zinc-900">MSP 정보</h3>
+
+          <div className="flex gap-4">
+            <div className="flex-1 space-y-1.5">
+              <Label>MSP 등급</Label>
+              <Select name="mspGrade">
+                <SelectTrigger><SelectValue placeholder="등급 선택" /></SelectTrigger>
+                <SelectContent>
+                  {MSP_GRADES.map((g) => (
+                    <SelectItem key={g} value={g}>{g}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <Label>산업군</Label>
+              <Select name="industry">
+                <SelectTrigger><SelectValue placeholder="산업군 선택" /></SelectTrigger>
+                <SelectContent>
+                  {['IT', '제조', '금융', '유통', '공공', '서울대 연구실', '기타'].map((v) => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <Label>기업 규모</Label>
+              <Select name="companySize">
+                <SelectTrigger><SelectValue placeholder="규모 선택" /></SelectTrigger>
+                <SelectContent>
+                  {['스타트업', '중소기업', '중견기업', '대기업', '공공기관'].map((v) => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-1 space-y-1.5">
+              <Label>AWS AM</Label>
+              <Input name="awsAm" placeholder="AWS 담당자명" />
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <Label>AWS 계정 ID</Label>
+              <Input name="awsAccountIds" placeholder="쉼표로 구분 (예: 123456, 789012)" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>태그</Label>
+            <Input name="tags" placeholder="쉼표로 구분 (예: 파트너, VIP)" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>MSP 메모</Label>
+            <Textarea name="mspMemo" placeholder="MSP팀 내부 메모" rows={2} />
+          </div>
+        </>
+      )}
+
+      {/* 교육 상세 */}
+      {selectedBusinessTypes.includes('tt') && (
+        <>
+          <div className="h-px bg-zinc-200" />
+          <h3 className="text-base font-semibold text-zinc-900">교육 정보</h3>
+
+          <div className="space-y-1.5">
+            <Label>교육 메모</Label>
+            <Textarea name="eduMemo" placeholder="교육팀 내부 메모" rows={2} />
+          </div>
+        </>
+      )}
 
       {/* 버튼 */}
       <div className="flex justify-end gap-3">

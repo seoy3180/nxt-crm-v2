@@ -160,7 +160,7 @@ export default function MspDashboardPage() {
                 </span>
                 <span className="text-[13px] font-medium text-zinc-900">새 MSP 계약</span>
               </Link>
-              <Link href="/clients/new" className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-zinc-50">
+              <Link href="/msp/clients/new" className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-zinc-50">
                 <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50">
                   <Users className="h-3.5 w-3.5 text-blue-600" />
                 </span>

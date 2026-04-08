@@ -53,18 +53,17 @@ export default function ClientsPage() {
   }
 
   return (
-    <div>
-      <PageHeader title="고객 관리" />
+    <div className="flex flex-1 flex-col gap-5">
+      <h1 className="text-2xl font-semibold text-zinc-900">고객 관리</h1>
 
-      <div className="space-y-4">
-        <ClientListFilters
-          search={search}
-          onSearchChange={handleSearchChange}
-          clientType={clientType}
-          onClientTypeChange={(v) => { setClientType(v); setPage(1); }}
-          businessType={businessType}
-          onBusinessTypeChange={(v) => { setBusinessType(v); setPage(1); }}
-        />
+      <ClientListFilters
+        search={search}
+        onSearchChange={handleSearchChange}
+        clientType={clientType}
+        onClientTypeChange={(v) => { setClientType(v); setPage(1); }}
+        businessType={businessType}
+        onBusinessTypeChange={(v) => { setBusinessType(v); setPage(1); }}
+      />
 
         <ClientTreeTable
           clients={data?.data ?? []}
@@ -94,7 +93,6 @@ export default function ClientsPage() {
             </Button>
           </div>
         )}
-      </div>
     </div>
   );
 }

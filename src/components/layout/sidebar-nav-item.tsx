@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useEditMode } from '@/providers/edit-mode-provider';
 import {
   LayoutDashboard,
   Users,
@@ -40,6 +41,7 @@ interface SidebarNavItemProps {
 
 export function SidebarNavItem({ href, label, icon, disabled }: SidebarNavItemProps) {
   const pathname = usePathname();
+  const { isEditing } = useEditMode();
   const dashboardPaths = ['/dashboard', '/msp', '/edu', '/dev'];
   const isActive = pathname === href || (!dashboardPaths.includes(href) && pathname.startsWith(href + '/'));
 
@@ -49,6 +51,21 @@ export function SidebarNavItem({ href, label, icon, disabled }: SidebarNavItemPr
     return (
       <span
         className="flex h-9 items-center gap-2.5 rounded-lg px-3 text-[13px] text-muted-foreground opacity-40"
+      >
+        {IconComponent && <IconComponent className="h-4 w-4" />}
+        <span>{label}</span>
+      </span>
+    );
+  }
+
+  if (isEditing) {
+    return (
+      <span
+        className={cn(
+          'flex h-9 items-center gap-2.5 rounded-lg px-3 text-[13px] cursor-not-allowed opacity-50',
+          isActive ? 'bg-blue-50 font-medium text-blue-600' : 'text-zinc-500',
+        )}
+        title="편집 모드에서는 이동할 수 없습니다"
       >
         {IconComponent && <IconComponent className="h-4 w-4" />}
         <span>{label}</span>

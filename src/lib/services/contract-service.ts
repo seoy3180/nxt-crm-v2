@@ -100,9 +100,6 @@ export const contractService = {
       .order(sortBy, { ascending: sortOrder === 'asc' })
       .range(from, to);
 
-    if (search) {
-      q = q.ilike('name', `%${search}%`);
-    }
     if (type) {
       q = q.eq('type', type);
     }
@@ -121,12 +118,22 @@ export const contractService = {
       client_contact_name: (row.contacts as { name: string } | null)?.name ?? null,
     }));
 
+    // 클라이언트에서 계약명 + 고객명 검색
+    const filtered = search
+      ? mapped.filter((row) => {
+          const s = search.toLowerCase();
+          const name = String((row as Record<string, unknown>).name ?? '').toLowerCase();
+          const clientName = String(row.client_name ?? '').toLowerCase();
+          return name.includes(s) || clientName.includes(s);
+        })
+      : mapped;
+
     return {
-      data: mapped as unknown as ContractRow[],
-      total: count ?? 0,
+      data: filtered as unknown as ContractRow[],
+      total: search ? filtered.length : (count ?? 0),
       page,
       pageSize,
-      totalPages: Math.ceil((count ?? 0) / pageSize),
+      totalPages: search ? 1 : Math.ceil((count ?? 0) / pageSize),
     };
   },
 
