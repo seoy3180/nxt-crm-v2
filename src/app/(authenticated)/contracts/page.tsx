@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useCallback } from 'react';
+import { Suspense, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -31,13 +31,14 @@ function ContractsPageInner() {
   const [stage, setStage] = useState<string | undefined>();
   const [page, setPage] = useState(1);
 
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
-    const timer = setTimeout(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
       setDebouncedSearch(value);
       setPage(1);
     }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
   }, []);
 
   const { data, isLoading, isError, refetch } = useContracts({

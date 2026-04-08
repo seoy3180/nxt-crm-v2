@@ -105,6 +105,7 @@ export function ContractForm() {
         }
       }
 
+      toast.success('계약이 등록되었습니다');
       router.push(`/contracts/${contract.id}`);
     } catch {
       toast.error('계약 등록에 실패했습니다');

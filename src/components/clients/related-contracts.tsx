@@ -1,7 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useContracts } from '@/hooks/use-contracts';
+import { useQuery } from '@tanstack/react-query';
+import { createClient } from '@/lib/supabase/client';
+import type { ContractRow } from '@/lib/services/contract-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BUSINESS_TYPES, MSP_STAGES, EDU_STAGES } from '@/lib/constants';
@@ -23,11 +25,28 @@ function formatAmount(amount: number) {
 
 export function RelatedContracts({ clientId, childClientIds }: RelatedContractsProps) {
   const router = useRouter();
-  const { data, isLoading } = useContracts({ page: 1, pageSize: 100, sortBy: 'created_at', sortOrder: 'desc' });
-
   const hasChildren = (childClientIds ?? []).length > 0;
-  const targetIds = new Set([clientId, ...(childClientIds ?? [])]);
-  const contracts = data?.data?.filter((c) => targetIds.has(c.client_id)) ?? [];
+  const targetIds = [clientId, ...(childClientIds ?? [])];
+
+  const { data: contracts = [], isLoading } = useQuery({
+    queryKey: ['related-contracts', clientId, childClientIds],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name)')
+        .in('client_id', targetIds)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map((row: Record<string, unknown>) => ({
+        ...row,
+        client_name: (row.clients as { name: string } | null)?.name ?? null,
+        assigned_to_name: (row.profiles as { name: string } | null)?.name ?? null,
+        client_contact_name: (row.contacts as { name: string } | null)?.name ?? null,
+      })) as unknown as ContractRow[];
+    },
+  });
 
   if (isLoading) return <Skeleton className="h-32 w-full" />;
 
@@ -61,13 +80,18 @@ export function RelatedContracts({ clientId, childClientIds }: RelatedContractsP
               </TableRow>
             ) : (
               contracts.map((c) => (
-                <TableRow key={c.id} className="h-11 cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-50" onClick={() => router.push(`/contracts/${c.id}`)}>
+                <TableRow key={c.id} tabIndex={0} className="h-11 cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none" onClick={() => router.push(`/contracts/${c.id}`)} onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/contracts/${c.id}`); }}>
                   {hasChildren && <TableCell className="w-[140px] px-4 text-sm font-medium text-zinc-900">{c.client_name ?? '-'}</TableCell>}
                   <TableCell className="px-4 text-sm font-medium text-zinc-900">{c.name}</TableCell>
                   <TableCell className="w-[80px] px-4 text-center">
-                    <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-600">
-                      {BUSINESS_TYPES[c.type as keyof typeof BUSINESS_TYPES] ?? c.type}
-                    </span>
+                    {(() => {
+                      const colors: Record<string, string> = { msp: 'bg-blue-100 text-blue-600', tt: 'bg-amber-100 text-amber-700', dev: 'bg-zinc-100 text-zinc-600' };
+                      return (
+                        <span className={`inline-block rounded px-2 py-0.5 text-[11px] font-semibold ${colors[c.type] ?? 'bg-zinc-100 text-zinc-600'}`}>
+                          {BUSINESS_TYPES[c.type as keyof typeof BUSINESS_TYPES] ?? c.type}
+                        </span>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="w-[100px] px-4 text-center">
                     <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-600">

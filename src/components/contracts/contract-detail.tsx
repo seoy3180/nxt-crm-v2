@@ -1,14 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ContractInfoCard } from './contract-info-card';
 import { MspDetailCard } from './msp-detail-card';
 import { EduOperationsTable } from './edu-operations-table';
 import { StageHistory } from './stage-history';
+import { StageChangeDialog } from './stage-change-dialog';
 import { ContractDeleteZone } from './contract-delete-zone';
 import { MSP_STAGES, EDU_STAGES } from '@/lib/constants';
 import type { ContractRow } from '@/lib/services/contract-service';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft } from 'lucide-react';
 
 interface ContractDetailProps {
   contract: ContractRow;
@@ -22,6 +24,7 @@ function getStageLabel(stage: string | null, type: string) {
 
 export function ContractDetail({ contract }: ContractDetailProps) {
   const router = useRouter();
+  const [stageDialogOpen, setStageDialogOpen] = useState(false);
 
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -48,10 +51,11 @@ export function ContractDetail({ contract }: ContractDetailProps) {
         </div>
         <button
           type="button"
+          onClick={() => setStageDialogOpen(true)}
           className="flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 px-4 text-[13px] font-medium text-zinc-500 transition-colors hover:bg-zinc-50"
         >
-          <Pencil className="h-3.5 w-3.5" />
-          수정
+          <ArrowRightLeft className="h-3.5 w-3.5" />
+          단계 변경
         </button>
       </div>
 
@@ -82,6 +86,14 @@ export function ContractDetail({ contract }: ContractDetailProps) {
           isSettled={contract.stage === 'settled'}
         />
       </div>
+
+      <StageChangeDialog
+        open={stageDialogOpen}
+        onOpenChange={setStageDialogOpen}
+        contractId={contract.id}
+        contractType={contract.type}
+        currentStage={contract.stage}
+      />
     </div>
   );
 }

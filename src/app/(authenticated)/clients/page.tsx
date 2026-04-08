@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ClientListFilters } from '@/components/clients/client-list-filters';
 import { ClientTreeTable } from '@/components/clients/client-tree-table';
@@ -10,10 +10,9 @@ import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-// 디바운스 훅
-function useDebounce(value: string, delay: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  const timeoutRef = { current: null as ReturnType<typeof setTimeout> | null };
+function useDebounce(delay: number) {
+  const [debouncedValue, setDebouncedValue] = useState('');
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setValueDebounced = useCallback(
     (newValue: string) => {
@@ -28,7 +27,7 @@ function useDebounce(value: string, delay: number) {
 
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useDebounce('', SEARCH_DEBOUNCE_MS);
+  const [debouncedSearch, setDebouncedSearch] = useDebounce(SEARCH_DEBOUNCE_MS);
   const [clientType, setClientType] = useState<string | undefined>();
   const [businessType, setBusinessType] = useState<string | undefined>();
   const [page, setPage] = useState(1);

@@ -72,7 +72,9 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
             'h-12 cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-50',
             isChild && 'bg-zinc-50/50',
           )}
+          tabIndex={0}
           onClick={() => router.push(`/clients/${client.id}`)}
+          onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/clients/${client.id}`); }}
         >
           <TableCell className={cn('px-4', isChild && 'pl-10')}>
             <div className="flex items-center gap-2">

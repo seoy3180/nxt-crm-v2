@@ -21,6 +21,7 @@ import { CLIENT_TYPES, CLIENT_GRADES, BUSINESS_TYPES } from '@/lib/constants';
 import { clientCreateSchema } from '@/lib/validators/client';
 import { useCreateClient } from '@/hooks/use-client-mutations';
 import { useClients } from '@/hooks/use-clients';
+import { toast } from 'sonner';
 
 export function ClientForm() {
   const router = useRouter();
@@ -59,6 +60,7 @@ export function ClientForm() {
     }
 
     const data = await createClient.mutateAsync(result.data);
+    toast.success('고객이 등록되었습니다');
     router.push(`/clients/${data.id}`);
   }
 
