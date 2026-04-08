@@ -12,25 +12,28 @@
 - 계약 CRUD (Plan 2B) — 8개 Task
 - UI 업그레이드 (feat/ui-upgrade)
   - pen 디자인 기준 전체 화면 UI 맞춤
-  - 사이드바, 로그인, 대시보드, 고객 CRUD, 계약 CRUD, 프로필
   - 칸반 DnD, 교육 운영 아코디언 + 일자별 시간 입력
   - Combobox 고객/상위고객 검색, 새 고객/연락처 인라인 생성
-  - 계약 상세 pen 스타일, MSP 카드, 삭제 영역 하단 고정
-  - DB: client_list_view, education_operation_dates 테이블, notes 컬럼
-- Plan 2C 일부 (feat/plan-2c)
+  - DB: client_list_view, education_operation_dates, notes 컬럼
+- Plan 2C (feat/plan-2c)
   - 글로벌 검색 (Cmd+K) — 고객/연락처/계약 통합 검색
   - 대시보드 고도화 — KPI 실 데이터, 월별 매출 차트, 파이프라인, 팀별 매출, 최근 활동
-  - 코드 리뷰 + UI/UX 리뷰 P0/P1 전부 반영
+  - MSP 섹션 — 대시보드(KPI+차트+등급분포+파이프라인+빠른작업+최근활동), 고객, 계약(칸반/테이블), 연락처, 계약 등록
+  - 공용 컴포넌트 추출 — KpiCard, formatRevenue, formatTimeAgo
+  - use-msp-dashboard.ts 훅 분리
+  - ContractForm defaultType/hideTypeSelector prop 추가
+  - 코드 리뷰 2회 + UI/UX 리뷰 1회 반영 (P0/P1 전부)
+  - DB 보안 경고 전부 해결 (SECURITY INVOKER 뷰, RLS 정책, search_path, pg_trgm 이동)
 
 ## 테스트 현황
 - 5개 파일, 47개 테스트 전부 PASS
-- 코드 리뷰 2회 + UI/UX 리뷰 1회 완료
+- 코드 리뷰 3회 + UI/UX 리뷰 1회 완료
 
 ## 진행 중
 - feat/plan-2c 브랜치
 
 ## 다음 작업 (우선순위)
-1. **MSP 섹션** — /msp/dashboard, /msp/clients, /msp/contracts, /msp/contacts
+1. **MSP 고객 인라인 편집** — 편집 모드 토글, 컬럼 설정, 인라인 수정 (pen 디자인 있음)
 2. **EDU 섹션** — /edu/dashboard, /edu/contracts, /edu/operations
 3. **매출 분석** — /revenue, /revenue/by-team
 4. **P2 리뷰 항목** — 반응형, 금액 포맷팅, 필터 높이 통일 등
