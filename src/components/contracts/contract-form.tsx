@@ -30,13 +30,18 @@ import { EduFields } from './edu-fields';
 import { toast } from 'sonner';
 import type { ContactCreateInput } from '@/lib/validators/client';
 
-export function ContractForm() {
+interface ContractFormProps {
+  defaultType?: string;
+  hideTypeSelector?: boolean;
+}
+
+export function ContractForm({ defaultType = 'msp', hideTypeSelector }: ContractFormProps) {
   const router = useRouter();
   const createContract = useCreateContract();
   const { data: clientsData } = useClients({ page: 1, pageSize: 200, sortBy: 'name', sortOrder: 'asc' });
   const allClients = clientsData?.data ?? [];
   const { data: profiles } = useProfiles();
-  const [contractType, setContractType] = useState<string>('msp');
+  const [contractType, setContractType] = useState<string>(defaultType);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedClientName, setSelectedClientName] = useState<string>('');
   const { data: contacts } = useContacts(selectedClientId);
@@ -127,7 +132,7 @@ export function ContractForm() {
     <>
     <form onSubmit={handleSubmit} className="w-[640px] space-y-6">
       {/* 비즈니스 유형 선택 */}
-      <div className="space-y-2">
+      {!hideTypeSelector && <div className="space-y-2">
         <Label className="text-[13px]">비즈니스 유형</Label>
         <div className="flex gap-2">
           {Object.entries(BUSINESS_TYPES).map(([key, label]) => (
@@ -145,9 +150,9 @@ export function ContractForm() {
             </button>
           ))}
         </div>
-      </div>
+      </div>}
 
-      <div className="h-px bg-zinc-200" />
+      {!hideTypeSelector && <div className="h-px bg-zinc-200" />}
 
       {/* 기본 정보 */}
       <h3 className="text-base font-semibold text-zinc-900">기본 정보</h3>

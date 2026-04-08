@@ -1,41 +1,9 @@
 'use client';
 
 import { useDashboardStats, usePipeline, useMonthlyRevenue, useTeamRevenue, useRecentActivity } from '@/hooks/use-dashboard';
+import { KpiCard } from '@/components/common/kpi-card';
+import { formatRevenue, formatTimeAgo } from '@/lib/utils';
 import { MSP_STAGES, EDU_STAGES } from '@/lib/constants';
-
-interface KpiCardProps {
-  label: string;
-  value: string;
-  change: string;
-  changeColor?: string;
-}
-
-function KpiCard({ label, value, change, changeColor = 'text-zinc-500' }: KpiCardProps) {
-  return (
-    <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-5">
-      <span className="text-[13px] font-medium text-zinc-500">{label}</span>
-      <span className="text-[32px] font-bold leading-none text-zinc-900">{value}</span>
-      <span className={`text-xs ${changeColor}`}>{change}</span>
-    </div>
-  );
-}
-
-function formatRevenue(amount: number) {
-  if (amount >= 100000000) return `₩ ${(amount / 100000000).toFixed(1)}억`;
-  if (amount >= 10000000) return `₩ ${(amount / 10000000).toFixed(1)}천만`;
-  if (amount >= 10000) return `₩ ${Math.round(amount / 10000).toLocaleString()}만`;
-  return `₩ ${amount.toLocaleString()}`;
-}
-
-function formatTimeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}분 전`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}시간 전`;
-  const days = Math.floor(hours / 24);
-  return `${days}일 전`;
-}
 
 function getStageLabel(stage: string) {
   const all = [...MSP_STAGES, ...EDU_STAGES];
