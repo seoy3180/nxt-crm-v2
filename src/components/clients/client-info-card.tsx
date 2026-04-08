@@ -111,7 +111,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-8">
+      <div className="grid grid-cols-4 gap-8">
         <div className="space-y-1">
           <p className="text-xs font-medium text-zinc-400">고객사명</p>
           <p className="text-[15px] font-medium text-zinc-900">{client.name}</p>
@@ -132,11 +132,6 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
             <p className="text-[15px] font-medium text-zinc-900">-</p>
           )}
         </div>
-      </div>
-
-      <div className="h-px bg-zinc-100" />
-
-      <div className="grid grid-cols-3 gap-8">
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-zinc-400">비즈니스 타입</p>
           <div className="flex gap-1.5">
@@ -154,11 +149,6 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
             )}
           </div>
         </div>
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-zinc-400">사내 담당자</p>
-          <p className="text-[15px] font-medium text-zinc-900">{client.assigned_to_name ?? '-'}</p>
-        </div>
-        <div />
       </div>
 
       <div className="h-px bg-zinc-100" />

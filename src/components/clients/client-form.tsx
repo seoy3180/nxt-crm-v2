@@ -13,20 +13,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { ChevronsUpDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { CLIENT_TYPES, CLIENT_GRADES, BUSINESS_TYPES } from '@/lib/constants';
 import { clientCreateSchema } from '@/lib/validators/client';
 import { useCreateClient } from '@/hooks/use-client-mutations';
-import { useParentSearch, useProfiles } from '@/hooks/use-clients';
+import { useClients } from '@/hooks/use-clients';
 
 export function ClientForm() {
   const router = useRouter();
   const createClient = useCreateClient();
-  const { data: profiles } = useProfiles();
-  const [parentSearch, _setParentSearch] = useState('');
-  const { data: parents } = useParentSearch(parentSearch);
+  const { data: clientsData } = useClients({ page: 1, pageSize: 200, sortBy: 'name', sortOrder: 'asc' });
+  const allClients = clientsData?.data ?? [];
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedBusinessTypes, setSelectedBusinessTypes] = useState<string[]>([]);
+  const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
+  const [parentOpen, setParentOpen] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -38,8 +43,7 @@ export function ClientForm() {
       clientType: formData.get('clientType') as string,
       grade: formData.get('grade') || undefined,
       businessTypes: selectedBusinessTypes,
-      parentId: formData.get('parentId') || null,
-      assignedTo: formData.get('assignedTo') || null,
+      parentId: selectedParentId,
       memo: formData.get('memo') || null,
     };
 
@@ -106,19 +110,47 @@ export function ClientForm() {
 
       {/* 상위 고객 */}
       <div className="space-y-1.5">
-        <Label htmlFor="parentId">상위 고객</Label>
-        <Select name="parentId">
-          <SelectTrigger>
-            <SelectValue placeholder="상위 고객 선택 (선택사항)" />
-          </SelectTrigger>
-          <SelectContent>
-            {parents?.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name} ({p.client_id})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Label>상위 고객</Label>
+        <Popover open={parentOpen} onOpenChange={setParentOpen}>
+          <PopoverTrigger
+            className="flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 text-sm transition-colors hover:bg-zinc-50"
+          >
+            <span className={selectedParentId ? 'text-zinc-900' : 'text-zinc-400'}>
+              {selectedParentId
+                ? allClients.find((c) => c.id === selectedParentId)?.name ?? '선택됨'
+                : '상위 고객 검색 (선택사항)'}
+            </span>
+            <ChevronsUpDown className="h-4 w-4 text-zinc-400" />
+          </PopoverTrigger>
+          <PopoverContent className="w-[var(--anchor-width)] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="고객명 검색..." />
+              <CommandList>
+                <CommandEmpty>검색 결과가 없습니다</CommandEmpty>
+                <CommandGroup>
+                  {selectedParentId && (
+                    <CommandItem
+                      value="__clear__"
+                      onSelect={() => { setSelectedParentId(null); setParentOpen(false); }}
+                    >
+                      <span className="text-zinc-400">선택 해제</span>
+                    </CommandItem>
+                  )}
+                  {allClients.map((c) => (
+                    <CommandItem
+                      key={c.id}
+                      value={`${c.name} ${c.client_id}`}
+                      onSelect={() => { setSelectedParentId(c.id); setParentOpen(false); }}
+                    >
+                      <Check className={cn('mr-2 h-4 w-4', selectedParentId === c.id ? 'opacity-100' : 'opacity-0')} />
+                      {c.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* 비즈니스 타입 */}
@@ -137,21 +169,6 @@ export function ClientForm() {
             </Button>
           ))}
         </div>
-      </div>
-
-      {/* 사내 담당자 */}
-      <div className="space-y-1.5">
-        <Label htmlFor="assignedTo">사내 담당자</Label>
-        <Select name="assignedTo">
-          <SelectTrigger>
-            <SelectValue placeholder="담당자 선택" />
-          </SelectTrigger>
-          <SelectContent>
-            {profiles?.map((p) => (
-              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* 메모 */}

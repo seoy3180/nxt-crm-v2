@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { Suspense, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { ContractFilters } from '@/components/contracts/contract-filters';
 import { ContractTable } from '@/components/contracts/contract-table';
@@ -18,9 +19,13 @@ const BIZ_TABS = [
   { value: 'dev', label: '개발' },
 ] as const;
 
-export default function ContractsPage() {
-  const [contractType, setContractType] = useState<string>('msp');
-  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+function ContractsPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialType = searchParams.get('type') ?? 'msp';
+  const initialView = (searchParams.get('view') ?? 'kanban') as 'kanban' | 'table';
+  const [contractType, setContractType] = useState<string>(initialType);
+  const [viewMode, setViewMode] = useState<'kanban' | 'table'>(initialView);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [stage, setStage] = useState<string | undefined>();
@@ -45,12 +50,22 @@ export default function ContractsPage() {
     sortOrder: 'desc',
   });
 
+  function updateUrl(type: string, view: string) {
+    router.replace(`/contracts?type=${type}&view=${view}`, { scroll: false });
+  }
+
   function handleBizTabChange(tab: string) {
     setContractType(tab);
     setStage(undefined);
     setSearch('');
     setDebouncedSearch('');
     setPage(1);
+    updateUrl(tab, viewMode);
+  }
+
+  function handleViewChange(view: 'kanban' | 'table') {
+    setViewMode(view);
+    updateUrl(contractType, view);
   }
 
   if (isError) {
@@ -87,7 +102,7 @@ export default function ContractsPage() {
           <div className="flex overflow-hidden rounded-lg border border-zinc-200">
             <button
               type="button"
-              onClick={() => setViewMode('kanban')}
+              onClick={() => handleViewChange('kanban')}
               className={cn(
                 'h-8 px-3.5 text-[13px] font-medium transition-colors',
                 viewMode === 'kanban'
@@ -99,7 +114,7 @@ export default function ContractsPage() {
             </button>
             <button
               type="button"
-              onClick={() => setViewMode('table')}
+              onClick={() => handleViewChange('table')}
               className={cn(
                 'h-8 px-3.5 text-[13px] font-medium transition-colors',
                 viewMode === 'table'
@@ -159,5 +174,13 @@ export default function ContractsPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function ContractsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ContractsPageInner />
+    </Suspense>
   );
 }

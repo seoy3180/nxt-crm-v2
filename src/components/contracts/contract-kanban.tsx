@@ -1,9 +1,25 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { useDraggable } from '@dnd-kit/core';
 import { MSP_STAGES, EDU_STAGES, BUSINESS_TYPES } from '@/lib/constants';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { ContractRow } from '@/lib/services/contract-service';
+import { contractService, type ContractRow } from '@/lib/services/contract-service';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 interface ContractKanbanProps {
   contracts: ContractRow[];
@@ -21,34 +37,78 @@ function formatAmount(amount: number) {
   return `₩ ${amount.toLocaleString()}`;
 }
 
-function KanbanCard({ contract }: { contract: ContractRow }) {
+function CardContent({ contract }: { contract: ContractRow }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-zinc-900">{contract.name}</p>
+      <p className="text-xs text-zinc-500">{contract.client_name ?? '-'}</p>
+      <span className="text-[13px] font-semibold text-blue-600">{formatAmount(contract.total_amount)}</span>
+    </div>
+  );
+}
+
+function DraggableCard({ contract }: { contract: ContractRow }) {
   const router = useRouter();
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: contract.id,
+    data: { contract },
+  });
 
   return (
-    <button
-      type="button"
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
       onClick={() => router.push(`/contracts/${contract.id}`)}
-      className="w-full rounded-lg border border-zinc-200 bg-white p-3.5 text-left transition-colors hover:border-zinc-300"
+      className={`w-full cursor-grab rounded-lg border border-zinc-200 bg-white p-3.5 text-left transition-colors hover:border-zinc-300 active:cursor-grabbing ${isDragging ? 'opacity-30' : ''}`}
     >
-      <div className="space-y-2">
-        <p className="text-[13px] font-medium text-zinc-900">{contract.name}</p>
-        <p className="text-xs text-zinc-500">{contract.client_name ?? '-'}</p>
-        <div className="flex items-center justify-between">
-          <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-600">
-            {BUSINESS_TYPES[contract.type as keyof typeof BUSINESS_TYPES] ?? contract.type}
-          </span>
-          <span className="text-xs font-medium text-zinc-900">{formatAmount(contract.total_amount)}</span>
-        </div>
-        {contract.assigned_to_name && (
-          <p className="text-[11px] text-zinc-400">{contract.assigned_to_name}</p>
+      <CardContent contract={contract} />
+    </div>
+  );
+}
+
+function DroppableColumn({ stageValue, stageLabel, contracts, isOver }: {
+  stageValue: string;
+  stageLabel: string;
+  contracts: ContractRow[];
+  isOver: boolean;
+}) {
+  const { setNodeRef } = useDroppable({ id: stageValue });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex flex-1 flex-col gap-3 rounded-xl p-3 transition-colors ${isOver ? 'bg-blue-50 ring-2 ring-blue-200' : 'bg-zinc-50'}`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-semibold text-zinc-700">{stageLabel}</span>
+        <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+          {contracts.length}
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
+        {contracts.length === 0 ? (
+          <p className="py-8 text-center text-xs text-zinc-400">계약 없음</p>
+        ) : (
+          contracts.map((contract) => (
+            <DraggableCard key={contract.id} contract={contract} />
+          ))
         )}
       </div>
-    </button>
+    </div>
   );
 }
 
 export function ContractKanban({ contracts, loading, contractType }: ContractKanbanProps) {
   const stages = contractType === 'msp' ? MSP_STAGES : contractType === 'tt' ? EDU_STAGES : MSP_STAGES;
+  const { data: currentUser } = useCurrentUser();
+  const queryClient = useQueryClient();
+  const [activeContract, setActiveContract] = useState<ContractRow | null>(null);
+  const [overColumn, setOverColumn] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
 
   if (loading) {
     return (
@@ -75,30 +135,67 @@ export function ContractKanban({ contracts, loading, contractType }: ContractKan
     if (c.stage) grouped.set(c.stage, stageContracts);
   });
 
+  function handleDragStart(event: DragStartEvent) {
+    const contract = event.active.data.current?.contract as ContractRow;
+    setActiveContract(contract);
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    setOverColumn(event.over ? String(event.over.id) : null);
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveContract(null);
+    setOverColumn(null);
+
+    const { active, over } = event;
+    if (!over || !currentUser) return;
+
+    const contract = active.data.current?.contract as ContractRow;
+    const newStage = String(over.id);
+
+    if (contract.stage === newStage) return;
+
+    try {
+      await contractService.changeStage(
+        contract.id,
+        { toStage: newStage, note: null },
+        currentUser.id,
+      );
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      const stageLabel = stages.find((s) => s.value === newStage)?.label ?? newStage;
+      toast.success(`"${contract.name}" → ${stageLabel}`);
+    } catch {
+      toast.error('단계 변경에 실패했습니다');
+    }
+  }
+
   return (
-    <div className="flex flex-1 gap-4">
-      {stages.map((stage) => {
-        const stageContracts = grouped.get(stage.value) ?? [];
-        return (
-          <div key={stage.value} className="flex flex-1 flex-col gap-3 rounded-xl bg-zinc-50 p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-zinc-700">{stage.label}</span>
-              <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
-                {stageContracts.length}
-              </span>
-            </div>
-            <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
-              {stageContracts.length === 0 ? (
-                <p className="py-8 text-center text-xs text-zinc-400">계약 없음</p>
-              ) : (
-                stageContracts.map((contract) => (
-                  <KanbanCard key={contract.id} contract={contract} />
-                ))
-              )}
-            </div>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="flex flex-1 gap-4">
+        {stages.map((stage) => (
+          <DroppableColumn
+            key={stage.value}
+            stageValue={stage.value}
+            stageLabel={stage.label}
+            contracts={grouped.get(stage.value) ?? []}
+            isOver={overColumn === stage.value}
+          />
+        ))}
+      </div>
+
+      <DragOverlay>
+        {activeContract && (
+          <div className="w-64 rounded-lg border border-blue-200 bg-white p-3.5 shadow-lg">
+            <CardContent contract={activeContract} />
           </div>
-        );
-      })}
-    </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }

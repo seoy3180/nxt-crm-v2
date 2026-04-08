@@ -66,9 +66,8 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
     const isExpanded = expanded.has(client.id);
 
     return (
-      <>
+      <React.Fragment key={client.id}>
         <TableRow
-          key={client.id}
           className={cn(
             'h-12 cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-50',
             isChild && 'bg-zinc-50/50',
@@ -102,28 +101,31 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
               )}
             </div>
           </TableCell>
-          <TableCell>
-            <div className="flex gap-1">
-              {client.business_types?.map((bt: string) => (
-                <Badge key={bt} variant="outline" className="text-xs">
-                  {BUSINESS_TYPES[bt as keyof typeof BUSINESS_TYPES] ?? bt}
-                </Badge>
-              ))}
+          <TableCell className="px-4">
+            <div className="flex gap-1.5">
+              {client.business_types?.map((bt: string) => {
+                const colors: Record<string, string> = {
+                  msp: 'bg-blue-100 text-blue-600',
+                  tt: 'bg-amber-100 text-amber-700',
+                  dev: 'bg-zinc-100 text-zinc-600',
+                };
+                return (
+                  <span key={bt} className={`inline-block rounded px-2 py-0.5 text-[11px] font-semibold ${colors[bt] ?? 'bg-zinc-100 text-zinc-600'}`}>
+                    {BUSINESS_TYPES[bt as keyof typeof BUSINESS_TYPES] ?? bt}
+                  </span>
+                );
+              })}
             </div>
           </TableCell>
           <TableCell>
             {CLIENT_TYPES[client.client_type as keyof typeof CLIENT_TYPES] ?? client.client_type}
           </TableCell>
           <TableCell>{client.grade ?? '-'}</TableCell>
-          <TableCell>
-            {(client as unknown as { profiles: { name: string } | null }).profiles?.name ?? '-'}
-          </TableCell>
-          <TableCell>{client.primary_contact_name ?? '-'}</TableCell>
-          <TableCell>{client.contract_count ?? 0}</TableCell>
+          <TableCell className="px-4">{client.contract_count ?? 0}</TableCell>
         </TableRow>
         {isExpanded &&
           children.map((child) => renderRow(child, true))}
-      </>
+      </React.Fragment>
     );
   }
 
@@ -136,15 +138,13 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
             <TableHead className="h-11 w-[120px] px-4 text-[13px] font-medium text-zinc-500">비즈니스</TableHead>
             <TableHead className="h-11 w-[100px] px-4 text-[13px] font-medium text-zinc-500">유형</TableHead>
             <TableHead className="h-11 w-[60px] px-4 text-[13px] font-medium text-zinc-500">등급</TableHead>
-            <TableHead className="h-11 w-[120px] px-4 text-[13px] font-medium text-zinc-500">사내 담당자</TableHead>
-            <TableHead className="h-11 w-[120px] px-4 text-[13px] font-medium text-zinc-500">고객사 담당자</TableHead>
             <TableHead className="h-11 w-[80px] px-4 text-[13px] font-medium text-zinc-500">계약 수</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {roots.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                 등록된 고객이 없습니다
               </TableCell>
             </TableRow>

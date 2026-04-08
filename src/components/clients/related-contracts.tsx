@@ -25,6 +25,7 @@ export function RelatedContracts({ clientId, childClientIds }: RelatedContractsP
   const router = useRouter();
   const { data, isLoading } = useContracts({ page: 1, pageSize: 100, sortBy: 'created_at', sortOrder: 'desc' });
 
+  const hasChildren = (childClientIds ?? []).length > 0;
   const targetIds = new Set([clientId, ...(childClientIds ?? [])]);
   const contracts = data?.data?.filter((c) => targetIds.has(c.client_id)) ?? [];
 
@@ -42,6 +43,7 @@ export function RelatedContracts({ clientId, childClientIds }: RelatedContractsP
         <Table>
           <TableHeader>
             <TableRow className="bg-zinc-50">
+              {hasChildren && <TableHead className="h-10 w-[140px] px-4 text-xs font-semibold text-zinc-500">고객</TableHead>}
               <TableHead className="h-10 px-4 text-xs font-semibold text-zinc-500">계약명</TableHead>
               <TableHead className="h-10 w-[80px] px-4 text-center text-xs font-semibold text-zinc-500">타입</TableHead>
               <TableHead className="h-10 w-[100px] px-4 text-center text-xs font-semibold text-zinc-500">단계</TableHead>
@@ -53,13 +55,14 @@ export function RelatedContracts({ clientId, childClientIds }: RelatedContractsP
           <TableBody>
             {contracts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-16 text-center text-zinc-400">
+                <TableCell colSpan={hasChildren ? 7 : 6} className="h-16 text-center text-zinc-400">
                   관련 계약이 없습니다
                 </TableCell>
               </TableRow>
             ) : (
               contracts.map((c) => (
                 <TableRow key={c.id} className="h-11 cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-50" onClick={() => router.push(`/contracts/${c.id}`)}>
+                  {hasChildren && <TableCell className="w-[140px] px-4 text-sm font-medium text-zinc-900">{c.client_name ?? '-'}</TableCell>}
                   <TableCell className="px-4 text-sm font-medium text-zinc-900">{c.name}</TableCell>
                   <TableCell className="w-[80px] px-4 text-center">
                     <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-600">

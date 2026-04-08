@@ -1,10 +1,11 @@
 'use client';
 
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useAuthContext } from '@/providers/auth-provider';
 import { canAccessSection } from '@/lib/auth/permissions';
-import { SIDEBAR_SECTIONS, TEAM_TYPES } from '@/lib/constants';
+import { SIDEBAR_SECTIONS } from '@/lib/constants';
 import { SidebarSection } from './sidebar-section';
-import { Hexagon, Search, Settings } from 'lucide-react';
+import { Hexagon, Search, Settings, LogOut } from 'lucide-react';
 import Link from 'next/link';
 
 const TEAM_LABELS: Record<string, string> = {
@@ -15,6 +16,7 @@ const TEAM_LABELS: Record<string, string> = {
 
 export function Sidebar() {
   const { data: currentUser } = useCurrentUser();
+  const { signOut } = useAuthContext();
 
   if (!currentUser) return null;
 
@@ -94,6 +96,9 @@ export function Sidebar() {
           <Link href="/profile">
             <Settings className="h-4 w-4 text-zinc-400 hover:text-zinc-600 transition-colors" />
           </Link>
+          <button type="button" onClick={signOut} title="로그아웃">
+            <LogOut className="h-4 w-4 text-zinc-400 hover:text-red-500 transition-colors" />
+          </button>
         </div>
       </div>
     </aside>

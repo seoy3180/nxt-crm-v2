@@ -33,13 +33,18 @@ export const mspDetailSchema = z.object({
 
 export type MspDetailInput = z.infer<typeof mspDetailSchema>;
 
+export const eduOperationDateSchema = z.object({
+  date: z.string(),
+  hours: z.number().min(0).default(0),
+});
+
+export type EduOperationDateInput = z.infer<typeof eduOperationDateSchema>;
+
 export const eduOperationSchema = z.object({
   operationName: z.string().min(1, '운영명을 입력해주세요'),
   location: z.string().optional().nullable(),
   targetOrg: z.string().optional().nullable(),
-  startDate: z.string().optional().nullable(),
-  endDate: z.string().optional().nullable(),
-  totalHours: z.number().min(0).optional().nullable(),
+  dates: z.array(eduOperationDateSchema).default([]),
   contractedCount: z.number().int().min(0).optional().nullable(),
   recruitedCount: z.number().int().min(0).optional().nullable(),
   actualCount: z.number().int().min(0).optional().nullable(),

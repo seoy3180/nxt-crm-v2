@@ -46,7 +46,8 @@ export const clientService = {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let q = supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q = (supabase as any)
       .from('client_list_view')
       .select('*', { count: 'exact' })
       .order(sortBy, { ascending: sortOrder === 'asc' })
@@ -78,10 +79,7 @@ export const clientService = {
     // 기본 정보 + 부모 조회
     const { data, error } = await supabase
       .from('clients')
-      .select(`
-        *,
-        profiles!clients_assigned_to_fkey(name)
-      `)
+      .select('*')
       .eq('id', id)
       .is('deleted_at', null)
       .single();

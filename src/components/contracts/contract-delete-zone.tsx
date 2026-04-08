@@ -2,9 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ConfirmDialog } from '@/components/common/confirm-dialog';
 import { useDeleteContract } from '@/hooks/use-contract-mutations';
 import { Trash2 } from 'lucide-react';
@@ -28,26 +25,25 @@ export function ContractDeleteZone({ contractId, contractName, isSettled }: Cont
 
   return (
     <>
-      <Card className="border-destructive/30">
-        <CardHeader><CardTitle className="text-lg text-destructive">계약 삭제</CardTitle></CardHeader>
-        <CardContent className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">이 계약을 삭제하면 관련 매출 배분도 함께 삭제됩니다.</p>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button variant="destructive" size="sm" onClick={() => setConfirmOpen(true)} disabled={isSettled}>
-                    <Trash2 className="mr-1 h-3 w-3" />삭제
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              {isSettled && (
-                <TooltipContent>정산 완료된 계약은 삭제할 수 없습니다. 관리자에게 문의하세요.</TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-between border-t border-zinc-100 pt-4">
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium text-red-500">계약 삭제</p>
+          <p className="text-xs text-zinc-400">
+            {isSettled
+              ? '정산 완료된 계약은 삭제할 수 없습니다.'
+              : '이 계약과 관련된 모든 데이터가 삭제됩니다.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setConfirmOpen(true)}
+          disabled={isSettled}
+          className="flex h-[34px] items-center gap-1.5 rounded-lg border border-red-300 px-3.5 text-[13px] font-medium text-red-500 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          삭제
+        </button>
+      </div>
 
       <ConfirmDialog
         open={confirmOpen}

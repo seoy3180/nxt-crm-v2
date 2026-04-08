@@ -138,15 +138,27 @@ export const contractService = {
         clients!contracts_client_id_fkey(name, client_id),
         profiles!contracts_assigned_to_fkey(name),
         contacts!contracts_contact_id_fkey(name),
-        contract_msp_details(*),
-        contract_tt_details(*)
+        contract_msp_details(*)
       `)
       .eq('id', id)
       .is('deleted_at', null)
       .single();
 
     if (error) throw error;
-    return data as unknown as ContractRow;
+
+    const row = data as Record<string, unknown>;
+    const mapped = {
+      ...row,
+      client_name: (row.clients as { name: string } | null)?.name ?? null,
+      client_display_id: (row.clients as { client_id: string } | null)?.client_id ?? null,
+      assigned_to_name: (row.profiles as { name: string } | null)?.name ?? null,
+      contact_name: (row.contacts as { name: string } | null)?.name ?? null,
+      msp_details: Array.isArray(row.contract_msp_details)
+        ? (row.contract_msp_details as unknown[])[0] ?? null
+        : row.contract_msp_details ?? null,
+    };
+
+    return mapped as unknown as ContractRow;
   },
 
   async create(input: ContractCreateInput) {
@@ -306,6 +318,11 @@ export const educationOpService = {
   },
 
   async create(contractId: string, input: EduOperationInput) {
+    const sortedDates = (input.dates ?? []).sort((a, b) => a.date.localeCompare(b.date));
+    const startDate = sortedDates.length > 0 ? sortedDates[0]!.date : null;
+    const endDate = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1]!.date : null;
+    const totalHours = sortedDates.reduce((sum, d) => sum + (d.hours ?? 0), 0) || null;
+
     const { data, error } = await supabase
       .from('education_operations')
       .insert({
@@ -313,9 +330,9 @@ export const educationOpService = {
         operation_name: input.operationName,
         location: input.location ?? null,
         target_org: input.targetOrg ?? null,
-        start_date: input.startDate ?? null,
-        end_date: input.endDate ?? null,
-        total_hours: input.totalHours ?? null,
+        start_date: startDate,
+        end_date: endDate,
+        total_hours: totalHours,
         contracted_count: input.contractedCount ?? null,
         recruited_count: input.recruitedCount ?? null,
         actual_count: input.actualCount ?? null,
@@ -326,6 +343,20 @@ export const educationOpService = {
       .single();
 
     if (error) throw error;
+
+    // 일자별 데이터 저장
+    if (sortedDates.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: datesError } = await (supabase as any)
+        .from('education_operation_dates')
+        .insert(sortedDates.map((d: { date: string; hours: number }) => ({
+          operation_id: data.id,
+          education_date: d.date,
+          hours: d.hours ?? 0,
+        })));
+      if (datesError) throw datesError;
+    }
+
     return data as unknown as EducationOpRow;
   },
 
@@ -334,9 +365,12 @@ export const educationOpService = {
     if (input.operationName !== undefined) updateData.operation_name = input.operationName;
     if (input.location !== undefined) updateData.location = input.location;
     if (input.targetOrg !== undefined) updateData.target_org = input.targetOrg;
-    if (input.startDate !== undefined) updateData.start_date = input.startDate;
-    if (input.endDate !== undefined) updateData.end_date = input.endDate;
-    if (input.totalHours !== undefined) updateData.total_hours = input.totalHours;
+    if (input.dates !== undefined) {
+      const sortedDates = (input.dates ?? []).sort((a, b) => a.date.localeCompare(b.date));
+      updateData.start_date = sortedDates.length > 0 ? sortedDates[0]!.date : null;
+      updateData.end_date = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1]!.date : null;
+      updateData.total_hours = sortedDates.reduce((sum, d) => sum + (d.hours ?? 0), 0) || null;
+    }
     if (input.contractedCount !== undefined) updateData.contracted_count = input.contractedCount;
     if (input.recruitedCount !== undefined) updateData.recruited_count = input.recruitedCount;
     if (input.actualCount !== undefined) updateData.actual_count = input.actualCount;
