@@ -120,7 +120,13 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
           <TableCell>
             {CLIENT_TYPES[client.client_type as keyof typeof CLIENT_TYPES] ?? client.client_type}
           </TableCell>
-          <TableCell>{client.grade ?? '-'}</TableCell>
+          <TableCell className="px-4">
+            {client.grade ? (
+              <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
+                {client.grade}
+              </span>
+            ) : '-'}
+          </TableCell>
           <TableCell className="px-4">{client.contract_count ?? 0}</TableCell>
         </TableRow>
         {isExpanded &&

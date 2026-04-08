@@ -25,6 +25,7 @@ interface ClientInfoCardProps {
 
 export function ClientInfoCard({ client }: ClientInfoCardProps) {
   const [editing, setEditing] = useState(false);
+  const [editBusinessTypes, setEditBusinessTypes] = useState<string[]>(client.business_types ?? []);
   const updateClient = useUpdateClient(client.id);
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
@@ -34,6 +35,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
       name: formData.get('name') as string,
       clientType: formData.get('clientType') as string,
       grade: formData.get('grade') || undefined,
+      businessTypes: editBusinessTypes,
       memo: formData.get('memo') || null,
     };
     const result = clientUpdateSchema.safeParse(raw);
@@ -45,17 +47,23 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
     setEditing(false);
   }
 
+  function toggleEditBizType(type: string) {
+    setEditBusinessTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type],
+    );
+  }
+
   if (editing) {
     return (
       <form onSubmit={handleSave} className="rounded-xl border border-zinc-200 p-6 space-y-5">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-zinc-900">고객 정보</h3>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setEditing(false)}>취소</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => { setEditing(false); setEditBusinessTypes(client.business_types ?? []); }}>취소</Button>
             <Button type="submit" size="sm" disabled={updateClient.isPending} className="bg-blue-600 hover:bg-blue-700">저장</Button>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <div className="space-y-1.5">
             <Label>고객사명</Label>
             <Input name="name" defaultValue={client.name} />
@@ -81,6 +89,25 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>비즈니스 타입</Label>
+            <div className="flex gap-1.5 pt-1">
+              {Object.entries(BUSINESS_TYPES).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggleEditBizType(key)}
+                  className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                    editBusinessTypes.includes(key)
+                      ? ({ msp: 'bg-blue-100 text-blue-600', tt: 'bg-amber-100 text-amber-700', dev: 'bg-zinc-200 text-zinc-700' }[key] ?? 'bg-blue-100 text-blue-600')
+                      : 'bg-zinc-100 text-zinc-400'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="space-y-1.5">

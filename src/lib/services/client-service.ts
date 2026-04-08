@@ -139,7 +139,7 @@ export const clientService = {
     if (input.grade !== undefined) updateData.grade = input.grade;
     if (input.businessTypes !== undefined) updateData.business_types = input.businessTypes;
     if (input.parentId !== undefined) updateData.parent_id = input.parentId;
-    if (input.assignedTo !== undefined) updateData.assigned_to = input.assignedTo;
+    // assigned_to 컬럼 삭제됨
     if (input.status !== undefined) updateData.status = input.status;
     if (input.memo !== undefined) updateData.memo = input.memo;
 
