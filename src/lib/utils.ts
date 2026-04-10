@@ -23,6 +23,21 @@ export function getErrorMessage(err: unknown): string {
   return '알 수 없는 오류가 발생했습니다';
 }
 
+/** 계약 단계별 배지 색상 (비즈니스 타입 색상 blue/amber/zinc 제외) */
+const STAGE_COLORS: Record<string, string> = {
+  pre_contract: 'bg-slate-100 text-slate-600',
+  proposal: 'bg-slate-100 text-slate-600',
+  contracted: 'bg-violet-100 text-violet-600',
+  in_progress: 'bg-indigo-100 text-indigo-600',
+  completed: 'bg-emerald-100 text-emerald-600',
+  settled: 'bg-teal-100 text-teal-700',
+};
+
+export function getStageColor(stage: string | null): string {
+  if (!stage) return 'bg-zinc-100 text-zinc-500';
+  return STAGE_COLORS[stage] ?? 'bg-zinc-100 text-zinc-500';
+}
+
 /** 문자열을 숫자로 안전하게 변환. NaN이면 null 반환. */
 export function safeNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;

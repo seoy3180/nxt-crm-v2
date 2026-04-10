@@ -4,7 +4,7 @@ import { Suspense, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { cn, formatAmount, safeNumber } from '@/lib/utils';
+import { cn, formatAmount, safeNumber, getStageColor } from '@/lib/utils';
 import { ContractStageFilter, ContractSearch } from '@/components/contracts/contract-filters';
 import { ContractKanban } from '@/components/contracts/contract-kanban';
 import { ColumnSettings } from '@/components/common/column-settings';
@@ -85,9 +85,8 @@ type PendingChanges = Map<string, PendingChange>;
 
 
 function getStageBadge(stage: string | null) {
-  if (!stage) return <span className="inline-block rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-500">미지정</span>;
-  const found = MSP_STAGES.find((s) => s.value === stage);
-  return <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-600">{found?.label ?? stage}</span>;
+  const label = stage ? (MSP_STAGES.find((s) => s.value === stage)?.label ?? stage) : '미지정';
+  return <span className={`inline-block rounded px-2 py-0.5 text-[11px] font-semibold ${getStageColor(stage)}`}>{label}</span>;
 }
 
 // ─── 메인 컴포넌트 ─────────────────────────────────────
