@@ -66,10 +66,10 @@ export const SIDEBAR_SECTIONS = [
     label: 'NXT',
     allowedRoles: ['admin', 'c_level'] as UserRole[],
     items: [
-      { href: '/dashboard', label: '대시보드', icon: 'layout-dashboard' },
-      { href: '/clients', label: '고객 관리', icon: 'users' },
-      { href: '/contracts', label: '계약 관리', icon: 'file-text' },
-      { href: '/revenue', label: '매출 분석', icon: 'trending-up' },
+      { href: '/dashboard', label: '대시보드', icon: 'layout-dashboard', roles: ['admin', 'c_level'] as UserRole[] },
+      { href: '/clients', label: '고객 관리', icon: 'users', roles: ['admin', 'c_level'] as UserRole[] },
+      { href: '/contracts', label: '계약 관리', icon: 'file-text', roles: ['admin', 'c_level'] as UserRole[] },
+      { href: '/revenue', label: '매출 분석', icon: 'trending-up', roles: ['team_lead', 'admin', 'c_level'] as UserRole[] },
     ],
   },
   {

@@ -14,7 +14,7 @@ export function canAccessSection(
   teamType: TeamType,
 ): boolean {
   if (role === 'admin' || role === 'c_level') return true;
-  if (section === 'nxt') return false;
+  if (section === 'nxt') return role === 'team_lead';
   const requiredTeam = SECTION_TEAM_MAP[section];
   return requiredTeam === teamType;
 }
