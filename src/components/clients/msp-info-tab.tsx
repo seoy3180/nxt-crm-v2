@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,9 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
   const [editValues, setEditValues] = useState<Record<string, unknown>>({});
   const [newAwsId, setNewAwsId] = useState('');
   const [newTag, setNewTag] = useState('');
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const awsInputRef = useRef<HTMLInputElement>(null);
+  const tagInputRef = useRef<HTMLInputElement>(null);
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ['client-msp-detail', clientId],
@@ -46,6 +49,24 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
       if (error) throw error;
       return data as MspDetail | null;
     },
+  });
+
+  // 추천 태그 (기존 사용된 태그 목록)
+  const { data: suggestedTags } = useQuery({
+    queryKey: ['msp-all-tags'],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('client_msp_details')
+        .select('tags')
+        .not('tags', 'is', null);
+      const allTags = new Set<string>();
+      (data ?? []).forEach((row) => {
+        (row.tags as string[] | null)?.forEach((t) => allTags.add(t));
+      });
+      return Array.from(allTags).sort();
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   // MSP 계약 요약
@@ -94,6 +115,14 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
     setNewAwsId('');
   }
 
+  function handleAwsKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.nativeEvent.isComposing) return;
+    if (e.key === 'Enter' && newAwsId.trim()) { e.preventDefault(); addAwsId(); }
+    if (e.key === 'Backspace' && !newAwsId && getAwsIds().length > 0) {
+      setField('aws_account_ids', getAwsIds().slice(0, -1));
+    }
+  }
+
   function removeAwsId(id: string) {
     setField('aws_account_ids', getAwsIds().filter((a) => a !== id));
   }
@@ -103,18 +132,33 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
     return (val('tags') as string[] | null) ?? [];
   }
 
-  function addTag() {
-    const tag = newTag.trim();
+  function addTag(value?: string) {
+    const tag = (value ?? newTag).trim();
     if (!tag) return;
     const current = getTags();
     if (current.includes(tag)) { toast.error('이미 등록된 태그입니다'); return; }
     setField('tags', [...current, tag]);
     setNewTag('');
+    setShowTagSuggestions(false);
+    tagInputRef.current?.focus();
+  }
+
+  function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.nativeEvent.isComposing) return;
+    if (e.key === 'Enter' && newTag.trim()) { e.preventDefault(); addTag(); }
+    if (e.key === 'Backspace' && !newTag && getTags().length > 0) {
+      setField('tags', getTags().slice(0, -1));
+    }
+    if (e.key === 'Escape') setShowTagSuggestions(false);
   }
 
   function removeTag(tag: string) {
     setField('tags', getTags().filter((t) => t !== tag));
   }
+
+  const filteredSuggestions = (suggestedTags ?? []).filter(
+    (s) => !getTags().includes(s) && s.toLowerCase().includes(newTag.toLowerCase()),
+  );
 
   function handleCancel() {
     setEditValues({});
@@ -305,40 +349,36 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
 
         <div className="h-px bg-zinc-100" />
 
-        {/* AWS 계정 ID */}
+        {/* AWS 계정 ID — 인라인 입력 */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-zinc-400">AWS 계정 ID</p>
-            {editing && (
-              <div className="flex items-center gap-1.5">
-                <Input
-                  value={newAwsId}
-                  onChange={(e) => setNewAwsId(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAwsId(); } }}
-                  placeholder="계정 ID 입력"
-                  className="h-7 w-40 text-[12px]"
-                />
-                <button
-                  type="button"
-                  onClick={addAwsId}
-                  className="flex h-[26px] items-center gap-1 rounded-md border border-zinc-200 px-2 text-[11px] text-zinc-400 hover:bg-zinc-50"
-                >
-                  <Plus className="h-3 w-3" />
-                  추가
-                </button>
-              </div>
-            )}
-          </div>
-          {awsIds.length > 0 ? (
+          <p className="text-xs font-medium text-zinc-400">AWS 계정 ID</p>
+          {editing ? (
+            <div
+              className="flex min-h-[40px] flex-wrap items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100"
+              onClick={() => awsInputRef.current?.focus()}
+            >
+              {awsIds.map((id) => (
+                <span key={id} className="flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[13px] font-medium text-blue-600">
+                  {id}
+                  <button type="button" onClick={() => removeAwsId(id)} className="text-blue-300 hover:text-blue-500">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                ref={awsInputRef}
+                value={newAwsId}
+                onChange={(e) => setNewAwsId(e.target.value)}
+                onKeyDown={handleAwsKeyDown}
+                placeholder={awsIds.length === 0 ? 'AWS 계정 ID 입력 후 Enter' : ''}
+                className="min-w-[120px] flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
+              />
+            </div>
+          ) : awsIds.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {awsIds.map((id) => (
-                <span key={id} className="flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1 text-[13px] font-medium text-blue-600">
+                <span key={id} className="rounded-md bg-blue-50 px-2.5 py-1 text-[13px] font-medium text-blue-600">
                   {id}
-                  {editing && (
-                    <button type="button" onClick={() => removeAwsId(id)} className="text-blue-300 hover:text-blue-500">
-                      <X className="h-3 w-3" />
-                    </button>
-                  )}
                 </span>
               ))}
             </div>
@@ -349,40 +389,55 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
 
         <div className="h-px bg-zinc-100" />
 
-        {/* 태그 */}
+        {/* 태그 — 인라인 + 추천 드롭다운 */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-zinc-400">태그</p>
-            {editing && (
-              <div className="flex items-center gap-1.5">
-                <Input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
-                  placeholder="태그 입력"
-                  className="h-7 w-32 text-[12px]"
-                />
-                <button
-                  type="button"
-                  onClick={addTag}
-                  className="flex h-[26px] items-center gap-1 rounded-md border border-zinc-200 px-2 text-[11px] text-zinc-400 hover:bg-zinc-50"
-                >
-                  <Plus className="h-3 w-3" />
-                  추가
-                </button>
-              </div>
-            )}
-          </div>
-          {tags.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <span key={tag} className="flex items-center gap-1.5 rounded-md bg-zinc-100 px-2.5 py-1 text-[13px] font-medium text-zinc-600">
-                  {tag}
-                  {editing && (
+          <p className="text-xs font-medium text-zinc-400">태그</p>
+          {editing ? (
+            <div className="relative">
+              <div
+                className="flex min-h-[40px] flex-wrap items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100"
+                onClick={() => tagInputRef.current?.focus()}
+              >
+                {tags.map((tag) => (
+                  <span key={tag} className="flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-0.5 text-[13px] font-medium text-zinc-600">
+                    {tag}
                     <button type="button" onClick={() => removeTag(tag)} className="text-zinc-400 hover:text-zinc-600">
                       <X className="h-3 w-3" />
                     </button>
-                  )}
+                  </span>
+                ))}
+                <input
+                  ref={tagInputRef}
+                  value={newTag}
+                  onChange={(e) => { setNewTag(e.target.value); setShowTagSuggestions(true); }}
+                  onFocus={() => setShowTagSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowTagSuggestions(false), 150)}
+                  onKeyDown={handleTagKeyDown}
+                  placeholder={tags.length === 0 ? '태그 검색 또는 입력 후 Enter' : ''}
+                  className="min-w-[80px] flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
+                />
+              </div>
+              {showTagSuggestions && filteredSuggestions.length > 0 && (
+                <div className="absolute left-0 top-full z-10 mt-1 w-full rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+                  {filteredSuggestions.slice(0, 8).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onMouseDown={() => addTag(s)}
+                      className="flex w-full items-center px-3 py-1.5 text-left text-[13px] text-zinc-600 hover:bg-zinc-50"
+                    >
+                      <Plus className="mr-2 h-3 w-3 text-zinc-400" />
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : tags.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <span key={tag} className="rounded-md bg-zinc-100 px-2.5 py-1 text-[13px] font-medium text-zinc-600">
+                  {tag}
                 </span>
               ))}
             </div>
