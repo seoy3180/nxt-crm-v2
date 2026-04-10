@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { formatAmount } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -31,15 +32,6 @@ function getTypeBadge(type: string) {
   return <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-600">{label}</span>;
 }
 
-function formatAmount(amount: number) {
-  if (amount >= 100000000) {
-    return `₩ ${(amount / 100000000).toFixed(1)}억`;
-  }
-  if (amount >= 10000) {
-    return `₩ ${Math.round(amount / 10000).toLocaleString()}만`;
-  }
-  return `₩ ${amount.toLocaleString()}`;
-}
 
 export function ContractTable({ contracts, loading, contractType }: ContractTableProps) {
   const router = useRouter();

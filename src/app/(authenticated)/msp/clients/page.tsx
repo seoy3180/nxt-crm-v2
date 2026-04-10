@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,11 +8,12 @@ import { createClient } from '@/lib/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Search, GripVertical, Columns3 } from 'lucide-react';
+import { ColumnSettings } from '@/components/common/column-settings';
+import { Plus, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEditMode } from '@/providers/edit-mode-provider';
+import { useInlineEdit } from '@/hooks/use-inline-edit';
+import { useColumnPreference } from '@/hooks/use-user-preferences';
 import { MSP_GRADES, SEARCH_DEBOUNCE_MS } from '@/lib/constants';
-import { toast } from 'sonner';
 
 interface MspClient {
   id: string;
@@ -37,41 +38,43 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'contractCount', label: '계약 수', width: 'w-[80px]', editable: false },
 ];
 
-// 변경사항 타입
-type PendingChanges = Map<string, { mspDetailId: string | null; clientId: string; mspGrade?: string | null; awsAm?: string | null }>;
-
 export default function MspClientsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { setIsEditing } = useEditMode();
-  const [editMode, setEditModeLocal] = useState(false);
-  const setEditMode = useCallback((v: boolean) => { setEditModeLocal(v); setIsEditing(v); }, [setIsEditing]);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(ALL_COLUMNS.map((c) => c.key));
+
+  // 인라인 편집 (공용 훅)
+  const inlineEdit = useInlineEdit<MspClient>({
+    getId: (c) => c.id,
+    getOriginalValue: (c, key) => String(c[key as keyof MspClient] ?? ''),
+    getChangeDefaults: (c) => ({ mspDetailId: c.mspDetailId, clientId: c.id }),
+    onSave: async (changes) => {
+      const supabase = createClient();
+      const promises = Array.from(changes.values()).map((change) => {
+        const updateData: Record<string, unknown> = {};
+        if ('mspGrade' in change) updateData.msp_grade = change.mspGrade;
+        if ('awsAm' in change) updateData.aws_am = change.awsAm;
+        if (Object.keys(updateData).length === 0) return Promise.resolve();
+        if (change.mspDetailId) {
+          return supabase.from('client_msp_details').update(updateData).eq('id', change.mspDetailId as string)
+            .then(({ error }) => { if (error) throw error; });
+        }
+        return supabase.from('client_msp_details').insert({ client_id: change.clientId as string, ...updateData })
+          .then(({ error }) => { if (error) throw error; });
+      });
+      await Promise.all(promises);
+      queryClient.invalidateQueries({ queryKey: ['msp-clients'] });
+    },
+  });
+
+  const { editMode, setEditMode, changeCount, saving, editingCell, tempValue, setTempValue,
+    startCellEdit, saveCellEdit, getDisplayValue, handleSave, handleCancelEdit, setEditingCell, pendingChanges } = inlineEdit;
+
+  const defaultCols = useMemo(() => ALL_COLUMNS.map((c) => c.key), []);
+  const { columns: visibleColumns, saveColumns } = useColumnPreference('mspClientsColumns', defaultCols);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
-  const [pendingChanges, setPendingChanges] = useState<PendingChanges>(new Map());
-  const [saving, setSaving] = useState(false);
-  const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: string } | null>(null);
-  const [tempValue, setTempValue] = useState('');
-
-  // 언마운트 시 편집 모드 해제
-  useEffect(() => {
-    return () => setIsEditing(false);
-  }, [setIsEditing]);
-
-  // 저장하지 않고 나갈 때 경고
-  useEffect(() => {
-    if (editMode && pendingChanges.size > 0) {
-      const handler = (e: BeforeUnloadEvent) => {
-        e.preventDefault();
-        e.returnValue = '';
-      };
-      window.addEventListener('beforeunload', handler);
-      return () => window.removeEventListener('beforeunload', handler);
-    }
-  }, [editMode, pendingChanges.size]);
 
   const handleSearch = useCallback((value: string) => {
     setSearch(value);
@@ -112,100 +115,10 @@ export default function MspClientsPage() {
     },
   });
 
-  function startCellEdit(rowId: string, colKey: string, value: string) {
-    setEditingCell({ rowId, colKey });
-    setTempValue(value);
-  }
-
-  function saveCellEdit(client: MspClient) {
-    if (!editingCell) return;
-    const originalValue = String(client[editingCell.colKey as keyof MspClient] ?? '');
-    const pendingValue = pendingChanges.get(client.id);
-    const currentOriginal = pendingValue && editingCell.colKey in pendingValue
-      ? String((pendingValue as Record<string, unknown>)[editingCell.colKey] ?? '')
-      : originalValue;
-
-    if (tempValue !== currentOriginal) {
-      updatePending(client, editingCell.colKey, tempValue);
-    }
-    setEditingCell(null);
-  }
-
-  // 현재 표시 값 가져오기 (pending 변경이 있으면 그 값, 없으면 원본)
-  function getDisplayValue(client: MspClient, key: string): string {
-    const change = pendingChanges.get(client.id);
-    if (change && key in change) {
-      return String((change as Record<string, unknown>)[key] ?? '');
-    }
-    return String(client[key as keyof MspClient] ?? '');
-  }
-
-  // 로컬 변경사항 누적
-  function updatePending(client: MspClient, key: string, value: string) {
-    setPendingChanges((prev) => {
-      const next = new Map(prev);
-      const existing = next.get(client.id) ?? { mspDetailId: client.mspDetailId, clientId: client.id };
-      next.set(client.id, { ...existing, [key]: value || null });
-      return next;
-    });
-  }
-
-  // 편집 모드 끌 때 일괄 저장
-  async function handleToggleEditMode() {
-    if (editMode && pendingChanges.size > 0) {
-      setSaving(true);
-      const supabase = createClient();
-
-      try {
-        const promises = Array.from(pendingChanges.values()).map((change) => {
-          const updateData: Record<string, unknown> = {};
-          if ('mspGrade' in change) updateData.msp_grade = change.mspGrade;
-          if ('awsAm' in change) updateData.aws_am = change.awsAm;
-
-          if (Object.keys(updateData).length === 0) return Promise.resolve();
-
-          if (change.mspDetailId) {
-            return supabase.from('client_msp_details').update(updateData).eq('id', change.mspDetailId);
-          }
-          return supabase.from('client_msp_details').insert({ client_id: change.clientId, ...updateData });
-        });
-
-        await Promise.all(promises);
-        queryClient.invalidateQueries({ queryKey: ['msp-clients'] });
-        toast.success(`${pendingChanges.size}건 저장되었습니다`);
-        setPendingChanges(new Map());
-        setEditingCell(null);
-        setSaving(false);
-        setEditMode(false);
-        setShowColumnSettings(false);
-      } catch {
-        toast.error('저장 중 오류가 발생했습니다');
-        setSaving(false);
-        // editMode, pendingChanges 유지
-      }
-      return;
-    }
-
-    setEditMode(!editMode);
-    setShowColumnSettings(false);
-  }
-
-  // 편집 취소
-  function handleCancelEdit() {
-    setPendingChanges(new Map());
-    setEditingCell(null);
-    setEditMode(false);
-    setShowColumnSettings(false);
-  }
-
-  function toggleColumn(key: string) {
-    setVisibleColumns((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-    );
-  }
-
-  const columns = ALL_COLUMNS.filter((c) => visibleColumns.includes(c.key));
-  const changeCount = pendingChanges.size;
+  const columns = useMemo(() => {
+    const colMap = new Map(ALL_COLUMNS.map((c) => [c.key, c]));
+    return visibleColumns.map((key) => colMap.get(key)).filter(Boolean) as ColumnDef[];
+  }, [visibleColumns]);
 
   function renderCellValue(value: string, colKey: string) {
     if (colKey === 'mspGrade' && value && value !== '-') {
@@ -221,35 +134,14 @@ export default function MspClientsPage() {
       {/* 필터 바 */}
       <div className="flex items-center gap-2">
         {/* 컬럼 설정 */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowColumnSettings(!showColumnSettings)}
-            className={cn(
-              'flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium transition-colors',
-              showColumnSettings ? 'bg-blue-50 text-blue-600 border border-blue-600' : 'border border-zinc-200 text-zinc-500 hover:bg-zinc-50',
-            )}
-          >
-            <Columns3 className="h-3.5 w-3.5" />
-            컬럼 설정
-          </button>
-          {showColumnSettings && (
-            <div className="absolute left-0 top-10 z-10 w-48 rounded-lg border border-zinc-200 bg-white p-2 shadow-lg">
-              {ALL_COLUMNS.map((col) => (
-                <label key={col.key} className="flex items-center gap-2 rounded px-2 py-1.5 text-[13px] hover:bg-zinc-50">
-                  <input
-                    type="checkbox"
-                    checked={visibleColumns.includes(col.key)}
-                    onChange={() => toggleColumn(col.key)}
-                    disabled={col.key === 'name'}
-                    className="rounded"
-                  />
-                  <span className={col.key === 'name' ? 'text-zinc-400' : 'text-zinc-700'}>{col.label}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
+        <ColumnSettings
+          allColumns={ALL_COLUMNS.map((c) => ({ key: c.key, label: c.label }))}
+          visibleColumns={visibleColumns}
+          onColumnsChange={saveColumns}
+          open={showColumnSettings}
+          onOpenChange={setShowColumnSettings}
+          fixedColumns={['name']}
+        />
 
         {/* 편집 모드 토글 */}
         <button
@@ -300,7 +192,7 @@ export default function MspClientsPage() {
         {editMode && (
           <button
             type="button"
-            onClick={handleToggleEditMode}
+            onClick={handleSave}
             disabled={saving}
             className="flex h-8 items-center rounded-md bg-blue-600 px-3 text-[13px] font-semibold text-white hover:bg-blue-700"
           >
@@ -342,10 +234,7 @@ export default function MspClientsPage() {
                       editMode ? 'text-blue-600' : 'text-zinc-500',
                     )}
                   >
-                    <div className={cn('flex items-center gap-1.5', col.key !== 'name' && 'justify-center')}>
-                      {editMode && <GripVertical className="h-3 w-3 text-zinc-400" />}
-                      {col.label}
-                    </div>
+                    {col.label}
                   </TableHead>
                 ))}
               </TableRow>

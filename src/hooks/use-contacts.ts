@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { contactService } from '@/lib/services/client-service';
 import type { ContactCreateInput, ContactUpdateInput } from '@/lib/validators/client';
+import { getErrorMessage } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export function useContacts(clientId: string) {
@@ -23,8 +24,8 @@ export function useCreateContact(clientId: string) {
       queryClient.invalidateQueries({ queryKey: ['contacts', clientId] });
       toast.success('연락처가 추가되었습니다');
     },
-    onError: () => {
-      toast.error('연락처 추가에 실패했습니다');
+    onError: (err) => {
+      toast.error(`연락처 추가 실패: ${getErrorMessage(err)}`);
     },
   });
 }
@@ -39,8 +40,8 @@ export function useUpdateContact(clientId: string) {
       queryClient.invalidateQueries({ queryKey: ['contacts', clientId] });
       toast.success('연락처가 수정되었습니다');
     },
-    onError: () => {
-      toast.error('연락처 수정에 실패했습니다');
+    onError: (err) => {
+      toast.error(`연락처 수정 실패: ${getErrorMessage(err)}`);
     },
   });
 }
@@ -54,8 +55,8 @@ export function useDeleteContact(clientId: string) {
       queryClient.invalidateQueries({ queryKey: ['contacts', clientId] });
       toast.success('연락처가 삭제되었습니다');
     },
-    onError: () => {
-      toast.error('연락처 삭제에 실패했습니다');
+    onError: (err) => {
+      toast.error(`연락처 삭제 실패: ${getErrorMessage(err)}`);
     },
   });
 }

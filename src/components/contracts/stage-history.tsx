@@ -19,6 +19,30 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function renderChange(h: { field_name: string | null; old_value: string | null; new_value: string | null; from_stage: string | null; to_stage: string | null }, contractType: string) {
+  // stage 변경 (기존 호환)
+  if (h.field_name === 'stage' || (!h.field_name && h.to_stage)) {
+    const from = h.old_value ?? h.from_stage;
+    const to = h.new_value ?? h.to_stage;
+    return (
+      <span>
+        <span className="text-zinc-400">단계</span>{' '}
+        {from ? `${getStageLabel(from, contractType)} → ` : ''}
+        <span className="font-semibold">{getStageLabel(to, contractType)}</span>
+      </span>
+    );
+  }
+
+  // 범용 필드 변경
+  return (
+    <span>
+      <span className="text-zinc-400">{h.field_name}</span>{' '}
+      {h.old_value ? `${h.old_value} → ` : ''}
+      <span className="font-semibold">{h.new_value || '(삭제)'}</span>
+    </span>
+  );
+}
+
 export function StageHistory({ contractId, contractType }: StageHistoryProps) {
   const { data: history, isLoading } = useContractHistory(contractId);
 
@@ -34,7 +58,7 @@ export function StageHistory({ contractId, contractType }: StageHistoryProps) {
           {history.map((h, idx) => (
             <div key={h.id} className={`space-y-1 ${idx < history.length - 1 ? 'border-b border-zinc-100 pb-3' : ''}`}>
               <p className="text-[13px] font-medium text-zinc-900">
-                {h.from_stage ? `${getStageLabel(h.from_stage, contractType)} → ` : ''}{getStageLabel(h.to_stage, contractType)}
+                {renderChange(h, contractType)}
               </p>
               <p className="text-xs text-zinc-400">
                 {h.changed_by_name ?? '알 수 없음'} · {formatDate(h.created_at)}

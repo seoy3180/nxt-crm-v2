@@ -186,7 +186,7 @@ export default function MspDashboardPage() {
                   <div key={item.id} className="space-y-0.5 border-b border-zinc-100 pb-2.5 last:border-0">
                     <p className="text-[13px] font-medium text-zinc-900">{item.contractName}</p>
                     <p className="text-xs text-blue-600">
-                      {item.fromStage ? `${getStageLabel(item.fromStage)} → ` : ''}{getStageLabel(item.toStage)}
+                      {item.fromStage ? `${getStageLabel(item.fromStage)} → ` : ''}{item.toStage ? getStageLabel(item.toStage) : '-'}
                     </p>
                     <p className="text-[11px] text-zinc-400">{item.changedBy} · {formatTimeAgo(item.createdAt)}</p>
                   </div>

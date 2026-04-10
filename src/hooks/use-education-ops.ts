@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { educationOpService } from '@/lib/services/contract-service';
 import type { EduOperationInput } from '@/lib/validators/contract';
+import { getErrorMessage } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export function useEducationOps(contractId: string) {
@@ -22,8 +23,8 @@ export function useCreateEducationOp(contractId: string) {
       queryClient.invalidateQueries({ queryKey: ['education-ops', contractId] });
       toast.success('운영이 추가되었습니다');
     },
-    onError: () => {
-      toast.error('운영 추가에 실패했습니다');
+    onError: (err) => {
+      toast.error(`운영 추가 실패: ${getErrorMessage(err)}`);
     },
   });
 }
@@ -38,8 +39,8 @@ export function useUpdateEducationOp(contractId: string) {
       queryClient.invalidateQueries({ queryKey: ['education-ops', contractId] });
       toast.success('운영 정보가 수정되었습니다');
     },
-    onError: () => {
-      toast.error('운영 수정에 실패했습니다');
+    onError: (err) => {
+      toast.error(`운영 수정 실패: ${getErrorMessage(err)}`);
     },
   });
 }
@@ -53,8 +54,8 @@ export function useDeleteEducationOp(contractId: string) {
       queryClient.invalidateQueries({ queryKey: ['education-ops', contractId] });
       toast.success('운영이 삭제되었습니다');
     },
-    onError: () => {
-      toast.error('운영 삭제에 실패했습니다');
+    onError: (err) => {
+      toast.error(`운영 삭제 실패: ${getErrorMessage(err)}`);
     },
   });
 }

@@ -10,47 +10,70 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BILLING_LEVELS } from '@/lib/constants';
+import { CREDIT_SHARE_OPTIONS, PAYER_OPTIONS, BILLING_METHOD_OPTIONS } from '@/lib/constants';
+import { useEmployees } from '@/hooks/use-employees';
 
 export function MspFields() {
   const [hasFee, setHasFee] = useState(false);
+  const { data: employees } = useEmployees();
 
   return (
     <div className="space-y-5">
       <div className="flex gap-4">
         <div className="flex-1 space-y-1.5">
-          <Label>빌링 레벨</Label>
-          <Select name="billingLevel">
+          <Label>크레딧 쉐어</Label>
+          <Select name="creditShare">
             <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
             <SelectContent>
-              {BILLING_LEVELS.map((level) => (
-                <SelectItem key={level} value={level}>{level}</SelectItem>
+              {CREDIT_SHARE_OPTIONS.map((opt) => (
+                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="flex-1 space-y-1.5">
-          <Label>크레딧 쉐어 (%)</Label>
-          <Input name="creditShare" inputMode="decimal" placeholder="0.00" />
-        </div>
-        <div className="flex-1 space-y-1.5">
           <Label>예상 MRR (원)</Label>
           <Input name="expectedMrr" inputMode="numeric" placeholder="0" />
+        </div>
+        <div className="flex-1 space-y-1.5">
+          <Label>AWS 금액 (원)</Label>
+          <Input name="awsAmount" inputMode="numeric" placeholder="0" />
         </div>
       </div>
 
       <div className="flex gap-4">
         <div className="flex-1 space-y-1.5">
-          <Label>결제자</Label>
-          <Input name="payer" placeholder="결제자명" />
+          <Label>Payer</Label>
+          <Select name="payer">
+            <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+            <SelectContent>
+              {PAYER_OPTIONS.map((opt) => (
+                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex-1 space-y-1.5">
+          <Label>청구 방식</Label>
+          <Select name="billingMethod">
+            <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+            <SelectContent>
+              {BILLING_METHOD_OPTIONS.map((opt) => (
+                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex-1 space-y-1.5">
           <Label>담당 영업</Label>
-          <Input name="salesRep" placeholder="영업 담당자" />
-        </div>
-        <div className="flex-1 space-y-1.5">
-          <Label>AWS 금액 (원)</Label>
-          <Input name="awsAmount" inputMode="numeric" placeholder="0" />
+          <Select name="salesRepId">
+            <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+            <SelectContent>
+              {employees?.map((e) => (
+                <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

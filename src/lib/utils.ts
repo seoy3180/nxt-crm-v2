@@ -12,6 +12,24 @@ export function formatRevenue(amount: number) {
   return `₩ ${amount.toLocaleString()}`;
 }
 
+/** formatRevenue alias — 계약/칸반/테이블 등에서 공용 사용 */
+export const formatAmount = formatRevenue;
+
+/** 에러 객체에서 메시지를 추출. Supabase/Error/string 등 다양한 형태 대응. */
+export function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'object' && err !== null && 'message' in err) return String((err as { message: unknown }).message);
+  if (typeof err === 'string') return err;
+  return '알 수 없는 오류가 발생했습니다';
+}
+
+/** 문자열을 숫자로 안전하게 변환. NaN이면 null 반환. */
+export function safeNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isNaN(n) ? null : n;
+}
+
 export function formatTimeAgo(dateStr: string | null | undefined) {
   if (!dateStr) return '-';
   const diff = Date.now() - new Date(dateStr).getTime();

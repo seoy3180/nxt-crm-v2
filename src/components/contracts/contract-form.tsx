@@ -19,9 +19,11 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { ChevronsUpDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { contractCreateSchema, mspDetailSchema, type EduOperationInput } from '@/lib/validators/contract';
+import { safeNumber } from '@/lib/utils';
 import { Plus } from 'lucide-react';
 import { useCreateContract } from '@/hooks/use-contract-mutations';
-import { useClients, useProfiles } from '@/hooks/use-clients';
+import { useClients } from '@/hooks/use-clients';
+import { useEmployees } from '@/hooks/use-employees';
 import { useContacts, useCreateContact } from '@/hooks/use-contacts';
 import { ContactFormDialog } from '@/components/clients/contact-form-dialog';
 import { ClientFormDialog } from '@/components/clients/client-form-dialog';
@@ -33,14 +35,16 @@ import type { ContactCreateInput } from '@/lib/validators/client';
 interface ContractFormProps {
   defaultType?: string;
   hideTypeSelector?: boolean;
+  /** 등록 후 이동할 기본 경로 (예: '/msp/contracts'). 기본값: '/contracts' */
+  basePath?: string;
 }
 
-export function ContractForm({ defaultType = 'msp', hideTypeSelector }: ContractFormProps) {
+export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath = '/contracts' }: ContractFormProps) {
   const router = useRouter();
   const createContract = useCreateContract();
   const { data: clientsData } = useClients({ page: 1, pageSize: 200, sortBy: 'name', sortOrder: 'asc' });
   const allClients = clientsData?.data ?? [];
-  const { data: profiles } = useProfiles();
+  const { data: employees } = useEmployees();
   const [contractType, setContractType] = useState<string>(defaultType);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedClientName, setSelectedClientName] = useState<string>('');
@@ -64,7 +68,7 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector }: Contract
       name: formData.get('name') as string,
       clientId: formData.get('clientId') as string,
       type: contractType,
-      totalAmount: Number(formData.get('totalAmount') || 0),
+      totalAmount: safeNumber(formData.get('totalAmount')) ?? 0,
       currency: 'KRW',
       description: formData.get('description') as string || null,
       assignedTo: formData.get('assignedTo') as string || null,
@@ -86,13 +90,13 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector }: Contract
 
       if (contractType === 'msp') {
         const mspRaw = {
-          billingLevel: formData.get('billingLevel') as string || null,
-          creditShare: formData.get('creditShare') ? Number(formData.get('creditShare')) : null,
-          expectedMrr: formData.get('expectedMrr') ? Number(formData.get('expectedMrr')) : null,
+          creditShare: formData.get('creditShare') as string || null,
+          expectedMrr: safeNumber(formData.get('expectedMrr')),
           payer: formData.get('payer') as string || null,
-          salesRep: formData.get('salesRep') as string || null,
-          awsAmount: formData.get('awsAmount') ? Number(formData.get('awsAmount')) : null,
+          salesRepId: formData.get('salesRepId') as string || null,
+          awsAmount: safeNumber(formData.get('awsAmount')),
           hasManagementFee: formData.get('hasManagementFee') === 'true',
+          billingMethod: formData.get('billingMethod') as string || null,
         };
         const mspResult = mspDetailSchema.safeParse(mspRaw);
         if (mspResult.success) {
@@ -111,9 +115,10 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector }: Contract
       }
 
       toast.success('계약이 등록되었습니다');
-      router.push(`/contracts/${contract.id}`);
-    } catch {
-      toast.error('계약 등록에 실패했습니다');
+      router.push(`${basePath}/${contract.id}`);
+    } catch (err) {
+      const { getErrorMessage } = await import('@/lib/utils');
+      toast.error(`계약 등록 실패: ${getErrorMessage(err)}`);
     }
   }
 
@@ -248,8 +253,8 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector }: Contract
           <Select name="assignedTo">
             <SelectTrigger><SelectValue placeholder="담당자 선택" /></SelectTrigger>
             <SelectContent>
-              {profiles?.map((p) => (
-                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              {employees?.map((e) => (
+                <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>

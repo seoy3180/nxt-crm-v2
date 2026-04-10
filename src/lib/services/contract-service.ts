@@ -35,14 +35,14 @@ export interface ContractRow {
 export interface MspDetailRow {
   id: string;
   contract_id: string;
-  billing_level: string | null;
-  credit_share: number | null;
+  credit_share: string | null;
   expected_mrr: number | null;
   payer: string | null;
-  sales_rep: string | null;
+  sales_rep_id: string | null;
+  sales_rep_name: string | null;
   aws_amount: number | null;
   has_management_fee: boolean;
-  payment_method: string | null;
+  billing_method: string | null;
 }
 
 export interface TtDetailRow {
@@ -72,15 +72,18 @@ export interface EducationOpRow {
 export interface ContractHistoryRow {
   id: string;
   contract_id: string;
+  field_name: string | null;
+  old_value: string | null;
+  new_value: string | null;
   from_stage: string | null;
-  to_stage: string;
+  to_stage: string | null;
   changed_by: string;
   note: string | null;
   created_at: string;
   changed_by_name?: string;
 }
 
-const supabase = createClient();
+function getClient() { return createClient(); }
 
 export const contractService = {
   async list(query: ContractListQuery) {
@@ -88,7 +91,7 @@ export const contractService = {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let q = supabase
+    let q = getClient()
       .from('contracts')
       .select(`
         *,
@@ -138,14 +141,14 @@ export const contractService = {
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getClient()
       .from('contracts')
       .select(`
         *,
         clients!contracts_client_id_fkey(name, client_id),
         profiles!contracts_assigned_to_fkey(name),
         contacts!contracts_contact_id_fkey(name),
-        contract_msp_details(*)
+        contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name))
       `)
       .eq('id', id)
       .is('deleted_at', null)
@@ -160,9 +163,14 @@ export const contractService = {
       client_display_id: (row.clients as { client_id: string } | null)?.client_id ?? null,
       assigned_to_name: (row.profiles as { name: string } | null)?.name ?? null,
       contact_name: (row.contacts as { name: string } | null)?.name ?? null,
-      msp_details: Array.isArray(row.contract_msp_details)
-        ? (row.contract_msp_details as unknown[])[0] ?? null
-        : row.contract_msp_details ?? null,
+      msp_details: (() => {
+        const raw = Array.isArray(row.contract_msp_details)
+          ? (row.contract_msp_details as Record<string, unknown>[])[0] ?? null
+          : (row.contract_msp_details as Record<string, unknown> | null) ?? null;
+        if (!raw) return null;
+        const emp = raw.employees as { name: string } | null;
+        return { ...raw, sales_rep_name: emp?.name ?? null, employees: undefined };
+      })(),
     };
 
     return mapped as unknown as ContractRow;
@@ -170,9 +178,9 @@ export const contractService = {
 
   async create(input: ContractCreateInput) {
     const idFn = input.type === 'msp' ? 'generate_msp_contract_id' : 'generate_edu_contract_id';
-    const { data: contractId } = await supabase.rpc(idFn);
+    const { data: contractId } = await getClient().rpc(idFn);
 
-    const { data, error } = await supabase
+    const { data, error } = await getClient()
       .from('contracts')
       .insert({
         contract_id: contractId as string,
@@ -192,12 +200,10 @@ export const contractService = {
     if (error) throw error;
 
     if (input.type === 'msp') {
-      await supabase.from('contract_msp_details').insert({ contract_id: data.id });
-    } else if (input.type === 'tt') {
-      await supabase.from('contract_tt_details').insert({ contract_id: data.id });
+      await getClient().from('contract_msp_details').insert({ contract_id: data.id });
     }
 
-    const { data: client } = await supabase
+    const { data: client } = await getClient()
       .from('clients')
       .select('business_types')
       .eq('id', input.clientId)
@@ -207,7 +213,7 @@ export const contractService = {
       const types = client.business_types as string[] ?? [];
       const btType = input.type === 'tt' ? 'tt' : input.type;
       if (!types.includes(btType)) {
-        await supabase
+        await getClient()
           .from('clients')
           .update({ business_types: [...types, btType] as ("msp" | "tt" | "dev")[] })
           .eq('id', input.clientId);
@@ -226,7 +232,7 @@ export const contractService = {
     if (input.assignedTo !== undefined) updateData.assigned_to = input.assignedTo;
     if (input.contactId !== undefined) updateData.contact_id = input.contactId;
 
-    const { data, error } = await supabase
+    const { data, error } = await getClient()
       .from('contracts')
       .update(updateData)
       .eq('id', id)
@@ -239,16 +245,15 @@ export const contractService = {
 
   async updateMspDetails(contractId: string, input: MspDetailInput) {
     const updateData: Record<string, unknown> = {};
-    if (input.billingLevel !== undefined) updateData.billing_level = input.billingLevel;
     if (input.creditShare !== undefined) updateData.credit_share = input.creditShare;
     if (input.expectedMrr !== undefined) updateData.expected_mrr = input.expectedMrr;
     if (input.payer !== undefined) updateData.payer = input.payer;
-    if (input.salesRep !== undefined) updateData.sales_rep = input.salesRep;
+    if (input.salesRepId !== undefined) updateData.sales_rep_id = input.salesRepId;
     if (input.awsAmount !== undefined) updateData.aws_amount = input.awsAmount;
     if (input.hasManagementFee !== undefined) updateData.has_management_fee = input.hasManagementFee;
-    if (input.paymentMethod !== undefined) updateData.payment_method = input.paymentMethod;
+    if (input.billingMethod !== undefined) updateData.billing_method = input.billingMethod;
 
-    const { data, error } = await supabase
+    const { data, error } = await getClient()
       .from('contract_msp_details')
       .update(updateData)
       .eq('contract_id', contractId)
@@ -260,23 +265,26 @@ export const contractService = {
   },
 
   async changeStage(contractId: string, input: StageChangeInput, userId: string) {
-    const { data: current } = await supabase
+    const { data: current } = await getClient()
       .from('contracts')
       .select('stage')
       .eq('id', contractId)
       .single();
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await getClient()
       .from('contracts')
       .update({ stage: input.toStage })
       .eq('id', contractId);
 
     if (updateError) throw updateError;
 
-    const { error: historyError } = await supabase
+    const { error: historyError } = await getClient()
       .from('contract_history')
       .insert({
         contract_id: contractId,
+        field_name: 'stage',
+        old_value: current?.stage ?? null,
+        new_value: input.toStage,
         from_stage: current?.stage ?? null,
         to_stage: input.toStage,
         changed_by: userId,
@@ -286,8 +294,28 @@ export const contractService = {
     if (historyError) throw historyError;
   },
 
+  /** 범용 변경이력 기록 (여러 필드 동시 가능) */
+  async logChanges(
+    contractId: string,
+    userId: string,
+    changes: { field: string; oldValue: string | null; newValue: string | null }[],
+  ) {
+    if (changes.length === 0) return;
+
+    const rows = changes.map((c) => ({
+      contract_id: contractId,
+      field_name: c.field,
+      old_value: c.oldValue,
+      new_value: c.newValue,
+      changed_by: userId,
+    }));
+
+    const { error } = await getClient().from('contract_history').insert(rows);
+    if (error) throw error;
+  },
+
   async getHistory(contractId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getClient()
       .from('contract_history')
       .select('*, profiles!contract_history_changed_by_fkey(name)')
       .eq('contract_id', contractId)
@@ -300,20 +328,20 @@ export const contractService = {
   async softDelete(id: string) {
     const now = new Date().toISOString();
 
-    const { error } = await supabase
+    const { error } = await getClient()
       .from('contracts')
       .update({ deleted_at: now })
       .eq('id', id);
 
     if (error) throw error;
 
-    await supabase.from('contract_teams').update({ deleted_at: now }).eq('contract_id', id);
+    await getClient().from('contract_teams').update({ deleted_at: now }).eq('contract_id', id);
   },
 };
 
 export const educationOpService = {
   async listByContract(contractId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await getClient()
       .from('education_operations')
       .select('*')
       .eq('contract_id', contractId)
@@ -330,7 +358,7 @@ export const educationOpService = {
     const endDate = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1]!.date : null;
     const totalHours = sortedDates.reduce((sum, d) => sum + (d.hours ?? 0), 0) || null;
 
-    const { data, error } = await supabase
+    const { data, error } = await getClient()
       .from('education_operations')
       .insert({
         contract_id: contractId,
@@ -354,7 +382,7 @@ export const educationOpService = {
     // 일자별 데이터 저장
     if (sortedDates.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: datesError } = await (supabase as any)
+      const { error: datesError } = await (getClient() as any)
         .from('education_operation_dates')
         .insert(sortedDates.map((d: { date: string; hours: number }) => ({
           operation_id: data.id,
@@ -384,7 +412,7 @@ export const educationOpService = {
     if (input.providesLunch !== undefined) updateData.provides_lunch = input.providesLunch;
     if (input.providesSnack !== undefined) updateData.provides_snack = input.providesSnack;
 
-    const { data, error } = await supabase
+    const { data, error } = await getClient()
       .from('education_operations')
       .update(updateData)
       .eq('id', id)
@@ -396,7 +424,7 @@ export const educationOpService = {
   },
 
   async softDelete(id: string) {
-    const { error } = await supabase
+    const { error } = await getClient()
       .from('education_operations')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', id);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { formatAmount } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { ContractRow } from '@/lib/services/contract-service';
@@ -19,9 +20,6 @@ function getStageLabel(stage: string | null, type: string) {
   return stages.find((s) => s.value === stage)?.label ?? stage;
 }
 
-function formatAmount(amount: number) {
-  return new Intl.NumberFormat('ko-KR').format(amount) + '원';
-}
 
 export function RelatedContracts({ clientId, childClientIds }: RelatedContractsProps) {
   const router = useRouter();
