@@ -66,10 +66,10 @@ export const SIDEBAR_SECTIONS = [
     label: 'NXT',
     allowedRoles: ['admin', 'c_level'] as UserRole[],
     items: [
-      { href: '/dashboard', label: '대시보드', icon: 'layout-dashboard' },
-      { href: '/clients', label: '고객 관리', icon: 'users' },
-      { href: '/contracts', label: '계약 관리', icon: 'file-text' },
-      { href: '/revenue', label: '매출 분석', icon: 'trending-up' },
+      { href: '/dashboard', label: '대시보드', icon: 'layout-dashboard', roles: ['admin', 'c_level'] as UserRole[] },
+      { href: '/clients', label: '고객 관리', icon: 'users', roles: ['admin', 'c_level'] as UserRole[] },
+      { href: '/contracts', label: '계약 관리', icon: 'file-text', roles: ['admin', 'c_level'] as UserRole[] },
+      { href: '/revenue', label: '매출 분석', icon: 'trending-up', roles: ['team_lead', 'admin', 'c_level'] as UserRole[] },
     ],
   },
   {
@@ -121,3 +121,11 @@ export const COMPANY_SIZE_OPTIONS = ['스타트업', '중소기업', '중견기�
 export const CREDIT_SHARE_OPTIONS = ['가능', '불가능', '미정'] as const;
 export const PAYER_OPTIONS = ['ETV-AWS-13', 'ETV-AWS-14', 'Org-001', 'Billing Transfer'] as const;
 export const BILLING_METHOD_OPTIONS = ['대표님 직접 청구', '매월 10일 세금계산서 발행', '공공기관 별도 청구'] as const;
+
+// 매출 분석 색상
+export const REVENUE_COLORS = {
+  msp: '#2563eb',
+  tt: '#f59e0b',
+  dev: '#71717a',
+  unallocated: '#e4e4e7',
+} as const;
