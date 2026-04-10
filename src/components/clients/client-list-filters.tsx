@@ -66,6 +66,8 @@ export function ClientListFilters({
         </SelectContent>
       </Select>
 
+      <div className="flex-1" />
+
       <div className="relative w-60">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
         <Input
@@ -75,8 +77,6 @@ export function ClientListFilters({
           className="h-9 rounded-lg border-zinc-200 pl-9 text-[13px]"
         />
       </div>
-
-      <div className="flex-1" />
 
       <Link href="/clients/new">
         <Button className="h-9 gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium hover:bg-blue-700">

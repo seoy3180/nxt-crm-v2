@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ClientListFilters } from '@/components/clients/client-list-filters';
 import { ClientTreeTable } from '@/components/clients/client-tree-table';
@@ -10,10 +10,9 @@ import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-// 디바운스 훅
-function useDebounce(value: string, delay: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  const timeoutRef = { current: null as ReturnType<typeof setTimeout> | null };
+function useDebounce(delay: number) {
+  const [debouncedValue, setDebouncedValue] = useState('');
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setValueDebounced = useCallback(
     (newValue: string) => {
@@ -28,7 +27,7 @@ function useDebounce(value: string, delay: number) {
 
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useDebounce('', SEARCH_DEBOUNCE_MS);
+  const [debouncedSearch, setDebouncedSearch] = useDebounce(SEARCH_DEBOUNCE_MS);
   const [clientType, setClientType] = useState<string | undefined>();
   const [businessType, setBusinessType] = useState<string | undefined>();
   const [page, setPage] = useState(1);
@@ -54,18 +53,17 @@ export default function ClientsPage() {
   }
 
   return (
-    <div>
-      <PageHeader title="고객 관리" />
+    <div className="flex flex-1 flex-col gap-5">
+      <h1 className="text-2xl font-semibold text-zinc-900">고객 관리</h1>
 
-      <div className="space-y-4">
-        <ClientListFilters
-          search={search}
-          onSearchChange={handleSearchChange}
-          clientType={clientType}
-          onClientTypeChange={(v) => { setClientType(v); setPage(1); }}
-          businessType={businessType}
-          onBusinessTypeChange={(v) => { setBusinessType(v); setPage(1); }}
-        />
+      <ClientListFilters
+        search={search}
+        onSearchChange={handleSearchChange}
+        clientType={clientType}
+        onClientTypeChange={(v) => { setClientType(v); setPage(1); }}
+        businessType={businessType}
+        onBusinessTypeChange={(v) => { setBusinessType(v); setPage(1); }}
+      />
 
         <ClientTreeTable
           clients={data?.data ?? []}
@@ -95,7 +93,6 @@ export default function ClientsPage() {
             </Button>
           </div>
         )}
-      </div>
     </div>
   );
 }

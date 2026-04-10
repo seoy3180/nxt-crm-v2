@@ -52,7 +52,7 @@ export function Sidebar() {
           type="button"
           className="flex h-9 w-full items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-zinc-400 transition-colors hover:border-zinc-300"
           onClick={() => {
-            // TODO: Cmd+K 검색 모달
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
           }}
         >
           <Search className="h-[15px] w-[15px]" />

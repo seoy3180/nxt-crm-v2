@@ -44,6 +44,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
       return;
     }
     await updateClient.mutateAsync(result.data);
+    toast.success('고객 정보가 수정되었습니다');
     setEditing(false);
   }
 

@@ -113,9 +113,7 @@ export const MAX_PAGE_SIZE = 100;
 // 디바운스
 export const SEARCH_DEBOUNCE_MS = 300;
 
-// 빌링 레벨 옵션 (MSP 계약)
-export const BILLING_LEVELS = [
-  'MSP1', 'MSP5', 'MSP10', 'MSP15', 'MSP20',
-  'MSP25', 'MSP30', 'MSP50', 'MSP100',
-] as const;
-export type BillingLevel = (typeof BILLING_LEVELS)[number];
+// MSP 계약 enum 옵션
+export const CREDIT_SHARE_OPTIONS = ['가능', '불가능', '미정'] as const;
+export const PAYER_OPTIONS = ['ETV-AWS-13', 'ETV-AWS-14', 'Org-001', 'Billing Transfer'] as const;
+export const BILLING_METHOD_OPTIONS = ['대표님 직접 청구', '매월 10일 세금계산서 발행', '공공기관 별도 청구'] as const;

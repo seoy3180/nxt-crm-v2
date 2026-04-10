@@ -44,6 +44,13 @@ export type Database = {
             foreignKeyName: "client_edu_details_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: true
+            referencedRelation: "client_list_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_edu_details_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -54,10 +61,10 @@ export type Database = {
           aws_account_ids: string[] | null
           aws_am: string | null
           client_id: string
-          company_size: string | null
+          company_size: Database["public"]["Enums"]["company_size_type"] | null
           created_at: string
           id: string
-          industry: string | null
+          industry: Database["public"]["Enums"]["industry_type"] | null
           memo: string | null
           msp_grade: string | null
           tags: string[] | null
@@ -67,10 +74,10 @@ export type Database = {
           aws_account_ids?: string[] | null
           aws_am?: string | null
           client_id: string
-          company_size?: string | null
+          company_size?: Database["public"]["Enums"]["company_size_type"] | null
           created_at?: string
           id?: string
-          industry?: string | null
+          industry?: Database["public"]["Enums"]["industry_type"] | null
           memo?: string | null
           msp_grade?: string | null
           tags?: string[] | null
@@ -80,16 +87,23 @@ export type Database = {
           aws_account_ids?: string[] | null
           aws_am?: string | null
           client_id?: string
-          company_size?: string | null
+          company_size?: Database["public"]["Enums"]["company_size_type"] | null
           created_at?: string
           id?: string
-          industry?: string | null
+          industry?: Database["public"]["Enums"]["industry_type"] | null
           memo?: string | null
           msp_grade?: string | null
           tags?: string[] | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "client_msp_details_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "client_list_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_msp_details_client_id_fkey"
             columns: ["client_id"]
@@ -101,7 +115,6 @@ export type Database = {
       }
       clients: {
         Row: {
-          assigned_to: string | null
           business_types: Database["public"]["Enums"]["business_type"][] | null
           client_id: string
           client_type: Database["public"]["Enums"]["client_type"]
@@ -116,7 +129,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          assigned_to?: string | null
           business_types?: Database["public"]["Enums"]["business_type"][] | null
           client_id: string
           client_type: Database["public"]["Enums"]["client_type"]
@@ -131,7 +143,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          assigned_to?: string | null
           business_types?: Database["public"]["Enums"]["business_type"][] | null
           client_id?: string
           client_type?: Database["public"]["Enums"]["client_type"]
@@ -147,10 +158,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "clients_assigned_to_fkey"
-            columns: ["assigned_to"]
+            foreignKeyName: "clients_parent_id_fkey"
+            columns: ["parent_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "client_list_view"
             referencedColumns: ["id"]
           },
           {
@@ -210,6 +221,13 @@ export type Database = {
             foreignKeyName: "contacts_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_list_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -220,28 +238,37 @@ export type Database = {
           changed_by: string
           contract_id: string
           created_at: string
+          field_name: string | null
           from_stage: string | null
           id: string
+          new_value: string | null
           note: string | null
-          to_stage: string
+          old_value: string | null
+          to_stage: string | null
         }
         Insert: {
           changed_by: string
           contract_id: string
           created_at?: string
+          field_name?: string | null
           from_stage?: string | null
           id?: string
+          new_value?: string | null
           note?: string | null
-          to_stage: string
+          old_value?: string | null
+          to_stage?: string | null
         }
         Update: {
           changed_by?: string
           contract_id?: string
           created_at?: string
+          field_name?: string | null
           from_stage?: string | null
           id?: string
+          new_value?: string | null
           note?: string | null
-          to_stage?: string
+          old_value?: string | null
+          to_stage?: string | null
         }
         Relationships: [
           {
@@ -270,44 +297,47 @@ export type Database = {
       contract_msp_details: {
         Row: {
           aws_amount: number | null
-          billing_level: string | null
+          billing_method:
+            | Database["public"]["Enums"]["billing_method_type"]
+            | null
           contract_id: string
           created_at: string
-          credit_share: number | null
+          credit_share: Database["public"]["Enums"]["credit_share_type"] | null
           expected_mrr: number | null
           has_management_fee: boolean | null
           id: string
-          payer: string | null
-          payment_method: string | null
-          sales_rep: string | null
+          payer: Database["public"]["Enums"]["payer_type"] | null
+          sales_rep_id: string | null
           updated_at: string
         }
         Insert: {
           aws_amount?: number | null
-          billing_level?: string | null
+          billing_method?:
+            | Database["public"]["Enums"]["billing_method_type"]
+            | null
           contract_id: string
           created_at?: string
-          credit_share?: number | null
+          credit_share?: Database["public"]["Enums"]["credit_share_type"] | null
           expected_mrr?: number | null
           has_management_fee?: boolean | null
           id?: string
-          payer?: string | null
-          payment_method?: string | null
-          sales_rep?: string | null
+          payer?: Database["public"]["Enums"]["payer_type"] | null
+          sales_rep_id?: string | null
           updated_at?: string
         }
         Update: {
           aws_amount?: number | null
-          billing_level?: string | null
+          billing_method?:
+            | Database["public"]["Enums"]["billing_method_type"]
+            | null
           contract_id?: string
           created_at?: string
-          credit_share?: number | null
+          credit_share?: Database["public"]["Enums"]["credit_share_type"] | null
           expected_mrr?: number | null
           has_management_fee?: boolean | null
           id?: string
-          payer?: string | null
-          payment_method?: string | null
-          sales_rep?: string | null
+          payer?: Database["public"]["Enums"]["payer_type"] | null
+          sales_rep_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -323,6 +353,13 @@ export type Database = {
             columns: ["contract_id"]
             isOneToOne: true
             referencedRelation: "contracts_with_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_msp_details_sales_rep_id_fkey"
+            columns: ["sales_rep_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -375,42 +412,6 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      contract_tt_details: {
-        Row: {
-          contract_id: string
-          created_at: string
-          id: string
-          updated_at: string
-        }
-        Insert: {
-          contract_id: string
-          created_at?: string
-          id?: string
-          updated_at?: string
-        }
-        Update: {
-          contract_id?: string
-          created_at?: string
-          id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contract_tt_details_contract_id_fkey"
-            columns: ["contract_id"]
-            isOneToOne: true
-            referencedRelation: "contracts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contract_tt_details_contract_id_fkey"
-            columns: ["contract_id"]
-            isOneToOne: true
-            referencedRelation: "contracts_with_details"
             referencedColumns: ["id"]
           },
         ]
@@ -476,6 +477,13 @@ export type Database = {
             foreignKeyName: "contracts_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
+            referencedRelation: "client_list_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
@@ -488,16 +496,50 @@ export type Database = {
           },
         ]
       }
+      education_operation_dates: {
+        Row: {
+          created_at: string
+          education_date: string
+          hours: number | null
+          id: string
+          operation_id: string
+        }
+        Insert: {
+          created_at?: string
+          education_date: string
+          hours?: number | null
+          id?: string
+          operation_id: string
+        }
+        Update: {
+          created_at?: string
+          education_date?: string
+          hours?: number | null
+          id?: string
+          operation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "education_operation_dates_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "education_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       education_operations: {
         Row: {
           actual_count: number | null
           contract_id: string
           contracted_count: number | null
           created_at: string
+          date_list: string[] | null
           deleted_at: string | null
           end_date: string | null
           id: string
           location: string | null
+          notes: string | null
           operation_name: string
           provides_lunch: boolean | null
           provides_snack: boolean | null
@@ -512,10 +554,12 @@ export type Database = {
           contract_id: string
           contracted_count?: number | null
           created_at?: string
+          date_list?: string[] | null
           deleted_at?: string | null
           end_date?: string | null
           id?: string
           location?: string | null
+          notes?: string | null
           operation_name: string
           provides_lunch?: boolean | null
           provides_snack?: boolean | null
@@ -530,10 +574,12 @@ export type Database = {
           contract_id?: string
           contracted_count?: number | null
           created_at?: string
+          date_list?: string[] | null
           deleted_at?: string | null
           end_date?: string | null
           id?: string
           location?: string | null
+          notes?: string | null
           operation_name?: string
           provides_lunch?: boolean | null
           provides_snack?: boolean | null
@@ -556,6 +602,60 @@ export type Database = {
             columns: ["contract_id"]
             isOneToOne: false
             referencedRelation: "contracts_with_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phone: string | null
+          position: string | null
+          profile_id: string | null
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phone?: string | null
+          position?: string | null
+          profile_id?: string | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phone?: string | null
+          position?: string | null
+          profile_id?: string | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
@@ -605,6 +705,7 @@ export type Database = {
           created_at: string
           id: string
           instructor_id: string
+          notes: string | null
           operation_id: string
           role: string
         }
@@ -613,6 +714,7 @@ export type Database = {
           created_at?: string
           id?: string
           instructor_id: string
+          notes?: string | null
           operation_id: string
           role: string
         }
@@ -621,6 +723,7 @@ export type Database = {
           created_at?: string
           id?: string
           instructor_id?: string
+          notes?: string | null
           operation_id?: string
           role?: string
         }
@@ -734,19 +837,84 @@ export type Database = {
       }
     }
     Views: {
+      client_list_view: {
+        Row: {
+          business_types: Database["public"]["Enums"]["business_type"][] | null
+          client_id: string | null
+          client_type: Database["public"]["Enums"]["client_type"] | null
+          contract_count: number | null
+          created_at: string | null
+          deleted_at: string | null
+          grade: Database["public"]["Enums"]["client_grade"] | null
+          id: string | null
+          memo: string | null
+          name: string | null
+          parent_id: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_types?: Database["public"]["Enums"]["business_type"][] | null
+          client_id?: string | null
+          client_type?: Database["public"]["Enums"]["client_type"] | null
+          contract_count?: never
+          created_at?: string | null
+          deleted_at?: string | null
+          grade?: Database["public"]["Enums"]["client_grade"] | null
+          id?: string | null
+          memo?: string | null
+          name?: string | null
+          parent_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_types?: Database["public"]["Enums"]["business_type"][] | null
+          client_id?: string | null
+          client_type?: Database["public"]["Enums"]["client_type"] | null
+          contract_count?: never
+          created_at?: string | null
+          deleted_at?: string | null
+          grade?: Database["public"]["Enums"]["client_grade"] | null
+          id?: string | null
+          memo?: string | null
+          name?: string | null
+          parent_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "client_list_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts_with_details: {
         Row: {
           assigned_to: string | null
           assigned_to_name: string | null
           aws_amount: number | null
-          billing_level: string | null
+          billing_method:
+            | Database["public"]["Enums"]["billing_method_type"]
+            | null
           client_display_id: string | null
           client_id: string | null
           client_name: string | null
           contact_id: string | null
           contract_id: string | null
           created_at: string | null
-          credit_share: number | null
+          credit_share: Database["public"]["Enums"]["credit_share_type"] | null
           currency: Database["public"]["Enums"]["currency_type"] | null
           deleted_at: string | null
           description: string | null
@@ -754,8 +922,8 @@ export type Database = {
           has_management_fee: boolean | null
           id: string | null
           name: string | null
-          payer: string | null
-          sales_rep: string | null
+          payer: Database["public"]["Enums"]["payer_type"] | null
+          sales_rep_id: string | null
           stage: string | null
           total_amount: number | null
           type: Database["public"]["Enums"]["contract_type"] | null
@@ -763,10 +931,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "contract_msp_details_sales_rep_id_fkey"
+            columns: ["sales_rep_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contracts_assigned_to_fkey"
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_list_view"
             referencedColumns: ["id"]
           },
           {
@@ -796,20 +978,42 @@ export type Database = {
       generate_edu_contract_id: { Args: never; Returns: string }
       generate_msp_contract_id: { Args: never; Returns: string }
       is_admin_or_clevel: { Args: never; Returns: boolean }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      update_contract_teams: {
+        Args: { p_contract_id: string; p_allocations: string }
+        Returns: undefined
+      }
       user_team_id: { Args: never; Returns: string }
     }
     Enums: {
+      billing_method_type:
+        | "대표님 직접 청구"
+        | "매월 10일 세금계산서 발행"
+        | "공공기관 별도 청구"
       business_type: "msp" | "tt" | "dev"
       client_grade: "A" | "B" | "C" | "D" | "E"
       client_type: "univ" | "corp" | "govt" | "asso" | "etc"
+      company_size_type:
+        | "스타트업"
+        | "중소기업"
+        | "중견기업"
+        | "대기업"
+        | "공공기관"
       contract_type: "msp" | "tt" | "dev"
+      credit_share_type: "가능" | "불가능" | "미정"
       currency_type: "KRW" | "USD"
+      industry_type:
+        | "IT"
+        | "제조"
+        | "금융"
+        | "유통"
+        | "공공"
+        | "서울대 연구실"
+        | "기타"
+      payer_type: "ETV-AWS-13" | "ETV-AWS-14" | "Org-001" | "Billing Transfer"
       team_type: "msp" | "education" | "dev"
       user_role: "staff" | "team_lead" | "admin" | "c_level"
     }
@@ -939,11 +1143,34 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      billing_method_type: [
+        "대표님 직접 청구",
+        "매월 10일 세금계산서 발행",
+        "공공기관 별도 청구",
+      ],
       business_type: ["msp", "tt", "dev"],
       client_grade: ["A", "B", "C", "D", "E"],
       client_type: ["univ", "corp", "govt", "asso", "etc"],
+      company_size_type: [
+        "스타트업",
+        "중소기업",
+        "중견기업",
+        "대기업",
+        "공공기관",
+      ],
       contract_type: ["msp", "tt", "dev"],
+      credit_share_type: ["가능", "불가능", "미정"],
       currency_type: ["KRW", "USD"],
+      industry_type: [
+        "IT",
+        "제조",
+        "금융",
+        "유통",
+        "공공",
+        "서울대 연구실",
+        "기타",
+      ],
+      payer_type: ["ETV-AWS-13", "ETV-AWS-14", "Org-001", "Billing Transfer"],
       team_type: ["msp", "education", "dev"],
       user_role: ["staff", "team_lead", "admin", "c_level"],
     },

@@ -1,10 +1,10 @@
 'use client';
 
-import { Suspense, useState, useCallback } from 'react';
+import { Suspense, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { ContractFilters } from '@/components/contracts/contract-filters';
+import { ContractStageFilter, ContractSearch } from '@/components/contracts/contract-filters';
 import { ContractTable } from '@/components/contracts/contract-table';
 import { ContractKanban } from '@/components/contracts/contract-kanban';
 import { ErrorState } from '@/components/common/error-state';
@@ -31,13 +31,14 @@ function ContractsPageInner() {
   const [stage, setStage] = useState<string | undefined>();
   const [page, setPage] = useState(1);
 
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
-    const timer = setTimeout(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
       setDebouncedSearch(value);
       setPage(1);
     }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
   }, []);
 
   const { data, isLoading, isError, refetch } = useContracts({
@@ -74,58 +75,69 @@ function ContractsPageInner() {
 
   return (
     <div className="flex h-full flex-col gap-5">
-      {/* 헤더: 타이틀 + 비즈니스 탭 + 뷰 토글 + 새 계약 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-semibold text-zinc-900">계약 관리</h1>
+      {/* 타이틀 */}
+      <h1 className="text-2xl font-semibold text-zinc-900">계약 관리</h1>
 
-          {/* 비즈니스 탭 (언더라인 스타일) */}
-          <div className="flex border-b border-zinc-200">
-            {BIZ_TABS.map((tab) => (
-              <button
-                key={tab.value}
-                type="button"
-                onClick={() => handleBizTabChange(tab.value)}
-                className={cn(
-                  'h-8 px-3.5 text-[13px] font-medium transition-colors',
-                  contractType === tab.value
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-zinc-500 hover:text-zinc-700',
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* 뷰 모드 토글 (필 스타일) */}
-          <div className="flex overflow-hidden rounded-lg border border-zinc-200">
+      {/* 필터 바: 비즈니스 탭 + 뷰 토글 + 단계 + 검색 + 새 계약 */}
+      <div className="flex items-center gap-3">
+        {/* 비즈니스 탭 (언더라인 스타일) */}
+        <div className="flex border-b border-zinc-200">
+          {BIZ_TABS.map((tab) => (
             <button
+              key={tab.value}
               type="button"
-              onClick={() => handleViewChange('kanban')}
+              onClick={() => handleBizTabChange(tab.value)}
               className={cn(
                 'h-8 px-3.5 text-[13px] font-medium transition-colors',
-                viewMode === 'kanban'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-zinc-500 hover:bg-zinc-50',
+                contractType === tab.value
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-zinc-500 hover:text-zinc-700',
               )}
             >
-              칸반
+              {tab.label}
             </button>
-            <button
-              type="button"
-              onClick={() => handleViewChange('table')}
-              className={cn(
-                'h-8 px-3.5 text-[13px] font-medium transition-colors',
-                viewMode === 'table'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-zinc-500 hover:bg-zinc-50',
-              )}
-            >
-              테이블
-            </button>
-          </div>
+          ))}
         </div>
+
+        {/* 뷰 모드 토글 */}
+        <div className="flex overflow-hidden rounded-lg border border-zinc-200">
+          <button
+            type="button"
+            onClick={() => handleViewChange('kanban')}
+            className={cn(
+              'h-8 px-3.5 text-[13px] font-medium transition-colors',
+              viewMode === 'kanban'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-zinc-500 hover:bg-zinc-50',
+            )}
+          >
+            칸반
+          </button>
+          <button
+            type="button"
+            onClick={() => handleViewChange('table')}
+            className={cn(
+              'h-8 px-3.5 text-[13px] font-medium transition-colors',
+              viewMode === 'table'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-zinc-500 hover:bg-zinc-50',
+            )}
+          >
+            테이블
+          </button>
+        </div>
+
+        {/* 단계 필터 */}
+        <ContractStageFilter
+          contractType={contractType}
+          stage={stage}
+          onStageChange={(v) => { setStage(v); setPage(1); }}
+        />
+
+        <div className="flex-1" />
+
+        {/* 검색 + 새 계약 */}
+        <ContractSearch search={search} onSearchChange={handleSearchChange} />
 
         <Link href="/contracts/new">
           <Button className="h-9 gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium hover:bg-blue-700">
@@ -134,17 +146,6 @@ function ContractsPageInner() {
           </Button>
         </Link>
       </div>
-
-      {/* 필터 (테이블 뷰에서만) */}
-      {viewMode === 'table' && (
-        <ContractFilters
-          contractType={contractType}
-          search={search}
-          onSearchChange={handleSearchChange}
-          stage={stage}
-          onStageChange={(v) => { setStage(v); setPage(1); }}
-        />
-      )}
 
       {/* 뷰 */}
       {viewMode === 'kanban' ? (

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { formatAmount } from '@/lib/utils';
 import {
   DndContext,
   DragOverlay,
@@ -27,15 +28,6 @@ interface ContractKanbanProps {
   contractType: string;
 }
 
-function formatAmount(amount: number) {
-  if (amount >= 100000000) {
-    return `₩ ${(amount / 100000000).toFixed(1)}억`;
-  }
-  if (amount >= 10000) {
-    return `₩ ${Math.round(amount / 10000).toLocaleString()}만`;
-  }
-  return `₩ ${amount.toLocaleString()}`;
-}
 
 function CardContent({ contract }: { contract: ContractRow }) {
   return (
@@ -47,7 +39,7 @@ function CardContent({ contract }: { contract: ContractRow }) {
   );
 }
 
-function DraggableCard({ contract }: { contract: ContractRow }) {
+function DraggableCard({ contract, basePath }: { contract: ContractRow; basePath: string }) {
   const router = useRouter();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: contract.id,
@@ -59,7 +51,7 @@ function DraggableCard({ contract }: { contract: ContractRow }) {
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      onClick={() => router.push(`/contracts/${contract.id}`)}
+      onClick={() => router.push(`${basePath}/${contract.id}`)}
       className={`w-full cursor-grab rounded-lg border border-zinc-200 bg-white p-3.5 text-left transition-colors hover:border-zinc-300 active:cursor-grabbing ${isDragging ? 'opacity-30' : ''}`}
     >
       <CardContent contract={contract} />
@@ -67,11 +59,12 @@ function DraggableCard({ contract }: { contract: ContractRow }) {
   );
 }
 
-function DroppableColumn({ stageValue, stageLabel, contracts, isOver }: {
+function DroppableColumn({ stageValue, stageLabel, contracts, isOver, basePath }: {
   stageValue: string;
   stageLabel: string;
   contracts: ContractRow[];
   isOver: boolean;
+  basePath: string;
 }) {
   const { setNodeRef } = useDroppable({ id: stageValue });
 
@@ -91,7 +84,7 @@ function DroppableColumn({ stageValue, stageLabel, contracts, isOver }: {
           <p className="py-8 text-center text-xs text-zinc-400">계약 없음</p>
         ) : (
           contracts.map((contract) => (
-            <DraggableCard key={contract.id} contract={contract} />
+            <DraggableCard key={contract.id} contract={contract} basePath={basePath} />
           ))
         )}
       </div>
@@ -99,7 +92,10 @@ function DroppableColumn({ stageValue, stageLabel, contracts, isOver }: {
   );
 }
 
+const BASE_PATHS: Record<string, string> = { msp: '/msp/contracts', tt: '/contracts', dev: '/contracts' };
+
 export function ContractKanban({ contracts, loading, contractType }: ContractKanbanProps) {
+  const basePath = BASE_PATHS[contractType] ?? '/contracts';
   const stages = contractType === 'msp' ? MSP_STAGES : contractType === 'tt' ? EDU_STAGES : MSP_STAGES;
   const { data: currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -165,8 +161,9 @@ export function ContractKanban({ contracts, loading, contractType }: ContractKan
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       const stageLabel = stages.find((s) => s.value === newStage)?.label ?? newStage;
       toast.success(`"${contract.name}" → ${stageLabel}`);
-    } catch {
-      toast.error('단계 변경에 실패했습니다');
+    } catch (err) {
+      const { getErrorMessage } = await import('@/lib/utils');
+      toast.error(`단계 변경 실패: ${getErrorMessage(err)}`);
     }
   }
 
@@ -185,6 +182,7 @@ export function ContractKanban({ contracts, loading, contractType }: ContractKan
             stageLabel={stage.label}
             contracts={grouped.get(stage.value) ?? []}
             isOver={overColumn === stage.value}
+            basePath={basePath}
           />
         ))}
       </div>
