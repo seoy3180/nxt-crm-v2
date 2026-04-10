@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { formatAmount } from '@/lib/utils';
+import { formatAmount, getStageColor } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { ContractRow } from '@/lib/services/contract-service';
@@ -92,7 +92,7 @@ export function RelatedContracts({ clientId, childClientIds }: RelatedContractsP
                     })()}
                   </TableCell>
                   <TableCell className="w-[100px] px-4 text-center">
-                    <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-600">
+                    <span className={`inline-block rounded px-2 py-0.5 text-[11px] font-semibold ${getStageColor(c.stage)}`}>
                       {getStageLabel(c.stage, c.type)}
                     </span>
                   </TableCell>

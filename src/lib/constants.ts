@@ -113,6 +113,10 @@ export const MAX_PAGE_SIZE = 100;
 // 디바운스
 export const SEARCH_DEBOUNCE_MS = 300;
 
+// MSP 고객 enum 옵션
+export const INDUSTRY_OPTIONS = ['IT', '제조', '금융', '유통', '공공', '서울대 연구실', '기타'] as const;
+export const COMPANY_SIZE_OPTIONS = ['스타트업', '중소기업', '중견기업', '대기업', '공공기관'] as const;
+
 // MSP 계약 enum 옵션
 export const CREDIT_SHARE_OPTIONS = ['가능', '불가능', '미정'] as const;
 export const PAYER_OPTIONS = ['ETV-AWS-13', 'ETV-AWS-14', 'Org-001', 'Billing Transfer'] as const;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { formatAmount } from '@/lib/utils';
+import { formatAmount, getStageColor } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -21,10 +21,9 @@ interface ContractTableProps {
 }
 
 function getStageBadge(stage: string | null, type: string) {
-  if (!stage) return <span className="inline-block rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-500">미지정</span>;
   const stages = type === 'msp' ? MSP_STAGES : EDU_STAGES;
-  const found = stages.find((s) => s.value === stage);
-  return <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-600">{found?.label ?? stage}</span>;
+  const label = stage ? (stages.find((s) => s.value === stage)?.label ?? stage) : '미지정';
+  return <span className={`inline-block rounded px-2 py-0.5 text-[11px] font-semibold ${getStageColor(stage)}`}>{label}</span>;
 }
 
 function getTypeBadge(type: string) {

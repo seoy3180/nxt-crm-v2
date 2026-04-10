@@ -323,8 +323,8 @@ export default function MspContactsPage() {
                     key={c.id}
                     tabIndex={editMode ? undefined : 0}
                     className={cn('h-11 border-b border-zinc-100', !editMode && 'cursor-pointer hover:bg-zinc-50')}
-                    onClick={editMode ? undefined : () => router.push(`/clients/${c.clientId}`)}
-                    onKeyDown={editMode ? undefined : (e) => { if (e.key === 'Enter') router.push(`/clients/${c.clientId}`); }}
+                    onClick={editMode ? undefined : () => router.push(`/msp/clients/${c.clientId}`)}
+                    onKeyDown={editMode ? undefined : (e) => { if (e.key === 'Enter') router.push(`/msp/clients/${c.clientId}`); }}
                   >
                     {columns.map((col) => {
                       const displayValue = getDisplayValue(c, col.key);

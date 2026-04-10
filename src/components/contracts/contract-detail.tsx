@@ -11,7 +11,7 @@ import { StageChangeDialog } from './stage-change-dialog';
 import { ContractDeleteZone } from './contract-delete-zone';
 import { MSP_STAGES, EDU_STAGES } from '@/lib/constants';
 import { contractService, type ContractRow } from '@/lib/services/contract-service';
-import { safeNumber, getErrorMessage } from '@/lib/utils';
+import { safeNumber, getErrorMessage, getStageColor } from '@/lib/utils';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useEmployees } from '@/hooks/use-employees';
 import { RevenueSplitCard } from './revenue-split-card';
@@ -151,7 +151,7 @@ export function ContractDetail({ contract }: ContractDetailProps) {
             <h1 className="text-2xl font-semibold text-zinc-900">{contract.name}</h1>
             <div className="flex items-center gap-2">
               <span className="text-[13px] text-zinc-400">{contract.contract_id}</span>
-              <span className="inline-block rounded bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-600">
+              <span className={`inline-block rounded px-2.5 py-0.5 text-xs font-semibold ${getStageColor(contract.stage)}`}>
                 {getStageLabel(contract.stage, contract.type)}
               </span>
               <span className="text-[13px] text-zinc-500">{contract.client_name ?? '-'}</span>

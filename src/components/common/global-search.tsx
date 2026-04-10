@@ -57,7 +57,7 @@ export function GlobalSearch() {
     const searchTerm = `%${q}%`;
 
     try {
-    const [clientRes, contractRes, contactRes] = await Promise.all([
+    const [clientRes, contractRes, contactRes, awsRes] = await Promise.all([
       supabase
         .from('clients')
         .select('id, name, client_id, client_type')
@@ -75,6 +75,11 @@ export function GlobalSearch() {
         .select('id, name, phone, email, client_id, clients!contacts_client_id_fkey(name)')
         .is('deleted_at', null)
         .ilike('name', searchTerm)
+        .limit(5),
+      supabase
+        .from('client_msp_details')
+        .select('client_id, aws_account_ids, clients!client_msp_details_client_id_fkey(id, name, client_id)')
+        .contains('aws_account_ids', [q])
         .limit(5),
     ]);
 
@@ -103,9 +108,21 @@ export function GlobalSearch() {
           linkId: c.client_id,
         };
       }),
+      ...(awsRes.data ?? []).filter((a) => {
+        const client = a.clients as { id: string } | null;
+        return client && !clientRes.data?.some((c) => c.id === client.id);
+      }).map((a) => {
+        const client = a.clients as { id: string; name: string; client_id: string };
+        return {
+          id: client.id,
+          type: 'client' as const,
+          name: client.name,
+          meta: `${client.client_id} · AWS 계정: ${q}`,
+        };
+      }),
     ];
 
-    if (clientRes.error || contractRes.error || contactRes.error) {
+    if (clientRes.error || contractRes.error || contactRes.error || awsRes.error) {
       setResults([]);
       return;
     }
