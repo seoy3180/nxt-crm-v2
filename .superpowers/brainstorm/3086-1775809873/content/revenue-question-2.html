@@ -1,0 +1,65 @@
+<h2>전년 비교 표시 방식</h2>
+<p class="subtitle">연간 현황 탭에서 "전년 비교" 버튼을 켰을 때 어떻게 보여줄까요?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>겹침 차트 (Overlay)</h3>
+      <p>같은 차트에 올해(진한색) + 작년(연한색) 막대를 겹쳐서 표시. 월별 직접 비교가 쉬움.</p>
+      <div style="margin-top:12px; padding:16px; background:#f9fafb; border-radius:8px; display:flex; gap:8px; align-items:end; height:80px;">
+        <div style="display:flex; gap:2px; align-items:end; flex:1;">
+          <div style="width:12px; background:#bfdbfe; height:40px; border-radius:2px;"></div>
+          <div style="width:12px; background:#2563eb; height:55px; border-radius:2px;"></div>
+        </div>
+        <div style="display:flex; gap:2px; align-items:end; flex:1;">
+          <div style="width:12px; background:#bfdbfe; height:35px; border-radius:2px;"></div>
+          <div style="width:12px; background:#2563eb; height:60px; border-radius:2px;"></div>
+        </div>
+        <div style="display:flex; gap:2px; align-items:end; flex:1;">
+          <div style="width:12px; background:#bfdbfe; height:50px; border-radius:2px;"></div>
+          <div style="width:12px; background:#2563eb; height:45px; border-radius:2px;"></div>
+        </div>
+        <div style="display:flex; gap:2px; align-items:end; flex:1;">
+          <div style="width:12px; background:#bfdbfe; height:30px; border-radius:2px;"></div>
+          <div style="width:12px; background:#2563eb; height:50px; border-radius:2px;"></div>
+        </div>
+      </div>
+      <p style="font-size:11px; color:#a1a1aa; margin-top:8px;">연한색 = 작년 / 진한색 = 올해</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>증감율 표시</h3>
+      <p>올해 차트만 표시하되, 각 막대 위에 전년 대비 증감율(%) 라벨을 추가. 깔끔하고 정보 밀도 높음.</p>
+      <div style="margin-top:12px; padding:16px; background:#f9fafb; border-radius:8px; display:flex; gap:8px; align-items:end; height:80px;">
+        <div style="display:flex; flex-direction:column; align-items:center; flex:1; gap:4px;">
+          <span style="font-size:10px; color:#16a34a; font-weight:600;">+12%</span>
+          <div style="width:20px; background:#2563eb; height:55px; border-radius:2px;"></div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:center; flex:1; gap:4px;">
+          <span style="font-size:10px; color:#16a34a; font-weight:600;">+25%</span>
+          <div style="width:20px; background:#2563eb; height:60px; border-radius:2px;"></div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:center; flex:1; gap:4px;">
+          <span style="font-size:10px; color:#ef4444; font-weight:600;">-8%</span>
+          <div style="width:20px; background:#2563eb; height:45px; border-radius:2px;"></div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:center; flex:1; gap:4px;">
+          <span style="font-size:10px; color:#16a34a; font-weight:600;">+5%</span>
+          <div style="width:20px; background:#2563eb; height:50px; border-radius:2px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>후순위로 미루기</h3>
+      <p>현재 더미 데이터에 작년 데이터가 없고, 실 사용까지 시간이 있으니 전년 비교는 나중에 구현. 버튼만 disabled 상태로.</p>
+    </div>
+  </div>
+</div>

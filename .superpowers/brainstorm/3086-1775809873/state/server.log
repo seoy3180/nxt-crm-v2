@@ -1,0 +1,6 @@
+{"type":"server-started","port":64832,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:64832","screen_dir":"/Users/ksy/nxt_crm_v2/.superpowers/brainstorm/3086-1775809873/content","state_dir":"/Users/ksy/nxt_crm_v2/.superpowers/brainstorm/3086-1775809873/state"}
+{"type":"screen-added","file":"/Users/ksy/nxt_crm_v2/.superpowers/brainstorm/3086-1775809873/content/revenue-question-1.html"}
+{"type":"screen-added","file":"/Users/ksy/nxt_crm_v2/.superpowers/brainstorm/3086-1775809873/content/revenue-question-2.html"}
+{"source":"user-event","type":"click","text":"A\n    \n      겹침 차트 (Overlay)\n      같은 차트에 올해(진한색) + 작년(연한색) 막대를 겹쳐서 표시. 월별 직접 비교가 쉬움.\n      \n        \n          \n          \n        \n        \n          \n          \n        \n        \n          \n          \n        \n        \n          \n          \n        \n      \n      연한색 = 작년 / 진한색 = 올해","choice":"a","id":null,"timestamp":1775810399852}
+{"type":"screen-added","file":"/Users/ksy/nxt_crm_v2/.superpowers/brainstorm/3086-1775809873/content/revenue-design.html"}
+{"type":"server-stopped","reason":"idle timeout"}

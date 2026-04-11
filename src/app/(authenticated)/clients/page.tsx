@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { PageHeader } from '@/components/layout/page-header';
 import { ClientListFilters } from '@/components/clients/client-list-filters';
 import { ClientTreeTable } from '@/components/clients/client-tree-table';
 import { ErrorState } from '@/components/common/error-state';

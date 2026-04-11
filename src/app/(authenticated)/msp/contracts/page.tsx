@@ -25,7 +25,6 @@ import {
   BILLING_METHOD_OPTIONS,
   SEARCH_DEBOUNCE_MS,
 } from '@/lib/constants';
-import { toast } from 'sonner';
 
 // ─── 타입 ─────────────────────────────────────────────
 interface MspContract {
@@ -81,8 +80,6 @@ type PendingChange = {
   mspDetailId: string | null;
   [key: string]: unknown;
 };
-type PendingChanges = Map<string, PendingChange>;
-
 
 function getStageBadge(stage: string | null) {
   const label = stage ? (MSP_STAGES.find((s) => s.value === stage)?.label ?? stage) : '미지정';

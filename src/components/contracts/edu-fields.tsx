@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, Plus, Trash2, X } from 'lucide-react';
-import type { EduOperationInput, EduOperationDateInput } from '@/lib/validators/contract';
+import type { EduOperationInput } from '@/lib/validators/contract';
 
 interface EduFieldsProps {
   operations: EduOperationInput[];

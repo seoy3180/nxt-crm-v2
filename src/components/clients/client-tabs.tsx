@@ -10,7 +10,6 @@ import { MspInfoTab } from './msp-info-tab';
 import { EduInfoTab } from './edu-info-tab';
 import { ClientDeleteZone } from './client-delete-zone';
 import type { ClientRow } from '@/lib/services/client-service';
-import { Badge } from '@/components/ui/badge';
 import { CLIENT_TYPES } from '@/lib/constants';
 import { ArrowLeft } from 'lucide-react';
 
@@ -18,8 +17,8 @@ interface ClientTabsProps {
   client: ClientRow;
 }
 
-function ChildClientsTable({ children }: { children: ClientRow['children'] }) {
-  const items = children ?? [];
+function ChildClientsTable({ children: childClients }: { children: ClientRow['children'] }) {
+  const items = childClients ?? [];
   if (items.length === 0) return null;
 
   return (
@@ -90,7 +89,7 @@ export function ClientTabs({ client }: ClientTabsProps) {
           </TabsList>
           <TabsContent value="info" className="space-y-6">
             <ClientInfoCard client={client} />
-            <ChildClientsTable children={client.children} />
+            <ChildClientsTable>{client.children}</ChildClientsTable>
           </TabsContent>
           <TabsContent value="contracts">
             <RelatedContracts

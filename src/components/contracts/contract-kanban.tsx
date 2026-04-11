@@ -15,7 +15,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
-import { MSP_STAGES, EDU_STAGES, BUSINESS_TYPES } from '@/lib/constants';
+import { MSP_STAGES, EDU_STAGES } from '@/lib/constants';
 import { Skeleton } from '@/components/ui/skeleton';
 import { contractService, type ContractRow } from '@/lib/services/contract-service';
 import { useCurrentUser } from '@/hooks/use-current-user';
