@@ -11,12 +11,13 @@ import { StageChangeDialog } from './stage-change-dialog';
 import { ContractDeleteZone } from './contract-delete-zone';
 import { MSP_STAGES, EDU_STAGES } from '@/lib/constants';
 import { contractService, type ContractRow } from '@/lib/services/contract-service';
-import { safeNumber, getErrorMessage, getStageColor } from '@/lib/utils';
+import { getErrorMessage, getStageColor } from '@/lib/utils';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useEmployees } from '@/hooks/use-employees';
 import { RevenueSplitCard } from './revenue-split-card';
 import { ArrowLeft, ArrowRightLeft, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+import { CONTRACT_FIELDS_BY_KEY, type FieldChangeContext } from '@/lib/contracts/field-definitions';
 
 interface ContractDetailProps {
   contract: ContractRow;
@@ -55,100 +56,64 @@ export function ContractDetail({ contract }: ContractDetailProps) {
     setSaving(true);
 
     try {
-      // 계약 기본 정보 업데이트
+      // 1) editValues를 타겟별로 분류 (필드 정의 기반)
       const contractUpdate: Record<string, unknown> = {};
-      if ('totalAmount' in editValues) contractUpdate.totalAmount = safeNumber(editValues.totalAmount) ?? 0;
-      if ('assignedTo' in editValues) contractUpdate.assignedTo = editValues.assignedTo || null;
-      if ('memo' in editValues) contractUpdate.memo = editValues.memo || null;
+      const mspUpdate: Record<string, unknown> = {};
+      let techLeadIds: string[] | undefined;
 
+      for (const [key, raw] of Object.entries(editValues)) {
+        const def = CONTRACT_FIELDS_BY_KEY.get(key);
+        if (!def) continue;
+        const parsed = def.parse(raw);
+        if (def.target === 'contract') {
+          contractUpdate[def.serviceKey] = parsed;
+        } else if (def.target === 'msp_details') {
+          mspUpdate[def.serviceKey] = parsed;
+        } else if (def.target === 'tech_leads') {
+          techLeadIds = parsed as string[];
+        }
+      }
+
+      // 2) 타겟별 저장
       if (Object.keys(contractUpdate).length > 0) {
-        await contractService.update(contract.id, contractUpdate as Parameters<typeof contractService.update>[1]);
+        await contractService.update(
+          contract.id,
+          contractUpdate as Parameters<typeof contractService.update>[1],
+        );
+      }
+      if (contract.type === 'msp' && Object.keys(mspUpdate).length > 0) {
+        await contractService.updateMspDetails(
+          contract.id,
+          mspUpdate as Parameters<typeof contractService.updateMspDetails>[1],
+        );
+      }
+      if (contract.type === 'msp' && techLeadIds !== undefined) {
+        await contractService.updateTechLeads(contract.id, techLeadIds);
       }
 
-      // MSP 상세 업데이트
-      if (contract.type === 'msp') {
-        const mspUpdate: Record<string, unknown> = {};
-        if ('creditShare' in editValues) mspUpdate.creditShare = editValues.creditShare || null;
-        if ('expectedMrr' in editValues) mspUpdate.expectedMrr = safeNumber(editValues.expectedMrr);
-        if ('payer' in editValues) mspUpdate.payer = editValues.payer || null;
-        if ('billingMethod' in editValues) mspUpdate.billingMethod = editValues.billingMethod || null;
-        if ('salesRepId' in editValues) mspUpdate.salesRepId = editValues.salesRepId || null;
-        if ('awsAmount' in editValues) mspUpdate.awsAmount = safeNumber(editValues.awsAmount);
-        if ('awsAm' in editValues) mspUpdate.awsAm = editValues.awsAm || null;
-        if ('awsAccountIds' in editValues) {
-          const ids = (editValues.awsAccountIds as string).split(',').map((s) => s.trim()).filter(Boolean);
-          mspUpdate.awsAccountIds = ids;
-        }
-        if ('mspGrade' in editValues) mspUpdate.mspGrade = editValues.mspGrade || null;
-        if ('billingOn' in editValues) mspUpdate.billingOn = editValues.billingOn === 'true';
-        if ('billingOnAlias' in editValues) mspUpdate.billingOnAlias = editValues.billingOnAlias || null;
-        if ('tags' in editValues) {
-          mspUpdate.tags = editValues.tags.split(',').map((s) => s.trim()).filter(Boolean);
-        }
-
-        if (Object.keys(mspUpdate).length > 0) {
-          await contractService.updateMspDetails(contract.id, mspUpdate as Parameters<typeof contractService.updateMspDetails>[1]);
-        }
-
-        // 담당 기술 업데이트
-        if ('techLeadIds' in editValues) {
-          const ids = editValues.techLeadIds.split(',').map((s) => s.trim()).filter(Boolean);
-          await contractService.updateTechLeads(contract.id, ids);
-        }
-      }
-
-      // 변경이력 기록
+      // 3) 변경이력 기록 (필드 정의 기반 diff)
       if (currentUser) {
+        const ctx: FieldChangeContext = { employees, contract };
         const changes: { field: string; oldValue: string | null; newValue: string | null }[] = [];
-        const fieldLabels: Record<string, string> = {
-          totalAmount: '금액', assignedTo: '사내 담당자', memo: '메모',
-          creditShare: '크레딧 쉐어', expectedMrr: '예상 MRR', payer: 'Payer',
-          billingMethod: '청구 방식', salesRepId: '영업 담당', awsAmount: 'AWS 금액',
-          awsAm: 'AWS AM', awsAccountIds: 'AWS 계정 ID', mspGrade: 'MSP 등급', billingOn: '빌링온',
-          billingOnAlias: '빌링온 별칭', techLeadIds: '담당 기술', tags: '태그',
-        };
 
-        for (const [key, newVal] of Object.entries(editValues)) {
-          let oldVal: string | null = null;
-          let displayOld: string | null = null;
-          let displayNew: string | null = newVal || null;
+        for (const [key, newRaw] of Object.entries(editValues)) {
+          const def = CONTRACT_FIELDS_BY_KEY.get(key);
+          if (!def) continue;
 
-          // 원본값 가져오기
-          if (key === 'totalAmount') { oldVal = String(contract.total_amount); displayOld = `₩ ${Number(oldVal).toLocaleString()}`; displayNew = newVal ? `₩ ${Number(newVal).toLocaleString()}` : null; }
-          else if (key === 'assignedTo') { oldVal = contract.assigned_to ?? null; }
-          else if (key === 'memo') { oldVal = contract.memo ?? null; }
-          else if (key === 'expectedMrr') { oldVal = String(contract.msp_details?.expected_mrr ?? ''); displayOld = oldVal ? `₩ ${Number(oldVal).toLocaleString()}` : null; displayNew = newVal ? `₩ ${Number(newVal).toLocaleString()}` : null; }
-          else if (key === 'awsAmount') { oldVal = String(contract.msp_details?.aws_amount ?? ''); displayOld = oldVal ? `₩ ${Number(oldVal).toLocaleString()}` : null; displayNew = newVal ? `₩ ${Number(newVal).toLocaleString()}` : null; }
-          else if (key === 'creditShare') { oldVal = contract.msp_details?.credit_share ?? null; displayOld = oldVal; }
-          else if (key === 'payer') { oldVal = contract.msp_details?.payer ?? null; displayOld = oldVal; }
-          else if (key === 'billingMethod') { oldVal = contract.msp_details?.billing_method ?? null; displayOld = oldVal; }
-          else if (key === 'billingOnAlias') { oldVal = contract.msp_details?.billing_on_alias ?? null; displayOld = oldVal; }
-          else if (key === 'tags') {
-            oldVal = (contract.msp_details?.tags ?? []).join(', ') || null;
-            displayOld = oldVal;
-          }
-          else if (key === 'salesRepId') {
-            oldVal = contract.msp_details?.sales_rep_id ?? null;
-            displayOld = employees?.find((e) => e.id === oldVal)?.name ?? oldVal;
-            displayNew = employees?.find((e) => e.id === newVal)?.name ?? displayNew;
-          }
-          else if (key === 'techLeadIds') {
-            const oldIds = (contract.tech_leads ?? []).map((t) => t.employee_id);
-            oldVal = oldIds.join(',');
-            const oldNames = (contract.tech_leads ?? []).map((t) => t.name).filter(Boolean).join(', ');
-            const newIds = newVal.split(',').map((s) => s.trim()).filter(Boolean);
-            const newNames = newIds.map((id) => employees?.find((e) => e.id === id)?.name ?? id).join(', ');
-            displayOld = oldNames || null;
-            displayNew = newNames || null;
-          }
+          const oldRaw = def.getOriginal(contract);
+          const newVal = newRaw || null;
 
-          if (String(oldVal ?? '') !== String(newVal ?? '')) {
-            changes.push({
-              field: fieldLabels[key] ?? key,
-              oldValue: displayOld ?? oldVal,
-              newValue: displayNew,
-            });
-          }
+          // raw 값으로 변경 여부 비교
+          if (String(oldRaw ?? '') === String(newVal ?? '')) continue;
+
+          const displayOld = def.formatDisplay ? def.formatDisplay(oldRaw, ctx) : oldRaw;
+          const displayNew = def.formatDisplay ? def.formatDisplay(newVal, ctx) : newVal;
+
+          changes.push({
+            field: def.label,
+            oldValue: displayOld,
+            newValue: displayNew,
+          });
         }
 
         if (changes.length > 0) {
