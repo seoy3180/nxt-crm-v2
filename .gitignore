@@ -45,3 +45,18 @@ next-env.d.ts
 
 # Supabase temp
 supabase/.temp/
+
+# Claude Code 개인 설정
+.claude/
+
+# Playwright MCP 테스트 산출물
+.playwright-mcp/
+
+# 테스트 스크린샷 (루트 레벨)
+/*.png
+
+# 노션 CSV 원본 (용량 큼, 프로젝트 실행에 불필요)
+/resource/
+
+# 일회성 마이그레이션/시딩 스크립트 (로컬 유틸)
+/scripts/

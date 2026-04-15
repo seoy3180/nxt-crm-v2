@@ -59,7 +59,7 @@ export function ContractDetail({ contract }: ContractDetailProps) {
       const contractUpdate: Record<string, unknown> = {};
       if ('totalAmount' in editValues) contractUpdate.totalAmount = safeNumber(editValues.totalAmount) ?? 0;
       if ('assignedTo' in editValues) contractUpdate.assignedTo = editValues.assignedTo || null;
-      if ('description' in editValues) contractUpdate.description = editValues.description || null;
+      if ('memo' in editValues) contractUpdate.memo = editValues.memo || null;
 
       if (Object.keys(contractUpdate).length > 0) {
         await contractService.update(contract.id, contractUpdate as Parameters<typeof contractService.update>[1]);
@@ -74,9 +74,26 @@ export function ContractDetail({ contract }: ContractDetailProps) {
         if ('billingMethod' in editValues) mspUpdate.billingMethod = editValues.billingMethod || null;
         if ('salesRepId' in editValues) mspUpdate.salesRepId = editValues.salesRepId || null;
         if ('awsAmount' in editValues) mspUpdate.awsAmount = safeNumber(editValues.awsAmount);
+        if ('awsAm' in editValues) mspUpdate.awsAm = editValues.awsAm || null;
+        if ('awsAccountIds' in editValues) {
+          const ids = (editValues.awsAccountIds as string).split(',').map((s) => s.trim()).filter(Boolean);
+          mspUpdate.awsAccountIds = ids;
+        }
+        if ('mspGrade' in editValues) mspUpdate.mspGrade = editValues.mspGrade || null;
+        if ('billingOn' in editValues) mspUpdate.billingOn = editValues.billingOn === 'true';
+        if ('billingOnAlias' in editValues) mspUpdate.billingOnAlias = editValues.billingOnAlias || null;
+        if ('tags' in editValues) {
+          mspUpdate.tags = editValues.tags.split(',').map((s) => s.trim()).filter(Boolean);
+        }
 
         if (Object.keys(mspUpdate).length > 0) {
           await contractService.updateMspDetails(contract.id, mspUpdate as Parameters<typeof contractService.updateMspDetails>[1]);
+        }
+
+        // 담당 기술 업데이트
+        if ('techLeadIds' in editValues) {
+          const ids = editValues.techLeadIds.split(',').map((s) => s.trim()).filter(Boolean);
+          await contractService.updateTechLeads(contract.id, ids);
         }
       }
 
@@ -84,9 +101,11 @@ export function ContractDetail({ contract }: ContractDetailProps) {
       if (currentUser) {
         const changes: { field: string; oldValue: string | null; newValue: string | null }[] = [];
         const fieldLabels: Record<string, string> = {
-          totalAmount: '금액', assignedTo: '사내 담당자', description: '설명',
+          totalAmount: '금액', assignedTo: '사내 담당자', memo: '메모',
           creditShare: '크레딧 쉐어', expectedMrr: '예상 MRR', payer: 'Payer',
           billingMethod: '청구 방식', salesRepId: '영업 담당', awsAmount: 'AWS 금액',
+          awsAm: 'AWS AM', awsAccountIds: 'AWS 계정 ID', mspGrade: 'MSP 등급', billingOn: '빌링온',
+          billingOnAlias: '빌링온 별칭', techLeadIds: '담당 기술', tags: '태그',
         };
 
         for (const [key, newVal] of Object.entries(editValues)) {
@@ -97,16 +116,30 @@ export function ContractDetail({ contract }: ContractDetailProps) {
           // 원본값 가져오기
           if (key === 'totalAmount') { oldVal = String(contract.total_amount); displayOld = `₩ ${Number(oldVal).toLocaleString()}`; displayNew = newVal ? `₩ ${Number(newVal).toLocaleString()}` : null; }
           else if (key === 'assignedTo') { oldVal = contract.assigned_to ?? null; }
-          else if (key === 'description') { oldVal = contract.description ?? null; }
+          else if (key === 'memo') { oldVal = contract.memo ?? null; }
           else if (key === 'expectedMrr') { oldVal = String(contract.msp_details?.expected_mrr ?? ''); displayOld = oldVal ? `₩ ${Number(oldVal).toLocaleString()}` : null; displayNew = newVal ? `₩ ${Number(newVal).toLocaleString()}` : null; }
           else if (key === 'awsAmount') { oldVal = String(contract.msp_details?.aws_amount ?? ''); displayOld = oldVal ? `₩ ${Number(oldVal).toLocaleString()}` : null; displayNew = newVal ? `₩ ${Number(newVal).toLocaleString()}` : null; }
           else if (key === 'creditShare') { oldVal = contract.msp_details?.credit_share ?? null; displayOld = oldVal; }
           else if (key === 'payer') { oldVal = contract.msp_details?.payer ?? null; displayOld = oldVal; }
           else if (key === 'billingMethod') { oldVal = contract.msp_details?.billing_method ?? null; displayOld = oldVal; }
+          else if (key === 'billingOnAlias') { oldVal = contract.msp_details?.billing_on_alias ?? null; displayOld = oldVal; }
+          else if (key === 'tags') {
+            oldVal = (contract.msp_details?.tags ?? []).join(', ') || null;
+            displayOld = oldVal;
+          }
           else if (key === 'salesRepId') {
             oldVal = contract.msp_details?.sales_rep_id ?? null;
             displayOld = employees?.find((e) => e.id === oldVal)?.name ?? oldVal;
             displayNew = employees?.find((e) => e.id === newVal)?.name ?? displayNew;
+          }
+          else if (key === 'techLeadIds') {
+            const oldIds = (contract.tech_leads ?? []).map((t) => t.employee_id);
+            oldVal = oldIds.join(',');
+            const oldNames = (contract.tech_leads ?? []).map((t) => t.name).filter(Boolean).join(', ');
+            const newIds = newVal.split(',').map((s) => s.trim()).filter(Boolean);
+            const newNames = newIds.map((id) => employees?.find((e) => e.id === id)?.name ?? id).join(', ');
+            displayOld = oldNames || null;
+            displayNew = newNames || null;
           }
 
           if (String(oldVal ?? '') !== String(newVal ?? '')) {
@@ -212,6 +245,7 @@ export function ContractDetail({ contract }: ContractDetailProps) {
           {contract.type === 'msp' && (
             <MspDetailCard
               details={contract.msp_details ?? null}
+              techLeads={contract.tech_leads ?? []}
               editing={editing}
               editValues={editValues}
               onFieldChange={handleFieldChange}

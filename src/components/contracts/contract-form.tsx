@@ -70,7 +70,7 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath =
       type: contractType,
       totalAmount: safeNumber(formData.get('totalAmount')) ?? 0,
       currency: 'KRW',
-      description: formData.get('description') as string || null,
+      memo: formData.get('memo') as string || null,
       assignedTo: formData.get('assignedTo') as string || null,
       contactId: formData.get('contactId') as string || null,
     };
@@ -89,6 +89,11 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath =
       const contract = await createContract.mutateAsync(result.data);
 
       if (contractType === 'msp') {
+        const awsAccountIdsRaw = (formData.get('awsAccountIds') as string) ?? '';
+        const techLeadIdsRaw = (formData.get('techLeadIds') as string) ?? '';
+        const techLeadIds = techLeadIdsRaw.split(',').map((s) => s.trim()).filter(Boolean);
+        const tagsRaw = (formData.get('tags') as string) ?? '';
+        const tags = tagsRaw.split(',').map((s) => s.trim()).filter(Boolean);
         const mspRaw = {
           creditShare: formData.get('creditShare') as string || null,
           expectedMrr: safeNumber(formData.get('expectedMrr')),
@@ -97,11 +102,21 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath =
           awsAmount: safeNumber(formData.get('awsAmount')),
           hasManagementFee: formData.get('hasManagementFee') === 'true',
           billingMethod: formData.get('billingMethod') as string || null,
+          mspGrade: formData.get('mspGrade') as string || null,
+          awsAm: formData.get('awsAm') as string || null,
+          awsAccountIds: awsAccountIdsRaw.split(',').map((s) => s.trim()).filter(Boolean),
+          billingOn: formData.get('billingOn') === 'true',
+          billingOnAlias: formData.get('billingOnAlias') as string || null,
+          tags,
+          techLeadIds,
         };
         const mspResult = mspDetailSchema.safeParse(mspRaw);
         if (mspResult.success) {
           const { contractService } = await import('@/lib/services/contract-service');
           await contractService.updateMspDetails(contract.id, mspResult.data);
+          if (techLeadIds.length > 0) {
+            await contractService.updateTechLeads(contract.id, techLeadIds);
+          }
         }
       }
 
@@ -262,8 +277,8 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath =
       </div>
 
       <div className="space-y-1.5">
-        <Label>설명</Label>
-        <Textarea name="description" placeholder="계약 설명" rows={2} />
+        <Label>메모</Label>
+        <Textarea name="memo" placeholder="계약 관련 메모" rows={2} />
       </div>
 
       {/* MSP 확장 */}

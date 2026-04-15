@@ -9,15 +9,13 @@ export interface ClientRow {
   grade: string | null;
   business_types: string[];
   parent_id: string | null;
-  assigned_to: string | null;
-  status: string | null;
+  status: '신규' | '진행중' | '활성' | '휴면' | '종료' | '상태없음';
   memo: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
   // joined
   parent_name?: string;
-  assigned_to_name?: string;
   contract_count?: number;
   children?: ClientRow[];
   primary_contact_name?: string;
@@ -121,8 +119,7 @@ export const clientService = {
         grade: input.grade ?? null,
         business_types: input.businessTypes,
         parent_id: input.parentId ?? null,
-        assigned_to: input.assignedTo ?? null,
-        status: input.status ?? null,
+        status: input.status ?? undefined,
         memo: input.memo ?? null,
       })
       .select()
@@ -155,18 +152,21 @@ export const clientService = {
   },
 
   async softDelete(id: string) {
+    const now = new Date().toISOString();
+
     const { error } = await supabase
       .from('clients')
-      .update({ deleted_at: new Date().toISOString() })
+      .update({ deleted_at: now })
       .eq('id', id);
 
     if (error) throw error;
 
-    // 연락처도 소프트 삭제
-    await supabase
-      .from('contacts')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('client_id', id);
+    // 관련 테이블 동시 soft-delete (invariant: detail.deleted_at == parent.deleted_at)
+    await Promise.all([
+      supabase.from('contacts').update({ deleted_at: now }).eq('client_id', id),
+      supabase.from('client_msp_details').update({ deleted_at: now }).eq('client_id', id),
+      supabase.from('client_edu_details').update({ deleted_at: now }).eq('client_id', id),
+    ]);
   },
 
   // 부모 고객 검색 (드롭다운용)

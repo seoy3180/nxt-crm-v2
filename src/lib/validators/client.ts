@@ -10,8 +10,7 @@ export const clientCreateSchema = z.object({
   grade: clientGradeEnum.optional(),
   businessTypes: z.array(businessTypeEnum).default([]),
   parentId: z.string().uuid().optional().nullable(),
-  assignedTo: z.string().uuid().optional().nullable(),
-  status: z.string().optional().nullable(),
+  status: z.enum(['신규', '진행중', '활성', '휴면', '종료', '상태없음']).optional(),
   memo: z.string().optional().nullable(),
 });
 

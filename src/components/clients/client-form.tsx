@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ChevronsUpDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CLIENT_TYPES, CLIENT_GRADES, BUSINESS_TYPES, MSP_GRADES } from '@/lib/constants';
+import { CLIENT_TYPES, CLIENT_GRADES, BUSINESS_TYPES, CLIENT_STATUS_OPTIONS } from '@/lib/constants';
 import { clientCreateSchema } from '@/lib/validators/client';
 import { useCreateClient } from '@/hooks/use-client-mutations';
 import { useClients } from '@/hooks/use-clients';
@@ -49,6 +49,7 @@ export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade 
       name: formData.get('name') as string,
       clientType: formData.get('clientType') as string,
       grade: formData.get('grade') || undefined,
+      status: formData.get('status') || undefined,
       businessTypes: selectedBusinessTypes,
       parentId: selectedParentId,
       memo: formData.get('memo') || null,
@@ -74,12 +75,8 @@ export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade 
     if (selectedBusinessTypes.includes('msp')) {
       const mspData = {
         client_id: data.id,
-        msp_grade: formData.get('mspGrade') || null,
         industry: formData.get('industry') || null,
         company_size: formData.get('companySize') || null,
-        aws_am: formData.get('awsAm') || null,
-        aws_account_ids: (formData.get('awsAccountIds') as string)?.split(',').map(s => s.trim()).filter(Boolean) ?? [],
-        tags: (formData.get('tags') as string)?.split(',').map(s => s.trim()).filter(Boolean) ?? [],
         memo: formData.get('mspMemo') || null,
       };
       await supabase.from('client_msp_details').insert(mspData as { client_id: string });
@@ -163,6 +160,19 @@ export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade 
             </Select>
           </div>
         )}
+        <div className="flex-1 space-y-1.5">
+          <Label htmlFor="status">상태</Label>
+          <Select name="status" defaultValue="상태없음">
+            <SelectTrigger>
+              <SelectValue placeholder="상태 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              {CLIENT_STATUS_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* 상위 고객 */}
@@ -224,17 +234,6 @@ export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade 
 
           <div className="flex gap-4">
             <div className="flex-1 space-y-1.5">
-              <Label>MSP 등급</Label>
-              <Select name="mspGrade">
-                <SelectTrigger><SelectValue placeholder="등급 선택" /></SelectTrigger>
-                <SelectContent>
-                  {MSP_GRADES.map((g) => (
-                    <SelectItem key={g} value={g}>{g}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex-1 space-y-1.5">
               <Label>산업군</Label>
               <Select name="industry">
                 <SelectTrigger><SelectValue placeholder="산업군 선택" /></SelectTrigger>
@@ -256,22 +255,6 @@ export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade 
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="flex gap-4">
-            <div className="flex-1 space-y-1.5">
-              <Label>AWS AM</Label>
-              <Input name="awsAm" placeholder="AWS 담당자명" />
-            </div>
-            <div className="flex-1 space-y-1.5">
-              <Label>AWS 계정 ID</Label>
-              <Input name="awsAccountIds" placeholder="쉼표로 구분 (예: 123456, 789012)" />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>태그</Label>
-            <Input name="tags" placeholder="쉼표로 구분 (예: 파트너, VIP)" />
           </div>
 
           <div className="space-y-1.5">

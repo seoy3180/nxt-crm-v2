@@ -14,7 +14,7 @@ export interface ContractRow {
   client_id: string;
   type: string;
   name: string;
-  description: string | null;
+  memo: string | null;
   total_amount: number;
   currency: string;
   stage: string | null;
@@ -30,6 +30,12 @@ export interface ContractRow {
   client_contact_name?: string;
   msp_details?: MspDetailRow | null;
   tt_details?: TtDetailRow | null;
+  tech_leads?: TechLeadRow[];
+}
+
+export interface TechLeadRow {
+  employee_id: string;
+  name: string;
 }
 
 export interface MspDetailRow {
@@ -43,6 +49,12 @@ export interface MspDetailRow {
   aws_amount: number | null;
   has_management_fee: boolean;
   billing_method: string | null;
+  aws_account_ids: string[] | null;
+  aws_am: string | null;
+  msp_grade: 'None' | 'FREE' | 'MSP10' | 'MSP15' | 'MSP20' | 'ETC' | null;
+  billing_on: boolean;
+  billing_on_alias: string | null;
+  tags: string[] | null;
 }
 
 export interface TtDetailRow {
@@ -148,7 +160,8 @@ export const contractService = {
         clients!contracts_client_id_fkey(name, client_id),
         profiles!contracts_assigned_to_fkey(name),
         contacts!contracts_contact_id_fkey(name),
-        contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name))
+        contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)),
+        contract_tech_leads(employee_id, employees!contract_tech_leads_employee_id_fkey(name))
       `)
       .eq('id', id)
       .is('deleted_at', null)
@@ -157,6 +170,10 @@ export const contractService = {
     if (error) throw error;
 
     const row = data as Record<string, unknown>;
+    const techLeadsRaw = (row.contract_tech_leads ?? []) as Array<{
+      employee_id: string;
+      employees: { name: string } | null;
+    }>;
     const mapped = {
       ...row,
       client_name: (row.clients as { name: string } | null)?.name ?? null,
@@ -171,6 +188,10 @@ export const contractService = {
         const emp = raw.employees as { name: string } | null;
         return { ...raw, sales_rep_name: emp?.name ?? null, employees: undefined };
       })(),
+      tech_leads: techLeadsRaw.map((t) => ({
+        employee_id: t.employee_id,
+        name: t.employees?.name ?? '',
+      })),
     };
 
     return mapped as unknown as ContractRow;
@@ -187,7 +208,7 @@ export const contractService = {
         client_id: input.clientId,
         type: input.type,
         name: input.name,
-        description: input.description ?? null,
+        memo: input.memo ?? null,
         total_amount: input.totalAmount,
         currency: input.currency,
         stage: input.stage ?? (input.type === 'msp' ? 'pre_contract' : null),
@@ -226,7 +247,7 @@ export const contractService = {
   async update(id: string, input: ContractUpdateInput) {
     const updateData: Record<string, unknown> = {};
     if (input.name !== undefined) updateData.name = input.name;
-    if (input.description !== undefined) updateData.description = input.description;
+    if (input.memo !== undefined) updateData.memo = input.memo;
     if (input.totalAmount !== undefined) updateData.total_amount = input.totalAmount;
     if (input.currency !== undefined) updateData.currency = input.currency;
     if (input.assignedTo !== undefined) updateData.assigned_to = input.assignedTo;
@@ -252,6 +273,12 @@ export const contractService = {
     if (input.awsAmount !== undefined) updateData.aws_amount = input.awsAmount;
     if (input.hasManagementFee !== undefined) updateData.has_management_fee = input.hasManagementFee;
     if (input.billingMethod !== undefined) updateData.billing_method = input.billingMethod;
+    if (input.awsAm !== undefined) updateData.aws_am = input.awsAm;
+    if (input.awsAccountIds !== undefined) updateData.aws_account_ids = input.awsAccountIds;
+    if (input.mspGrade !== undefined) updateData.msp_grade = input.mspGrade;
+    if (input.billingOn !== undefined) updateData.billing_on = input.billingOn;
+    if (input.billingOnAlias !== undefined) updateData.billing_on_alias = input.billingOnAlias;
+    if (input.tags !== undefined) updateData.tags = input.tags;
 
     const { data, error } = await getClient()
       .from('contract_msp_details')
@@ -262,6 +289,29 @@ export const contractService = {
 
     if (error) throw error;
     return data as unknown as MspDetailRow;
+  },
+
+  /**
+   * 담당 기술(다중) 전체 교체.
+   * 기존 연결 모두 삭제 후 새 employeeIds로 재삽입.
+   */
+  async updateTechLeads(contractId: string, employeeIds: string[]) {
+    const { error: delError } = await getClient()
+      .from('contract_tech_leads')
+      .delete()
+      .eq('contract_id', contractId);
+    if (delError) throw delError;
+
+    if (employeeIds.length === 0) return;
+
+    const rows = employeeIds.map((employeeId) => ({
+      contract_id: contractId,
+      employee_id: employeeId,
+    }));
+    const { error: insError } = await getClient()
+      .from('contract_tech_leads')
+      .insert(rows);
+    if (insError) throw insError;
   },
 
   async changeStage(contractId: string, input: StageChangeInput, userId: string) {
@@ -335,7 +385,11 @@ export const contractService = {
 
     if (error) throw error;
 
-    await getClient().from('contract_teams').update({ deleted_at: now }).eq('contract_id', id);
+    // 관련 테이블 동시 soft-delete (invariant: detail.deleted_at == parent.deleted_at)
+    await Promise.all([
+      getClient().from('contract_teams').update({ deleted_at: now }).eq('contract_id', id),
+      getClient().from('contract_msp_details').update({ deleted_at: now }).eq('contract_id', id),
+    ]);
   },
 };
 

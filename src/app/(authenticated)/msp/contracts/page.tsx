@@ -46,6 +46,7 @@ interface MspContract {
   salesRepName: string | null;
   awsAmount: number | null;
   hasManagementFee: boolean;
+  tags: string[];
 }
 
 interface ColumnDef {
@@ -53,7 +54,7 @@ interface ColumnDef {
   label: string;
   width?: string;
   editable: boolean;
-  type: 'text' | 'number' | 'select' | 'dynamic-select';
+  type: 'text' | 'number' | 'select' | 'dynamic-select' | 'tags';
   options?: readonly string[] | readonly { readonly value: string; readonly label: string }[];
   /** dynamic-select에서 사용할 옵션 키 */
   optionsKey?: string;
@@ -72,6 +73,7 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'billingMethod', label: '청구 방식', width: 'w-[140px]', editable: true, type: 'select', options: BILLING_METHOD_OPTIONS, table: 'msp_details', dbColumn: 'billing_method' },
   { key: 'salesRepId', label: '영업 담당', width: 'w-[120px]', editable: true, type: 'dynamic-select', optionsKey: 'employees', table: 'msp_details', dbColumn: 'sales_rep_id' },
   { key: 'assignedTo', label: '사내 담당자', width: 'w-[120px]', editable: true, type: 'dynamic-select', optionsKey: 'employees', table: 'contracts', dbColumn: 'assigned_to' },
+  { key: 'tags', label: '태그', width: 'w-[180px]', editable: true, type: 'tags', table: 'msp_details', dbColumn: 'tags' },
 ];
 
 // ─── 변경사항 ──────────────────────────────────────────
@@ -115,7 +117,9 @@ function MspContractsInner() {
         ALL_COLUMNS.forEach((col) => {
           if (!col.editable || !col.dbColumn || !(col.key in change)) return;
           const val = change[col.key];
-          const dbVal = col.type === 'number' ? safeNumber(val) : val;
+          const dbVal = col.type === 'number' ? safeNumber(val)
+            : col.type === 'tags' ? String(val ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+            : val;
           if (col.table === 'contracts') contractUpdate[col.dbColumn] = dbVal;
           else mspUpdate[col.dbColumn] = dbVal;
         });
@@ -274,6 +278,7 @@ function MspContractsInner() {
           salesRepName: emp?.name ?? null,
           awsAmount: (mspRaw?.aws_amount as number) ?? null,
           hasManagementFee: (mspRaw?.has_management_fee as boolean) ?? false,
+          tags: (mspRaw?.tags as string[] | null) ?? [],
         };
       });
 
@@ -316,6 +321,20 @@ function MspContractsInner() {
     }
     if (col.type === 'number' && value) return formatAmount(Number(value));
     if (col.type === 'dynamic-select') return resolveDisplayName(value, col) || '-';
+    if (col.type === 'tags') {
+      const tags = value.split(',').map((s) => s.trim()).filter(Boolean);
+      if (tags.length === 0) return '-';
+      const shown = tags.slice(0, 2);
+      const remaining = tags.length - shown.length;
+      return (
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          {shown.map((t) => (
+            <span key={t} className="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-600">{t}</span>
+          ))}
+          {remaining > 0 && <span className="text-[11px] text-zinc-400">+{remaining}</span>}
+        </div>
+      );
+    }
     return value || '-';
   }
 
@@ -368,7 +387,8 @@ function MspContractsInner() {
         value={tempValue}
         onChange={(e) => setTempValue(e.target.value)}
         onBlur={() => saveCellEdit(contract)}
-        onKeyDown={(e) => { if (e.key === 'Enter') saveCellEdit(contract); if (e.key === 'Escape') setEditingCell(null); }}
+        onKeyDown={(e) => { if (e.nativeEvent.isComposing) return; if (e.key === 'Enter') saveCellEdit(contract); if (e.key === 'Escape') setEditingCell(null); }}
+        placeholder={col.type === 'tags' ? '쉼표로 구분 (예: 빠른결정, 기술중심)' : ''}
         className="h-8 w-full rounded border border-blue-400 bg-blue-50 px-2 text-[13px] text-zinc-900 outline-none"
       />
     );

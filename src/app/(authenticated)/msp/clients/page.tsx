@@ -13,15 +13,15 @@ import { Plus, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInlineEdit } from '@/hooks/use-inline-edit';
 import { useColumnPreference } from '@/hooks/use-user-preferences';
-import { MSP_GRADES, SEARCH_DEBOUNCE_MS } from '@/lib/constants';
+import { SEARCH_DEBOUNCE_MS, INDUSTRY_OPTIONS } from '@/lib/constants';
 
 interface MspClient {
   id: string;
   name: string;
   mspDetailId: string | null;
-  mspGrade: string | null;
-  awsAm: string | null;
   contractCount: number;
+  industry: string | null;
+  memo: string | null;
 }
 
 interface ColumnDef {
@@ -29,13 +29,15 @@ interface ColumnDef {
   label: string;
   width?: string;
   editable: boolean;
+  type?: 'text' | 'select';
+  options?: readonly string[];
 }
 
 const ALL_COLUMNS: ColumnDef[] = [
   { key: 'name', label: '고객명', editable: false },
-  { key: 'mspGrade', label: 'MSP 등급', width: 'w-[100px]', editable: true },
-  { key: 'awsAm', label: 'AWS AM', width: 'w-[120px]', editable: true },
+  { key: 'industry', label: '산업분야', width: 'w-[110px]', editable: true, type: 'select', options: INDUSTRY_OPTIONS },
   { key: 'contractCount', label: '계약 수', width: 'w-[80px]', editable: false },
+  { key: 'memo', label: '메모', editable: true, type: 'text' },
 ];
 
 export default function MspClientsPage() {
@@ -54,8 +56,8 @@ export default function MspClientsPage() {
       const supabase = createClient();
       const promises = Array.from(changes.values()).map((change) => {
         const updateData: Record<string, unknown> = {};
-        if ('mspGrade' in change) updateData.msp_grade = change.mspGrade;
-        if ('awsAm' in change) updateData.aws_am = change.awsAm;
+        if ('industry' in change) updateData.industry = change.industry || null;
+        if ('memo' in change) updateData.memo = change.memo || null;
         if (Object.keys(updateData).length === 0) return Promise.resolve();
         if (change.mspDetailId) {
           return supabase.from('client_msp_details').update(updateData).eq('id', change.mspDetailId as string)
@@ -88,7 +90,7 @@ export default function MspClientsPage() {
       const supabase = createClient();
       let q = supabase
         .from('clients')
-        .select('id, name, client_msp_details(id, msp_grade, aws_am)')
+        .select('id, name, client_msp_details(id, industry, memo)')
         .contains('business_types', ['msp'])
         .is('deleted_at', null)
         .order('name', { ascending: true });
@@ -102,14 +104,16 @@ export default function MspClientsPage() {
       (contractCounts ?? []).forEach((c) => countMap.set(c.client_id, (countMap.get(c.client_id) ?? 0) + 1));
 
       return (data ?? []).map((c): MspClient => {
-        const msp = Array.isArray(c.client_msp_details) ? c.client_msp_details[0] : c.client_msp_details;
+        const msp = (Array.isArray(c.client_msp_details) ? c.client_msp_details[0] : c.client_msp_details) as
+          | { id: string; industry: string | null; memo: string | null }
+          | null;
         return {
           id: c.id,
           name: c.name,
-          mspDetailId: (msp as { id: string } | null)?.id ?? null,
-          mspGrade: (msp as { msp_grade: string | null } | null)?.msp_grade ?? null,
-          awsAm: (msp as { aws_am: string | null } | null)?.aws_am ?? null,
+          mspDetailId: msp?.id ?? null,
           contractCount: countMap.get(c.id) ?? 0,
+          industry: msp?.industry ?? null,
+          memo: msp?.memo ?? null,
         };
       });
     },
@@ -120,11 +124,13 @@ export default function MspClientsPage() {
     return visibleColumns.map((key) => colMap.get(key)).filter(Boolean) as ColumnDef[];
   }, [visibleColumns]);
 
-  function renderCellValue(value: string, colKey: string) {
-    if (colKey === 'mspGrade' && value && value !== '-') {
-      return <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">{value}</span>;
+  function renderCellValue(client: MspClient, col: ColumnDef) {
+    if (col.key === 'memo') {
+      if (!client.memo) return <span className="text-zinc-400">-</span>;
+      return <span className="line-clamp-1" title={client.memo}>{client.memo}</span>;
     }
-    return value || '-';
+    const value = col.key === 'industry' ? (client.industry ?? '') : '';
+    return value || <span className="text-zinc-400">-</span>;
   }
 
   return (
@@ -259,9 +265,9 @@ export default function MspClientsPage() {
 
                       // 현재 편집 중인 셀
                       if (isEditing) {
-                        return (
-                          <TableCell key={col.key} className={cn('px-2', col.width)}>
-                            {col.key === 'mspGrade' ? (
+                        if (col.type === 'select' && col.options) {
+                          return (
+                            <TableCell key={col.key} className={cn('px-2', col.width)}>
                               <select
                                 autoFocus
                                 value={tempValue}
@@ -270,35 +276,39 @@ export default function MspClientsPage() {
                                 className="h-8 w-full rounded border border-blue-400 bg-blue-50 px-1 text-[13px] text-zinc-900 outline-none"
                               >
                                 <option value="">미지정</option>
-                                {MSP_GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
+                                {col.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                               </select>
-                            ) : (
-                              <input
-                                autoFocus
-                                value={tempValue}
-                                onChange={(e) => setTempValue(e.target.value)}
-                                onBlur={() => saveCellEdit(c)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') saveCellEdit(c); if (e.key === 'Escape') setEditingCell(null); }}
-                                className="h-8 w-full rounded border border-blue-400 bg-blue-50 px-2 text-[13px] text-zinc-900 outline-none"
-                              />
-                            )}
+                            </TableCell>
+                          );
+                        }
+                        return (
+                          <TableCell key={col.key} className={cn('px-2', col.width)}>
+                            <input
+                              autoFocus
+                              value={tempValue}
+                              onChange={(e) => setTempValue(e.target.value)}
+                              onBlur={() => saveCellEdit(c)}
+                              onKeyDown={(e) => { if (e.nativeEvent.isComposing) return; if (e.key === 'Enter') saveCellEdit(c); if (e.key === 'Escape') setEditingCell(null); }}
+                              className="h-8 w-full rounded border border-blue-400 bg-blue-50 px-2 text-[13px] text-zinc-900 outline-none"
+                            />
                           </TableCell>
                         );
                       }
 
                       // 편집 모드 ON + 편집 가능 셀 (클릭 대기)
                       if (canEdit) {
+                        const displayText = displayValue;
                         return (
                           <TableCell
                             key={col.key}
                             className={cn('px-2', col.width)}
-                            onClick={(e) => { e.stopPropagation(); startCellEdit(c.id, col.key, displayValue); }}
+                            onClick={(e) => { e.stopPropagation(); startCellEdit(c.id, col.key, displayText); }}
                           >
                             <span className={cn(
-                              'block cursor-text rounded border px-3 py-1 text-center text-[13px]',
+                              'block cursor-text rounded border px-3 py-1 text-left text-[13px] truncate',
                               isChanged ? 'border-blue-400 bg-blue-100/50 text-zinc-900' : 'border-blue-200 bg-[#FAFCFF] text-zinc-500',
                             )}>
-                              {displayValue || '-'}
+                              {displayText || '-'}
                             </span>
                           </TableCell>
                         );
@@ -311,10 +321,10 @@ export default function MspClientsPage() {
                           className={cn(
                             'px-4',
                             col.width,
-                            col.key === 'name' ? 'text-sm font-medium text-zinc-900' : 'text-center text-[13px] text-zinc-500',
+                            col.key === 'name' ? 'text-sm font-medium text-zinc-900' : col.key === 'memo' ? 'text-[13px] text-zinc-500' : 'text-center text-[13px] text-zinc-500',
                           )}
                         >
-                          {renderCellValue(displayValue, col.key)}
+                          {col.key === 'name' ? c.name : col.key === 'contractCount' ? `${c.contractCount}건` : renderCellValue(c, col)}
                         </TableCell>
                       );
                     })}

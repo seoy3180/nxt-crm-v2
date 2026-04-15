@@ -82,15 +82,15 @@ export function ContractInfoCard({ contract, editing, editValues, onFieldChange 
           <p className="text-base font-medium text-zinc-900">{contract.contact_name ?? '-'}</p>
         </div>
         <div className="space-y-1">
-          <p className="text-xs font-medium text-zinc-400">설명</p>
+          <p className="text-xs font-medium text-zinc-400">메모</p>
           {editing ? (
             <Input
-              value={val('description', contract.description ?? '')}
-              onChange={(e) => onFieldChange?.('description', e.target.value)}
+              value={val('memo', contract.memo ?? '')}
+              onChange={(e) => onFieldChange?.('memo', e.target.value)}
               className="h-9 text-base"
             />
           ) : (
-            <p className="text-base font-medium text-zinc-900">{contract.description || '-'}</p>
+            <p className="text-base font-medium text-zinc-900">{contract.memo || '-'}</p>
           )}
         </div>
       </div>

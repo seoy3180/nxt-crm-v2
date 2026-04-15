@@ -77,8 +77,9 @@ export function GlobalSearch() {
         .ilike('name', searchTerm)
         .limit(5),
       supabase
-        .from('client_msp_details')
-        .select('client_id, aws_account_ids, clients!client_msp_details_client_id_fkey(id, name, client_id)')
+        .from('contract_msp_details')
+        .select('contract_id, aws_account_ids, contracts!contract_msp_details_contract_id_fkey(id, name, contract_id, client_id, clients!contracts_client_id_fkey(id, name, client_id))')
+        .is('deleted_at', null)
         .contains('aws_account_ids', [q])
         .limit(5),
     ]);
@@ -109,15 +110,15 @@ export function GlobalSearch() {
         };
       }),
       ...(awsRes.data ?? []).filter((a) => {
-        const client = a.clients as { id: string } | null;
-        return client && !clientRes.data?.some((c) => c.id === client.id);
+        const contract = a.contracts as { id: string } | null;
+        return contract && !contractRes.data?.some((c) => c.id === contract.id);
       }).map((a) => {
-        const client = a.clients as { id: string; name: string; client_id: string };
+        const contract = a.contracts as { id: string; name: string; contract_id: string; type?: string };
         return {
-          id: client.id,
-          type: 'client' as const,
-          name: client.name,
-          meta: `${client.client_id} · AWS 계정: ${q}`,
+          id: contract.id,
+          type: 'contract' as const,
+          name: contract.name,
+          meta: `${contract.contract_id} · AWS 계정: ${q}`,
         };
       }),
     ];

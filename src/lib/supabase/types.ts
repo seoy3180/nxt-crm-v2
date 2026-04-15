@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string
+          deleted_at: string | null
           edu_grade: string | null
           id: string
           memo: string | null
@@ -26,6 +27,7 @@ export type Database = {
         Insert: {
           client_id: string
           created_at?: string
+          deleted_at?: string | null
           edu_grade?: string | null
           id?: string
           memo?: string | null
@@ -34,6 +36,7 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string
+          deleted_at?: string | null
           edu_grade?: string | null
           id?: string
           memo?: string | null
@@ -58,42 +61,33 @@ export type Database = {
       }
       client_msp_details: {
         Row: {
-          aws_account_ids: string[] | null
-          aws_am: string | null
           client_id: string
           company_size: Database["public"]["Enums"]["company_size_type"] | null
           created_at: string
+          deleted_at: string | null
           id: string
           industry: Database["public"]["Enums"]["industry_type"] | null
           memo: string | null
-          msp_grade: string | null
-          tags: string[] | null
           updated_at: string
         }
         Insert: {
-          aws_account_ids?: string[] | null
-          aws_am?: string | null
           client_id: string
           company_size?: Database["public"]["Enums"]["company_size_type"] | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           industry?: Database["public"]["Enums"]["industry_type"] | null
           memo?: string | null
-          msp_grade?: string | null
-          tags?: string[] | null
           updated_at?: string
         }
         Update: {
-          aws_account_ids?: string[] | null
-          aws_am?: string | null
           client_id?: string
           company_size?: Database["public"]["Enums"]["company_size_type"] | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
           industry?: Database["public"]["Enums"]["industry_type"] | null
           memo?: string | null
-          msp_grade?: string | null
-          tags?: string[] | null
           updated_at?: string
         }
         Relationships: [
@@ -125,7 +119,7 @@ export type Database = {
           memo: string | null
           name: string
           parent_id: string | null
-          status: string | null
+          status: Database["public"]["Enums"]["client_status_type"]
           updated_at: string
         }
         Insert: {
@@ -139,7 +133,7 @@ export type Database = {
           memo?: string | null
           name: string
           parent_id?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["client_status_type"]
           updated_at?: string
         }
         Update: {
@@ -153,7 +147,7 @@ export type Database = {
           memo?: string | null
           name?: string
           parent_id?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["client_status_type"]
           updated_at?: string
         }
         Relationships: [
@@ -296,48 +290,69 @@ export type Database = {
       }
       contract_msp_details: {
         Row: {
+          aws_account_ids: string[] | null
+          aws_am: string | null
           aws_amount: number | null
           billing_method:
             | Database["public"]["Enums"]["billing_method_type"]
             | null
+          billing_on: boolean
+          billing_on_alias: string | null
           contract_id: string
           created_at: string
           credit_share: Database["public"]["Enums"]["credit_share_type"] | null
+          deleted_at: string | null
           expected_mrr: number | null
           has_management_fee: boolean | null
           id: string
+          msp_grade: Database["public"]["Enums"]["msp_grade_type"] | null
           payer: Database["public"]["Enums"]["payer_type"] | null
           sales_rep_id: string | null
+          tags: string[] | null
           updated_at: string
         }
         Insert: {
+          aws_account_ids?: string[] | null
+          aws_am?: string | null
           aws_amount?: number | null
           billing_method?:
             | Database["public"]["Enums"]["billing_method_type"]
             | null
+          billing_on?: boolean
+          billing_on_alias?: string | null
           contract_id: string
           created_at?: string
           credit_share?: Database["public"]["Enums"]["credit_share_type"] | null
+          deleted_at?: string | null
           expected_mrr?: number | null
           has_management_fee?: boolean | null
           id?: string
+          msp_grade?: Database["public"]["Enums"]["msp_grade_type"] | null
           payer?: Database["public"]["Enums"]["payer_type"] | null
           sales_rep_id?: string | null
+          tags?: string[] | null
           updated_at?: string
         }
         Update: {
+          aws_account_ids?: string[] | null
+          aws_am?: string | null
           aws_amount?: number | null
           billing_method?:
             | Database["public"]["Enums"]["billing_method_type"]
             | null
+          billing_on?: boolean
+          billing_on_alias?: string | null
           contract_id?: string
           created_at?: string
           credit_share?: Database["public"]["Enums"]["credit_share_type"] | null
+          deleted_at?: string | null
           expected_mrr?: number | null
           has_management_fee?: boolean | null
           id?: string
+          msp_grade?: Database["public"]["Enums"]["msp_grade_type"] | null
           payer?: Database["public"]["Enums"]["payer_type"] | null
           sales_rep_id?: string | null
+          tags?: string[] | null
           updated_at?: string
         }
         Relationships: [
@@ -416,6 +431,46 @@ export type Database = {
           },
         ]
       }
+      contract_tech_leads: {
+        Row: {
+          contract_id: string
+          created_at: string
+          employee_id: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          employee_id: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          employee_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_tech_leads_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_tech_leads_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_with_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_tech_leads_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           assigned_to: string | null
@@ -425,7 +480,7 @@ export type Database = {
           created_at: string
           currency: Database["public"]["Enums"]["currency_type"] | null
           deleted_at: string | null
-          description: string | null
+          memo: string | null
           id: string
           name: string
           stage: string | null
@@ -441,7 +496,7 @@ export type Database = {
           created_at?: string
           currency?: Database["public"]["Enums"]["currency_type"] | null
           deleted_at?: string | null
-          description?: string | null
+          memo?: string | null
           id?: string
           name: string
           stage?: string | null
@@ -457,7 +512,7 @@ export type Database = {
           created_at?: string
           currency?: Database["public"]["Enums"]["currency_type"] | null
           deleted_at?: string | null
-          description?: string | null
+          memo?: string | null
           id?: string
           name?: string
           stage?: string | null
@@ -850,7 +905,7 @@ export type Database = {
           memo: string | null
           name: string | null
           parent_id: string | null
-          status: string | null
+          status: Database["public"]["Enums"]["client_status_type"] | null
           updated_at: string | null
         }
         Insert: {
@@ -865,7 +920,7 @@ export type Database = {
           memo?: string | null
           name?: string | null
           parent_id?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["client_status_type"] | null
           updated_at?: string | null
         }
         Update: {
@@ -880,7 +935,7 @@ export type Database = {
           memo?: string | null
           name?: string | null
           parent_id?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["client_status_type"] | null
           updated_at?: string | null
         }
         Relationships: [
@@ -917,7 +972,7 @@ export type Database = {
           credit_share: Database["public"]["Enums"]["credit_share_type"] | null
           currency: Database["public"]["Enums"]["currency_type"] | null
           deleted_at: string | null
-          description: string | null
+          memo: string | null
           expected_mrr: number | null
           has_management_fee: boolean | null
           id: string | null
@@ -995,6 +1050,7 @@ export type Database = {
         | "공공기관 별도 청구"
       business_type: "msp" | "tt" | "dev"
       client_grade: "A" | "B" | "C" | "D" | "E"
+      client_status_type: "신규" | "진행중" | "활성" | "휴면" | "종료" | "상태없음"
       client_type: "univ" | "corp" | "govt" | "asso" | "etc"
       company_size_type:
         | "스타트업"
@@ -1013,6 +1069,7 @@ export type Database = {
         | "공공"
         | "서울대 연구실"
         | "기타"
+      msp_grade_type: "None" | "FREE" | "MSP10" | "MSP15" | "MSP20" | "ETC"
       payer_type: "ETV-AWS-13" | "ETV-AWS-14" | "Org-001" | "Billing Transfer"
       team_type: "msp" | "education" | "dev"
       user_role: "staff" | "team_lead" | "admin" | "c_level"
@@ -1150,6 +1207,7 @@ export const Constants = {
       ],
       business_type: ["msp", "tt", "dev"],
       client_grade: ["A", "B", "C", "D", "E"],
+      client_status_type: ["신규", "진행중", "활성", "휴면", "종료", "상태없음"],
       client_type: ["univ", "corp", "govt", "asso", "etc"],
       company_size_type: [
         "스타트업",
@@ -1170,6 +1228,7 @@ export const Constants = {
         "서울대 연구실",
         "기타",
       ],
+      msp_grade_type: ["None", "FREE", "MSP10", "MSP15", "MSP20", "ETC"],
       payer_type: ["ETV-AWS-13", "ETV-AWS-14", "Org-001", "Billing Transfer"],
       team_type: ["msp", "education", "dev"],
       user_role: ["staff", "team_lead", "admin", "c_level"],

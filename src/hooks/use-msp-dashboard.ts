@@ -25,12 +25,15 @@ export function useMspGradeDistribution() {
     queryKey: ['msp-grade-distribution'],
     queryFn: async () => {
       const supabase = createClient();
+      // 계약 기준 등급 분포 (삭제되지 않은 MSP 계약)
       const { data } = await supabase
-        .from('client_msp_details')
-        .select('msp_grade');
+        .from('contract_msp_details')
+        .select('msp_grade, contracts!contract_msp_details_contract_id_fkey(type, deleted_at)');
       const counts = new Map<string, number>();
-      (data ?? []).forEach((c) => {
-        const grade = c.msp_grade ?? '미지정';
+      (data ?? []).forEach((row) => {
+        const contract = row.contracts as { type: string; deleted_at: string | null } | null;
+        if (!contract || contract.deleted_at || contract.type !== 'msp') return;
+        const grade = row.msp_grade ?? '미지정';
         counts.set(grade, (counts.get(grade) ?? 0) + 1);
       });
       return Array.from(counts.entries()).map(([grade, count]) => ({ grade, count }));

@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Pencil } from 'lucide-react';
-import { CLIENT_TYPES, CLIENT_GRADES, BUSINESS_TYPES } from '@/lib/constants';
+import { CLIENT_TYPES, CLIENT_GRADES, BUSINESS_TYPES, CLIENT_STATUS_OPTIONS } from '@/lib/constants';
 import { clientUpdateSchema } from '@/lib/validators/client';
 import { useUpdateClient } from '@/hooks/use-client-mutations';
 import type { ClientRow } from '@/lib/services/client-service';
@@ -35,6 +35,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
       name: formData.get('name') as string,
       clientType: formData.get('clientType') as string,
       grade: formData.get('grade') || undefined,
+      status: formData.get('status') || undefined,
       businessTypes: editBusinessTypes,
       memo: formData.get('memo') || null,
     };
@@ -64,7 +65,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
             <Button type="submit" size="sm" disabled={updateClient.isPending} className="bg-blue-600 hover:bg-blue-700">저장</Button>
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           <div className="space-y-1.5">
             <Label>고객사명</Label>
             <Input name="name" defaultValue={client.name} />
@@ -87,6 +88,17 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
               <SelectContent>
                 {CLIENT_GRADES.map((g) => (
                   <SelectItem key={g} value={g}>{g}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>상태</Label>
+            <Select name="status" defaultValue={client.status ?? '상태없음'}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CLIENT_STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -139,7 +151,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-8">
+      <div className="grid grid-cols-5 gap-8">
         <div className="space-y-1">
           <p className="text-xs font-medium text-zinc-400">고객사명</p>
           <p className="text-[15px] font-medium text-zinc-900">{client.name}</p>
@@ -159,6 +171,25 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
           ) : (
             <p className="text-[15px] font-medium text-zinc-900">-</p>
           )}
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-zinc-400">상태</p>
+          {(() => {
+            const STATUS_COLORS: Record<string, string> = {
+              '신규': 'bg-violet-100 text-violet-600',
+              '진행중': 'bg-indigo-100 text-indigo-600',
+              '활성': 'bg-emerald-100 text-emerald-600',
+              '휴면': 'bg-zinc-100 text-zinc-500',
+              '종료': 'bg-rose-100 text-rose-600',
+              '상태없음': 'bg-zinc-100 text-zinc-400',
+            };
+            const status = client.status ?? '상태없음';
+            return (
+              <span className={`inline-block rounded px-2.5 py-0.5 text-[13px] font-semibold ${STATUS_COLORS[status] ?? 'bg-zinc-100 text-zinc-500'}`}>
+                {status}
+              </span>
+            );
+          })()}
         </div>
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-zinc-400">비즈니스 타입</p>

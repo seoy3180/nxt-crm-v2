@@ -7,7 +7,7 @@ export const contractCreateSchema = z.object({
   name: z.string().min(1, '계약명을 입력해주세요').max(200, '최대 200자까지 입력할 수 있습니다'),
   clientId: z.string().uuid('고객을 선택해주세요'),
   type: contractTypeEnum,
-  description: z.string().optional().nullable(),
+  memo: z.string().optional().nullable(),
   totalAmount: z.number().int().min(0, '금액은 0 이상이어야 합니다').default(0),
   currency: currencyEnum.default('KRW'),
   stage: z.string().optional().nullable(),
@@ -28,6 +28,13 @@ export const mspDetailSchema = z.object({
   awsAmount: z.number().int().min(0).optional().nullable(),
   hasManagementFee: z.boolean().default(false),
   billingMethod: z.enum(['대표님 직접 청구', '매월 10일 세금계산서 발행', '공공기관 별도 청구']).optional().nullable(),
+  awsAm: z.string().optional().nullable(),
+  awsAccountIds: z.array(z.string()).optional(),
+  mspGrade: z.enum(['None', 'FREE', 'MSP10', 'MSP15', 'MSP20', 'ETC']).optional().nullable(),
+  billingOn: z.boolean().default(false),
+  billingOnAlias: z.string().optional().nullable(),
+  tags: z.array(z.string()).optional(),
+  techLeadIds: z.array(z.string().uuid()).default([]),
 });
 
 export type MspDetailInput = z.infer<typeof mspDetailSchema>;
