@@ -69,8 +69,8 @@ function LoginFormInner() {
           <p className="text-sm text-zinc-500">계정 정보를 입력해주세요</p>
         </div>
 
-        {/* 폼 */}
-        <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4">
+        {/* 폼 — method="POST" 명시하여 hydration 실패 시에도 URL 노출 방지 */}
+        <form onSubmit={handleSubmit} method="POST" className="flex w-full flex-col gap-4">
           {errors.root && (
             <p className="text-sm text-red-500">{errors.root}</p>
           )}
