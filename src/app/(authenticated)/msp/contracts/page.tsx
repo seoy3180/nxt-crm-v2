@@ -8,8 +8,14 @@ import { cn, formatAmount, safeNumber, getStageColor } from '@/lib/utils';
 import { ContractStageFilter, ContractSearch } from '@/components/contracts/contract-filters';
 import { ContractKanban } from '@/components/contracts/contract-kanban';
 import { ColumnSettings } from '@/components/common/column-settings';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
+import {
+  InlineEditTable,
+  type InlineEditColumnBase,
+} from '@/components/common/inline-edit-table';
+import {
+  InlineEditToggle,
+  InlineEditActions,
+} from '@/components/common/inline-edit-toolbar';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useContracts } from '@/hooks/use-contracts';
@@ -49,11 +55,7 @@ interface MspContract {
   tags: string[];
 }
 
-interface ColumnDef {
-  key: string;
-  label: string;
-  width?: string;
-  editable: boolean;
+interface ColumnDef extends InlineEditColumnBase {
   type: 'text' | 'number' | 'select' | 'dynamic-select' | 'tags';
   options?: readonly string[] | readonly { readonly value: string; readonly label: string }[];
   /** dynamic-select에서 사용할 옵션 키 */
@@ -76,13 +78,6 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'tags', label: '태그', width: 'w-[180px]', editable: true, type: 'tags', table: 'msp_details', dbColumn: 'tags' },
 ];
 
-// ─── 변경사항 ──────────────────────────────────────────
-type PendingChange = {
-  contractId: string;
-  mspDetailId: string | null;
-  [key: string]: unknown;
-};
-
 function getStageBadge(stage: string | null) {
   const label = stage ? (MSP_STAGES.find((s) => s.value === stage)?.label ?? stage) : '미지정';
   return <span className={`inline-block rounded px-2 py-0.5 text-[11px] font-semibold ${getStageColor(stage)}`}>{label}</span>;
@@ -102,7 +97,7 @@ function MspContractsInner() {
   const [page, setPage] = useState(1);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 인라인 편집 (공용 훅) — onSave는 아래에서 tableContracts 접근 필요하므로 별도 정의
+  // 인라인 편집 (공용 훅)
   const inlineEdit = useInlineEdit<MspContract>({
     getId: (c) => c.id,
     getOriginalValue: (c, key) => String(c[key as keyof MspContract] ?? ''),
@@ -178,8 +173,7 @@ function MspContractsInner() {
     },
   });
 
-  const { editMode, setEditMode, changeCount, saving, editingCell, tempValue, setTempValue,
-    startCellEdit, saveCellEdit, getDisplayValue, handleSave, handleCancelEdit, setEditingCell, pendingChanges } = inlineEdit;
+  const { editMode, tempValue, setTempValue, saveCellEdit, setEditingCell } = inlineEdit;
 
   const defaultCols = useMemo(() => ALL_COLUMNS.map((c) => c.key), []);
   const { columns: visibleColumns, saveColumns } = useColumnPreference('mspContractsColumns', defaultCols);
@@ -313,16 +307,17 @@ function MspContractsInner() {
     return opts.find((o) => o.value === value)?.label ?? value;
   }
 
-  // ─── 셀 렌더링 ─────────────────────────────────────
-  function renderCellValue(value: string, col: ColumnDef) {
-    if (col.key === 'stage') return getStageBadge(value || null);
-    if (col.key === 'creditShare' && value) {
-      return <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">{value}</span>;
+  // 셀 값 렌더 (배지/칩 등 특수 표현 포함)
+  function renderCellValue(row: MspContract, col: ColumnDef, displayValue: string) {
+    if (col.key === 'name') return row.name;
+    if (col.key === 'stage') return getStageBadge(displayValue || null);
+    if (col.key === 'creditShare' && displayValue) {
+      return <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">{displayValue}</span>;
     }
-    if (col.type === 'number' && value) return formatAmount(Number(value));
-    if (col.type === 'dynamic-select') return resolveDisplayName(value, col) || '-';
+    if (col.type === 'number' && displayValue) return formatAmount(Number(displayValue));
+    if (col.type === 'dynamic-select') return resolveDisplayName(displayValue, col) || '-';
     if (col.type === 'tags') {
-      const tags = value.split(',').map((s) => s.trim()).filter(Boolean);
+      const tags = displayValue.split(',').map((s) => s.trim()).filter(Boolean);
       if (tags.length === 0) return '-';
       const shown = tags.slice(0, 2);
       const remaining = tags.length - shown.length;
@@ -335,7 +330,7 @@ function MspContractsInner() {
         </div>
       );
     }
-    return value || '-';
+    return displayValue || '-';
   }
 
   function getSelectOptions(col: ColumnDef): { value: string; label: string }[] {
@@ -348,15 +343,16 @@ function MspContractsInner() {
     return [...(opts as readonly { readonly value: string; readonly label: string }[])];
   }
 
-  function renderEditingCell(contract: MspContract, col: ColumnDef) {
+  // 편집 중 셀 렌더
+  function renderEditingCell(row: MspContract, col: ColumnDef) {
     if (col.type === 'select') {
       const opts = getSelectOptions(col);
       return (
         <select
           autoFocus
           value={tempValue}
-          onChange={(e) => { setTempValue(e.target.value); }}
-          onBlur={() => saveCellEdit(contract)}
+          onChange={(e) => setTempValue(e.target.value)}
+          onBlur={() => saveCellEdit(row)}
           className="h-8 w-full rounded border border-blue-400 bg-blue-50 px-1 text-[13px] text-zinc-900 outline-none"
         >
           <option value="">미지정</option>
@@ -370,8 +366,8 @@ function MspContractsInner() {
         <select
           autoFocus
           value={tempValue}
-          onChange={(e) => { setTempValue(e.target.value); }}
-          onBlur={() => saveCellEdit(contract)}
+          onChange={(e) => setTempValue(e.target.value)}
+          onBlur={() => saveCellEdit(row)}
           className="h-8 w-full rounded border border-blue-400 bg-blue-50 px-1 text-[13px] text-zinc-900 outline-none"
         >
           <option value="">미지정</option>
@@ -386,125 +382,15 @@ function MspContractsInner() {
         inputMode={col.type === 'number' ? 'numeric' : undefined}
         value={tempValue}
         onChange={(e) => setTempValue(e.target.value)}
-        onBlur={() => saveCellEdit(contract)}
-        onKeyDown={(e) => { if (e.nativeEvent.isComposing) return; if (e.key === 'Enter') saveCellEdit(contract); if (e.key === 'Escape') setEditingCell(null); }}
+        onBlur={() => saveCellEdit(row)}
+        onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return;
+          if (e.key === 'Enter') saveCellEdit(row);
+          if (e.key === 'Escape') setEditingCell(null);
+        }}
         placeholder={col.type === 'tags' ? '쉼표로 구분 (예: 빠른결정, 기술중심)' : ''}
         className="h-8 w-full rounded border border-blue-400 bg-blue-50 px-2 text-[13px] text-zinc-900 outline-none"
       />
-    );
-  }
-
-  // ─── 테이블 뷰 렌더링 ──────────────────────────────
-  function renderTableView() {
-    const contracts = tableContracts?.data ?? [];
-    const isLoading = tableLoading;
-
-    return (
-      <>
-        {isLoading ? (
-          <div className="space-y-2">{[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
-        ) : (
-          <div className={cn('overflow-hidden rounded-xl border', editMode ? 'border-blue-600' : 'border-zinc-200')}>
-            <Table>
-              <TableHeader>
-                <TableRow className={editMode ? 'bg-blue-50' : 'bg-zinc-50'}>
-                  {columns.map((col) => (
-                    <TableHead
-                      key={col.key}
-                      className={cn(
-                        'h-10 px-4 text-xs font-semibold',
-                        col.width,
-                        col.key === 'name' ? 'text-left' : 'text-center',
-                        editMode ? 'text-blue-600' : 'text-zinc-500',
-                      )}
-                    >
-                      {col.label}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {contracts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center text-zinc-400">
-                      등록된 MSP 계약이 없습니다
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  contracts.map((c) => (
-                    <TableRow
-                      key={c.id}
-                      tabIndex={editMode ? undefined : 0}
-                      className={cn('h-11 border-b border-zinc-100', !editMode && 'cursor-pointer hover:bg-zinc-50')}
-                      onClick={editMode ? undefined : () => router.push(`/msp/contracts/${c.id}`)}
-                      onKeyDown={editMode ? undefined : (e) => { if (e.key === 'Enter') router.push(`/msp/contracts/${c.id}`); }}
-                    >
-                      {columns.map((col) => {
-                        const displayValue = getDisplayValue(c, col.key);
-                        const canEdit = editMode && col.editable;
-                        const isEditing = editingCell?.rowId === c.id && editingCell?.colKey === col.key;
-                        const isChanged = pendingChanges.has(c.id) && col.key in (pendingChanges.get(c.id) ?? {});
-
-                        if (isEditing) {
-                          return (
-                            <TableCell key={col.key} className={cn('px-2', col.width)}>
-                              {renderEditingCell(c, col)}
-                            </TableCell>
-                          );
-                        }
-
-                        if (canEdit) {
-                          return (
-                            <TableCell
-                              key={col.key}
-                              className={cn('px-2', col.width)}
-                              onClick={(e) => { e.stopPropagation(); startCellEdit(c.id, col.key, displayValue === '-' ? '' : displayValue); }}
-                            >
-                              <span className={cn(
-                                'block cursor-text rounded border px-3 py-1 text-center text-[13px]',
-                                isChanged ? 'border-blue-400 bg-blue-100/50 text-zinc-900' : 'border-blue-200 bg-[#FAFCFF] text-zinc-500',
-                              )}>
-                                {col.type === 'number' && displayValue && displayValue !== '-'
-                                  ? formatAmount(Number(displayValue))
-                                  : renderCellValue(displayValue, col)}
-                              </span>
-                            </TableCell>
-                          );
-                        }
-
-                        return (
-                          <TableCell
-                            key={col.key}
-                            className={cn(
-                              'px-4',
-                              col.width,
-                              col.key === 'name' ? 'text-sm font-medium text-zinc-900' : 'text-center text-[13px] text-zinc-500',
-                            )}
-                          >
-                            {renderCellValue(displayValue, col)}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-
-        {tableContracts && tableContracts.totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 py-4">
-            <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={page <= 1}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm text-zinc-500">{page} / {tableContracts.totalPages}</span>
-            <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page >= tableContracts.totalPages}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-      </>
     );
   }
 
@@ -549,30 +435,7 @@ function MspContractsInner() {
               onOpenChange={setShowColumnSettings}
               fixedColumns={['name']}
             />
-
-            <button
-              type="button"
-              onClick={() => {
-                if (!editMode) {
-                  setEditMode(true);
-                } else if (changeCount > 0) {
-                  if (confirm('저장하지 않은 변경사항이 있습니다. 취소하시겠습니까?')) {
-                    handleCancelEdit();
-                  }
-                } else {
-                  setEditMode(false);
-                }
-              }}
-              className={cn(
-                'flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-semibold transition-colors',
-                editMode ? 'bg-blue-50 text-blue-600 border border-blue-600' : 'border border-zinc-200 text-zinc-500 hover:bg-zinc-50',
-              )}
-            >
-              편집 모드
-              <div className={cn('flex h-[18px] w-8 items-center rounded-full px-0.5 transition-colors', editMode ? 'bg-blue-600 justify-end' : 'bg-zinc-300 justify-start')}>
-                <div className="h-3.5 w-3.5 rounded-full bg-white" />
-              </div>
-            </button>
+            <InlineEditToggle inlineEdit={inlineEdit} />
           </>
         )}
 
@@ -586,29 +449,8 @@ function MspContractsInner() {
 
         <ContractSearch search={search} onSearchChange={handleSearchChange} />
 
-        {/* 편집 모드 액션 버튼 */}
-        {viewMode === 'table' && editMode && changeCount > 0 && (
-          <span className="text-xs text-blue-600">{changeCount}건 변경</span>
-        )}
-        {viewMode === 'table' && editMode && (
-          <button
-            type="button"
-            onClick={handleCancelEdit}
-            className="flex h-8 items-center rounded-md border border-zinc-200 px-3 text-[13px] text-zinc-500 hover:bg-zinc-50"
-          >
-            취소
-          </button>
-        )}
-        {viewMode === 'table' && editMode && (
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="flex h-8 items-center rounded-md bg-blue-600 px-3 text-[13px] font-semibold text-white hover:bg-blue-700"
-          >
-            {saving ? '저장 중...' : changeCount > 0 ? `저장 (${changeCount}건)` : '편집 완료'}
-          </button>
-        )}
+        {/* 편집 모드 액션 (테이블 뷰에서만) */}
+        {viewMode === 'table' && <InlineEditActions inlineEdit={inlineEdit} />}
 
         {/* 새 계약 */}
         {editMode ? (
@@ -634,7 +476,32 @@ function MspContractsInner() {
           contractType="msp"
         />
       ) : (
-        renderTableView()
+        <>
+          <InlineEditTable<MspContract, ColumnDef>
+            data={tableContracts?.data ?? []}
+            columns={columns}
+            inlineEdit={inlineEdit}
+            getId={(c) => c.id}
+            isLoading={tableLoading}
+            skeletonRows={5}
+            emptyText="등록된 MSP 계약이 없습니다"
+            rowHref={(c) => `/msp/contracts/${c.id}`}
+            renderCell={renderCellValue}
+            renderEditingCell={renderEditingCell}
+          />
+
+          {tableContracts && tableContracts.totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 py-4">
+              <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={page <= 1}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-zinc-500">{page} / {tableContracts.totalPages}</span>
+              <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page >= tableContracts.totalPages}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
