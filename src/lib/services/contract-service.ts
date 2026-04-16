@@ -372,7 +372,10 @@ export const contractService = {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data ?? []) as unknown as ContractHistoryRow[];
+    return (data ?? []).map((row) => ({
+      ...row,
+      changed_by_name: (row.profiles as { name: string } | null)?.name ?? undefined,
+    })) as unknown as ContractHistoryRow[];
   },
 
   async softDelete(id: string) {
