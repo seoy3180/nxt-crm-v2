@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEmployees } from '@/hooks/use-employees';
+import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import type { ContractRow } from '@/lib/services/contract-service';
 
 function formatFullAmount(amount: number) {
@@ -19,6 +20,7 @@ interface ContractInfoCardProps {
 
 export function ContractInfoCard({ contract, editing, editValues, onFieldChange }: ContractInfoCardProps) {
   const { data: employees } = useEmployees();
+  const basePath = useSectionBasePath();
 
   const val = (field: string, fallback: string) => editing ? (editValues?.[field] ?? fallback) : fallback;
 
@@ -47,7 +49,7 @@ export function ContractInfoCard({ contract, editing, editValues, onFieldChange 
         <div className="space-y-1">
           <p className="text-xs font-medium text-zinc-400">고객</p>
           {contract.client_id ? (
-            <Link href={`/clients/${contract.client_id}`} className="text-base font-medium text-blue-600 hover:underline">
+            <Link href={`${basePath}/clients/${contract.client_id}`} className="text-base font-medium text-blue-600 hover:underline">
               {contract.client_name ?? '-'}
             </Link>
           ) : (

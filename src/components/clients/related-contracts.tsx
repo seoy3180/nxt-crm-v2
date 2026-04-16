@@ -8,6 +8,7 @@ import type { ContractRow } from '@/lib/services/contract-service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BUSINESS_TYPES, MSP_STAGES, EDU_STAGES } from '@/lib/constants';
+import { useSectionBasePath } from '@/hooks/use-section-base-path';
 
 interface RelatedContractsProps {
   clientId: string;
@@ -23,6 +24,7 @@ function getStageLabel(stage: string | null, type: string) {
 
 export function RelatedContracts({ clientId, childClientIds }: RelatedContractsProps) {
   const router = useRouter();
+  const basePath = useSectionBasePath();
   const hasChildren = (childClientIds ?? []).length > 0;
   const targetIds = [clientId, ...(childClientIds ?? [])];
 
@@ -78,7 +80,7 @@ export function RelatedContracts({ clientId, childClientIds }: RelatedContractsP
               </TableRow>
             ) : (
               contracts.map((c) => (
-                <TableRow key={c.id} tabIndex={0} className="h-11 cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none" onClick={() => router.push(`/contracts/${c.id}`)} onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/contracts/${c.id}`); }}>
+                <TableRow key={c.id} tabIndex={0} className="h-11 cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-50 focus:bg-zinc-50 focus:outline-none" onClick={() => router.push(`${basePath}/contracts/${c.id}`)} onKeyDown={(e) => { if (e.key === 'Enter') router.push(`${basePath}/contracts/${c.id}`); }}>
                   {hasChildren && <TableCell className="w-[140px] px-4 text-sm font-medium text-zinc-900">{c.client_name ?? '-'}</TableCell>}
                   <TableCell className="px-4 text-sm font-medium text-zinc-900">{c.name}</TableCell>
                   <TableCell className="w-[80px] px-4 text-center">

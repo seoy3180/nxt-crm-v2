@@ -1,8 +1,8 @@
 'use client';
 
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -37,10 +37,6 @@ interface MonthlyRevenueChartProps {
 
 type TypeKey = 'msp' | 'tt' | 'dev';
 
-function getTypeColor(type: TypeKey) {
-  return REVENUE_COLORS[type];
-}
-
 interface ChartRow {
   name: string;
   [key: string]: string | number;
@@ -60,19 +56,13 @@ function buildChartData(
     const row: ChartRow = { name: label };
 
     if (typeFilter === 'all') {
-      row['MSP'] = cur?.msp ?? 0;
-      row['교육'] = cur?.tt ?? 0;
-      row['개발'] = cur?.dev ?? 0;
-
+      row['전사 매출'] = cur?.total ?? 0;
       if (showYoY && prev) {
-        row['전년 MSP'] = prev.msp;
-        row['전년 교육'] = prev.tt;
-        row['전년 개발'] = prev.dev;
+        row['전년 매출'] = prev.total;
       }
     } else {
       const key = typeFilter as TypeKey;
       row['매출'] = cur?.[key] ?? 0;
-
       if (showYoY && prev) {
         row['전년 매출'] = prev[key];
       }
@@ -107,6 +97,7 @@ function CustomTooltip({
 
 function yAxisFormatter(value: number) {
   if (value === 0) return '0';
+  if (value >= 100000000) return `${(value / 100000000).toFixed(1)}억`;
   return `${Math.round(value / 10000)}만`;
 }
 
@@ -123,83 +114,40 @@ export function MonthlyRevenueChart({
 
   const chartData = buildChartData(data, prevYearData, typeFilter, showYoY);
 
-  const renderBars = () => {
-    if (typeFilter === 'all') {
-      return (
-        <>
-          {showYoY && prevYearData && (
-            <>
-              <Bar
-                dataKey="전년 MSP"
-                fill={REVENUE_COLORS.msp}
-                opacity={0.3}
-                radius={[2, 2, 0, 0]}
-              />
-              <Bar
-                dataKey="전년 교육"
-                fill={REVENUE_COLORS.tt}
-                opacity={0.3}
-                radius={[2, 2, 0, 0]}
-              />
-              <Bar
-                dataKey="전년 개발"
-                fill={REVENUE_COLORS.dev}
-                opacity={0.3}
-                radius={[2, 2, 0, 0]}
-              />
-            </>
-          )}
-          <Bar
-            dataKey="MSP"
-            stackId="current"
-            fill={REVENUE_COLORS.msp}
-            radius={[2, 2, 0, 0]}
-          />
-          <Bar
-            dataKey="교육"
-            stackId="current"
-            fill={REVENUE_COLORS.tt}
-            radius={[2, 2, 0, 0]}
-          />
-          <Bar
-            dataKey="개발"
-            stackId="current"
-            fill={REVENUE_COLORS.dev}
-            radius={[2, 2, 0, 0]}
-          />
-        </>
-      );
-    }
-
-    const key = typeFilter as TypeKey;
-    const color = getTypeColor(key);
-
-    return (
-      <>
-        {showYoY && prevYearData && (
-          <Bar
-            dataKey="전년 매출"
-            fill={color}
-            opacity={0.3}
-            radius={[2, 2, 0, 0]}
-          />
-        )}
-        <Bar dataKey="매출" fill={color} radius={[4, 4, 0, 0]} />
-      </>
-    );
-  };
+  const mainKey = typeFilter === 'all' ? '전사 매출' : '매출';
+  const mainColor = typeFilter === 'all'
+    ? '#3b82f6'
+    : REVENUE_COLORS[typeFilter as TypeKey];
 
   return (
     <div className="rounded-xl bg-zinc-50 p-5">
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData}>
+        <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
           <XAxis dataKey="name" fontSize={12} tickLine={false} />
           <YAxis tickFormatter={yAxisFormatter} fontSize={12} tickLine={false} />
           <Tooltip content={<CustomTooltip />} />
           <Legend fontSize={12} />
-          {renderBars()}
-        </BarChart>
+          {showYoY && prevYearData && (
+            <Line
+              type="monotone"
+              dataKey="전년 매출"
+              stroke={mainColor}
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+              strokeOpacity={0.4}
+              dot={false}
+            />
+          )}
+          <Line
+            type="monotone"
+            dataKey={mainKey}
+            stroke={mainColor}
+            strokeWidth={2.5}
+            dot={{ r: 4, fill: mainColor, stroke: 'white', strokeWidth: 2 }}
+            activeDot={{ r: 6 }}
+          />
+        </LineChart>
       </ResponsiveContainer>
     </div>
   );

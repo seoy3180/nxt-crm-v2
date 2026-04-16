@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn, formatAmount, safeNumber, getStageColor } from '@/lib/utils';
+import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { ContractStageFilter, ContractSearch } from '@/components/contracts/contract-filters';
 import { ContractKanban } from '@/components/contracts/contract-kanban';
 import { ColumnSettings } from '@/components/common/column-settings';
@@ -36,6 +37,7 @@ import {
 interface MspContract {
   id: string;
   name: string;
+  clientId: string | null;
   clientName: string | null;
   stage: string | null;
   totalAmount: number;
@@ -76,6 +78,7 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'salesRepId', label: '영업 담당', width: 'w-[120px]', editable: true, type: 'dynamic-select', optionsKey: 'employees', table: 'msp_details', dbColumn: 'sales_rep_id' },
   { key: 'assignedTo', label: '사내 담당자', width: 'w-[120px]', editable: true, type: 'dynamic-select', optionsKey: 'employees', table: 'contracts', dbColumn: 'assigned_to' },
   { key: 'tags', label: '태그', width: 'w-[180px]', editable: true, type: 'tags', table: 'msp_details', dbColumn: 'tags' },
+  { key: 'actions', label: '', width: 'w-[90px]', editable: false, type: 'text', table: 'contracts' },
 ];
 
 function getStageBadge(stage: string | null) {
@@ -173,6 +176,7 @@ function MspContractsInner() {
     },
   });
 
+  const basePath = useSectionBasePath();
   const { editMode, tempValue, setTempValue, saveCellEdit, setEditingCell } = inlineEdit;
 
   const defaultCols = useMemo(() => ALL_COLUMNS.map((c) => c.key), []);
@@ -257,6 +261,7 @@ function MspContractsInner() {
         return {
           id: row.id as string,
           name: row.name as string,
+          clientId: (row.client_id as string) ?? null,
           clientName: (row.clients as { name: string } | null)?.name ?? null,
           stage: row.stage as string | null,
           totalAmount: (row.total_amount as number) ?? 0,
@@ -310,6 +315,27 @@ function MspContractsInner() {
   // 셀 값 렌더 (배지/칩 등 특수 표현 포함)
   function renderCellValue(row: MspContract, col: ColumnDef, displayValue: string) {
     if (col.key === 'name') return row.name;
+    if (col.key === 'clientName' && row.clientId) {
+      return (
+        <Link
+          href={`${basePath}/clients/${row.clientId}`}
+          onClick={(e) => e.stopPropagation()}
+          className="font-medium text-blue-600 hover:underline"
+        >
+          {row.clientName ?? '-'}
+        </Link>
+      );
+    }
+    if (col.key === 'actions') {
+      return (
+        <Link
+          href={`${basePath}/contracts/${row.id}`}
+          className="rounded-md border border-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100 transition-colors"
+        >
+          상세보기
+        </Link>
+      );
+    }
     if (col.key === 'stage') return getStageBadge(displayValue || null);
     if (col.key === 'creditShare' && displayValue) {
       return <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">{displayValue}</span>;
@@ -485,7 +511,6 @@ function MspContractsInner() {
             isLoading={tableLoading}
             skeletonRows={5}
             emptyText="등록된 MSP 계약이 없습니다"
-            rowHref={(c) => `/msp/contracts/${c.id}`}
             renderCell={renderCellValue}
             renderEditingCell={renderEditingCell}
           />

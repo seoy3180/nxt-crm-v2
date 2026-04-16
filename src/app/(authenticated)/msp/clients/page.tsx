@@ -15,6 +15,7 @@ import {
   InlineEditActions,
 } from '@/components/common/inline-edit-toolbar';
 import { Plus, Search } from 'lucide-react';
+import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { useInlineEdit } from '@/hooks/use-inline-edit';
 import { useColumnPreference } from '@/hooks/use-user-preferences';
 import { SEARCH_DEBOUNCE_MS, INDUSTRY_OPTIONS } from '@/lib/constants';
@@ -38,6 +39,7 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'industry', label: '산업분야', width: 'w-[110px]', editable: true, type: 'select', options: INDUSTRY_OPTIONS },
   { key: 'contractCount', label: '계약 수', width: 'w-[80px]', editable: false },
   { key: 'memo', label: '메모', editable: true, type: 'text' },
+  { key: 'actions', label: '', width: 'w-[90px]', editable: false },
 ];
 
 export default function MspClientsPage() {
@@ -70,6 +72,7 @@ export default function MspClientsPage() {
     },
   });
 
+  const basePath = useSectionBasePath();
   const { editMode, tempValue, setTempValue, saveCellEdit, setEditingCell } = inlineEdit;
 
   const defaultCols = useMemo(() => ALL_COLUMNS.map((c) => c.key), []);
@@ -129,6 +132,16 @@ export default function MspClientsPage() {
     if (col.key === 'memo') {
       if (!client.memo) return <span className="text-zinc-400">-</span>;
       return <span className="line-clamp-1" title={client.memo}>{client.memo}</span>;
+    }
+    if (col.key === 'actions') {
+      return (
+        <Link
+          href={`${basePath}/clients/${client.id}`}
+          className="rounded-md border border-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100 transition-colors"
+        >
+          상세보기
+        </Link>
+      );
     }
     return displayValue || <span className="text-zinc-400">-</span>;
   }
@@ -221,7 +234,6 @@ export default function MspClientsPage() {
         getId={(c) => c.id}
         isLoading={isLoading}
         emptyText="MSP 고객이 없습니다"
-        rowHref={(c) => `/msp/clients/${c.id}`}
         renderCell={renderCell}
         renderEditingCell={renderEditingCell}
       />

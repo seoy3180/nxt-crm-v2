@@ -12,12 +12,14 @@ import { ClientDeleteZone } from './client-delete-zone';
 import type { ClientRow } from '@/lib/services/client-service';
 import { CLIENT_TYPES } from '@/lib/constants';
 import { ArrowLeft } from 'lucide-react';
+import { useSectionBasePath } from '@/hooks/use-section-base-path';
 
 interface ClientTabsProps {
   client: ClientRow;
 }
 
 function ChildClientsTable({ children: childClients }: { children: ClientRow['children'] }) {
+  const basePath = useSectionBasePath();
   const items = childClients ?? [];
   if (items.length === 0) return null;
 
@@ -37,7 +39,7 @@ function ChildClientsTable({ children: childClients }: { children: ClientRow['ch
             {items.map((child) => (
               <tr key={child.id} className="border-t border-zinc-100">
                 <td className="h-10 px-3">
-                  <Link href={`/clients/${child.id}`} className="font-medium text-blue-600 hover:underline">
+                  <Link href={`${basePath}/clients/${child.id}`} className="font-medium text-blue-600 hover:underline">
                     {child.name}
                   </Link>
                 </td>
@@ -83,10 +85,13 @@ export function ClientTabs({ client }: ClientTabsProps) {
         {header}
 
         <Tabs defaultValue="info" className="flex-1">
-          <TabsList>
-            <TabsTrigger value="info">기본 정보</TabsTrigger>
-            <TabsTrigger value="contracts">관련 계약</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="info">기본 정보</TabsTrigger>
+              <TabsTrigger value="contracts">관련 계약</TabsTrigger>
+            </TabsList>
+            <ClientDeleteZone clientId={client.id} clientName={client.name} inline />
+          </div>
           <TabsContent value="info" className="space-y-6">
             <ClientInfoCard client={client} />
             <ChildClientsTable>{client.children}</ChildClientsTable>
@@ -98,10 +103,6 @@ export function ClientTabs({ client }: ClientTabsProps) {
             />
           </TabsContent>
         </Tabs>
-
-        <div className="mt-auto">
-          <ClientDeleteZone clientId={client.id} clientName={client.name} />
-        </div>
       </div>
     );
   }
@@ -111,13 +112,16 @@ export function ClientTabs({ client }: ClientTabsProps) {
       {header}
 
       <Tabs defaultValue="info" className="flex-1">
-        <TabsList>
-          <TabsTrigger value="info">기본 정보</TabsTrigger>
-          <TabsTrigger value="contacts">연락처</TabsTrigger>
-          {hasBusinessType('msp') && <TabsTrigger value="msp">MSP 정보</TabsTrigger>}
-          {hasBusinessType('tt') && <TabsTrigger value="edu">교육 정보</TabsTrigger>}
-          <TabsTrigger value="contracts">관련 계약</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="info">기본 정보</TabsTrigger>
+            <TabsTrigger value="contacts">연락처</TabsTrigger>
+            {hasBusinessType('msp') && <TabsTrigger value="msp">MSP 정보</TabsTrigger>}
+            {hasBusinessType('tt') && <TabsTrigger value="edu">교육 정보</TabsTrigger>}
+            <TabsTrigger value="contracts">관련 계약</TabsTrigger>
+          </TabsList>
+          <ClientDeleteZone clientId={client.id} clientName={client.name} inline />
+        </div>
 
         <TabsContent value="info" className="space-y-4">
           <ClientInfoCard client={client} />
@@ -143,10 +147,6 @@ export function ClientTabs({ client }: ClientTabsProps) {
           <RelatedContracts clientId={client.id} />
         </TabsContent>
       </Tabs>
-
-      <div className="mt-auto">
-        <ClientDeleteZone clientId={client.id} clientName={client.name} />
-      </div>
     </div>
   );
 }

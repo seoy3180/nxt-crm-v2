@@ -15,9 +15,11 @@ import { getErrorMessage, getStageColor } from '@/lib/utils';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useEmployees } from '@/hooks/use-employees';
 import { RevenueSplitCard } from './revenue-split-card';
-import { ArrowLeft, ArrowRightLeft, Pencil } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, ArrowRightLeft, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CONTRACT_FIELDS_BY_KEY, type FieldChangeContext } from '@/lib/contracts/field-definitions';
+import { useSectionBasePath } from '@/hooks/use-section-base-path';
 
 interface ContractDetailProps {
   contract: ContractRow;
@@ -32,6 +34,7 @@ function getStageLabel(stage: string | null, type: string) {
 export function ContractDetail({ contract }: ContractDetailProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const basePath = useSectionBasePath();
   const { data: currentUser } = useCurrentUser();
   const { data: employees } = useEmployees();
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
@@ -193,10 +196,38 @@ export function ContractDetail({ contract }: ContractDetailProps) {
                 <ArrowRightLeft className="h-3.5 w-3.5" />
                 단계 변경
               </button>
+              <ContractDeleteZone
+                contractId={contract.id}
+                contractName={contract.name}
+                isSettled={contract.stage === 'settled'}
+                inline
+              />
             </>
           )}
         </div>
       </div>
+
+      {/* 고객 서브카드 (#8) */}
+      {contract.client_id && (
+        <div className="flex items-center gap-4 rounded-lg bg-zinc-50 px-4 py-3 border border-zinc-100">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600">
+            {(contract.client_name ?? '?')[0]}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-zinc-900 truncate">{contract.client_name ?? '-'}</p>
+            <p className="text-xs text-zinc-400 truncate">
+              {contract.client_display_id ?? ''}{contract.contact_name ? ` · 담당자: ${contract.contact_name}` : ''}
+            </p>
+          </div>
+          <Link
+            href={`${basePath}/clients/${contract.client_id}`}
+            className="flex shrink-0 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-100"
+          >
+            <ExternalLink className="h-3 w-3" />
+            고객 상세
+          </Link>
+        </div>
+      )}
 
       {/* 본문: 2열 */}
       <div className="flex flex-1 gap-6">
@@ -226,14 +257,6 @@ export function ContractDetail({ contract }: ContractDetailProps) {
           {/* 변경 이력 */}
           <StageHistory contractId={contract.id} contractType={contract.type} />
         </div>
-      </div>
-
-      <div className="mt-auto">
-        <ContractDeleteZone
-          contractId={contract.id}
-          contractName={contract.name}
-          isSettled={contract.stage === 'settled'}
-        />
       </div>
 
       <StageChangeDialog

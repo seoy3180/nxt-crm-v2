@@ -21,6 +21,7 @@ import { CLIENT_TYPES, CLIENT_GRADES, BUSINESS_TYPES, CLIENT_STATUS_OPTIONS } fr
 import { clientCreateSchema } from '@/lib/validators/client';
 import { useCreateClient } from '@/hooks/use-client-mutations';
 import { useClients } from '@/hooks/use-clients';
+import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { toast } from 'sonner';
 
 interface ClientFormProps {
@@ -31,6 +32,7 @@ interface ClientFormProps {
 
 export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade }: ClientFormProps = {}) {
   const router = useRouter();
+  const basePath = useSectionBasePath();
   const createClient = useCreateClient();
   const { data: clientsData } = useClients({ page: 1, pageSize: 200, sortBy: 'name', sortOrder: 'asc' });
   const allClients = clientsData?.data ?? [];
@@ -91,7 +93,7 @@ export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade 
     }
 
     toast.success('고객이 등록되었습니다');
-    router.push(`/clients/${data.id}`);
+    router.push(`${basePath}/clients/${data.id}`);
   }
 
   function toggleBusinessType(type: string) {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -24,7 +24,6 @@ interface ClientTreeTableProps {
 }
 
 export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
-  const router = useRouter();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   if (loading) {
@@ -69,12 +68,9 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
       <React.Fragment key={client.id}>
         <TableRow
           className={cn(
-            'h-12 cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-50',
+            'h-12 border-b border-zinc-100 transition-colors hover:bg-zinc-50',
             isChild && 'bg-zinc-50/50',
           )}
-          tabIndex={0}
-          onClick={() => router.push(`/clients/${client.id}`)}
-          onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/clients/${client.id}`); }}
         >
           <TableCell className={cn('px-4', isChild && 'pl-10')}>
             <div className="flex items-center gap-2">
@@ -130,6 +126,14 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
             ) : '-'}
           </TableCell>
           <TableCell className="px-4">{client.contract_count ?? 0}</TableCell>
+          <TableCell className="px-4">
+            <Link
+              href={`/clients/${client.id}`}
+              className="rounded-md border border-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100 transition-colors"
+            >
+              상세보기
+            </Link>
+          </TableCell>
         </TableRow>
         {isExpanded &&
           children.map((child) => renderRow(child, true))}
@@ -147,12 +151,13 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
             <TableHead className="h-11 w-[100px] px-4 text-[13px] font-medium text-zinc-500">유형</TableHead>
             <TableHead className="h-11 w-[60px] px-4 text-[13px] font-medium text-zinc-500">등급</TableHead>
             <TableHead className="h-11 w-[80px] px-4 text-[13px] font-medium text-zinc-500">계약 수</TableHead>
+            <TableHead className="h-11 w-[90px] px-4" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {roots.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                 등록된 고객이 없습니다
               </TableCell>
             </TableRow>
