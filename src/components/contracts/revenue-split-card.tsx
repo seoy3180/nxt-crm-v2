@@ -94,9 +94,7 @@ export function RevenueSplitCard({ contractId }: RevenueSplitCardProps) {
     try {
       const { error } = await supabase.rpc('update_contract_teams', {
         p_contract_id: contractId,
-        p_allocations: JSON.stringify(
-          validAllocations.map((a) => ({ team_id: a.teamId, percentage: a.percentage })),
-        ),
+        p_allocations: validAllocations.map((a) => ({ team_id: a.teamId, percentage: a.percentage })),
       });
       if (error) throw error;
 
