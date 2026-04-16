@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useDeleteContract } from '@/hooks/use-contract-mutations';
 import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { AlertTriangle, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,9 +33,13 @@ export function ContractDeleteZone({ contractId, contractName, isSettled, inline
   const [deleteInput, setDeleteInput] = useState('');
 
   async function handleDelete() {
-    await deleteContract.mutateAsync(contractId);
-    setConfirmOpen(false);
-    router.push(`${basePath}/contracts`);
+    try {
+      await deleteContract.mutateAsync(contractId);
+      setConfirmOpen(false);
+      router.push(`${basePath}/contracts`);
+    } catch {
+      toast.error('삭제에 실패했습니다');
+    }
   }
 
   function openDialog() {

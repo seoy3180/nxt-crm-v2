@@ -244,10 +244,12 @@ function MspContractsInner() {
         `, { count: 'exact' })
         .eq('type', 'msp')
         .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        .order('created_at', { ascending: false });
 
       if (stage) q = q.eq('stage', stage);
+      if (debouncedSearch) q = q.ilike('name', `%${debouncedSearch}%`);
+
+      q = q.range(from, to);
 
       const { data, count, error } = await q;
       if (error) throw error;
@@ -281,20 +283,12 @@ function MspContractsInner() {
         };
       });
 
-      // 클라이언트 검색
-      const filtered = debouncedSearch
-        ? mapped.filter((c) => {
-            const s = debouncedSearch.toLowerCase();
-            return c.name.toLowerCase().includes(s) || (c.clientName ?? '').toLowerCase().includes(s);
-          })
-        : mapped;
-
       return {
-        data: filtered,
-        total: debouncedSearch ? filtered.length : (count ?? 0),
+        data: mapped,
+        total: count ?? 0,
         page,
         pageSize,
-        totalPages: debouncedSearch ? 1 : Math.ceil((count ?? 0) / pageSize),
+        totalPages: Math.ceil((count ?? 0) / pageSize),
       };
     },
     enabled: viewMode === 'table',

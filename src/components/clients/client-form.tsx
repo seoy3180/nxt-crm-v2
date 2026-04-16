@@ -81,7 +81,8 @@ export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade 
         company_size: formData.get('companySize') || null,
         memo: formData.get('mspMemo') || null,
       };
-      await supabase.from('client_msp_details').insert(mspData as { client_id: string });
+      const { error: mspError } = await supabase.from('client_msp_details').insert(mspData as { client_id: string });
+      if (mspError) toast.error('MSP 상세 저장에 실패했습니다');
     }
 
     if (selectedBusinessTypes.includes('tt')) {
@@ -89,7 +90,8 @@ export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade 
         client_id: data.id,
         memo: formData.get('eduMemo') || null,
       };
-      await supabase.from('client_edu_details').insert(eduData as { client_id: string });
+      const { error: eduError } = await supabase.from('client_edu_details').insert(eduData as { client_id: string });
+      if (eduError) toast.error('교육 상세 저장에 실패했습니다');
     }
 
     toast.success('고객이 등록되었습니다');

@@ -1038,7 +1038,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["user_role"]
       }
       update_contract_teams: {
-        Args: { p_contract_id: string; p_allocations: string }
+        Args: { p_contract_id: string; p_allocations: Record<string, unknown>[] }
         Returns: undefined
       }
       user_team_id: { Args: never; Returns: string }
