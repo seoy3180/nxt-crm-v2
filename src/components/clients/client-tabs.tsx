@@ -115,7 +115,6 @@ export function ClientTabs({ client }: ClientTabsProps) {
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="info">기본 정보</TabsTrigger>
-            <TabsTrigger value="contacts">연락처</TabsTrigger>
             {hasBusinessType('msp') && <TabsTrigger value="msp">MSP 정보</TabsTrigger>}
             {hasBusinessType('tt') && <TabsTrigger value="edu">교육 정보</TabsTrigger>}
             <TabsTrigger value="contracts">관련 계약</TabsTrigger>
@@ -125,9 +124,6 @@ export function ClientTabs({ client }: ClientTabsProps) {
 
         <TabsContent value="info" className="space-y-4">
           <ClientInfoCard client={client} />
-        </TabsContent>
-
-        <TabsContent value="contacts">
           <ContactTable clientId={client.id} />
         </TabsContent>
 
