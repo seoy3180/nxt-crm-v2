@@ -78,8 +78,9 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'salesRepId', label: '영업 담당', width: 'w-[120px]', editable: true, type: 'dynamic-select', optionsKey: 'employees', table: 'msp_details', dbColumn: 'sales_rep_id' },
   { key: 'assignedTo', label: '사내 담당자', width: 'w-[120px]', editable: true, type: 'dynamic-select', optionsKey: 'employees', table: 'contracts', dbColumn: 'assigned_to' },
   { key: 'tags', label: '태그', width: 'w-[180px]', editable: true, type: 'tags', table: 'msp_details', dbColumn: 'tags' },
-  { key: 'actions', label: '', width: 'w-[90px]', editable: false, type: 'text', table: 'contracts' },
 ];
+
+const ACTIONS_COLUMN: ColumnDef = { key: 'actions', label: '', width: 'w-[90px]', editable: false, type: 'text', table: 'contracts' };
 
 function getStageBadge(stage: string | null) {
   const label = stage ? (MSP_STAGES.find((s) => s.value === stage)?.label ?? stage) : '미지정';
@@ -296,7 +297,12 @@ function MspContractsInner() {
 
   const columns = useMemo(() => {
     const colMap = new Map(ALL_COLUMNS.map((c) => [c.key, c]));
-    return visibleColumns.map((key) => colMap.get(key)).filter(Boolean) as ColumnDef[];
+    const cols = visibleColumns
+      .filter((key) => key !== 'actions')
+      .map((key) => colMap.get(key))
+      .filter(Boolean) as ColumnDef[];
+    cols.push(ACTIONS_COLUMN);
+    return cols;
   }, [visibleColumns]);
 
   // ID → 이름 변환 (dynamic-select 컬럼용)
@@ -448,8 +454,8 @@ function MspContractsInner() {
         {viewMode === 'table' && (
           <>
             <ColumnSettings
-              allColumns={ALL_COLUMNS.map((c) => ({ key: c.key, label: c.label }))}
-              visibleColumns={visibleColumns}
+              allColumns={ALL_COLUMNS.filter((c) => c.key !== 'actions').map((c) => ({ key: c.key, label: c.label }))}
+              visibleColumns={visibleColumns.filter((k) => k !== 'actions')}
               onColumnsChange={saveColumns}
               open={showColumnSettings}
               onOpenChange={setShowColumnSettings}
