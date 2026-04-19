@@ -111,8 +111,8 @@ export function ContractDetail({ contract }: ContractDetailProps) {
           )}
         </div>
         <div className="w-[340px] space-y-4">
-          {/* 매출 배분 */}
-          <RevenueSplitCard contractId={contract.id} />
+          {/* 매출 배분 (MSP 섹션에서는 숨김) */}
+          {basePath !== '/msp' && <RevenueSplitCard contractId={contract.id} />}
           {/* 메모 */}
           <ContractMemoCard contractId={contract.id} memo={contract.memo} />
           {/* 변경 이력 */}
