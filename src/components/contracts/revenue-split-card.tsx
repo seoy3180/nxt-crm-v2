@@ -125,8 +125,6 @@ export function RevenueSplitCard({ contractId }: RevenueSplitCardProps) {
         )}
       </div>
 
-      <div className="h-px bg-zinc-100" />
-
       {isLoading ? (
         <p className="text-sm text-zinc-400">로딩 중...</p>
       ) : displayAllocations.length === 0 && !editing ? (
@@ -165,8 +163,8 @@ export function RevenueSplitCard({ contractId }: RevenueSplitCardProps) {
                 </>
               ) : (
                 <>
-                  <span className="flex-1 text-sm text-zinc-700">{a.teamName}</span>
-                  <span className="text-sm font-semibold text-zinc-900">{a.percentage}%</span>
+                  <span className="flex-1 text-[13px] text-zinc-700">{a.teamName}</span>
+                  <span className="text-[13px] font-semibold text-zinc-900 pr-1">{a.percentage}%</span>
                 </>
               )}
             </div>
@@ -184,9 +182,9 @@ export function RevenueSplitCard({ contractId }: RevenueSplitCardProps) {
           )}
 
           {displayAllocations.length > 0 && (
-            <div className="flex items-center justify-between border-t border-zinc-100 pt-2.5 mt-1">
-              <span className="text-xs text-zinc-400">합계</span>
-              <span className={`text-sm font-bold ${totalPercentage === 100 ? 'text-green-600' : totalPercentage > 100 ? 'text-red-500' : 'text-amber-500'}`}>
+            <div className="flex items-center justify-between border-t border-zinc-100 pt-2.5 mt-1 pr-1">
+              <span className="text-[12px] text-zinc-400">합계</span>
+              <span className={`text-[13px] font-semibold ${totalPercentage === 100 ? 'text-green-600' : totalPercentage > 100 ? 'text-red-500' : 'text-amber-500'}`}>
                 {totalPercentage}%
               </span>
             </div>
