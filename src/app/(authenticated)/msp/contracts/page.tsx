@@ -536,7 +536,7 @@ function MspContractsInner() {
 
 const MSP_TAG_OPTIONS = ['디자인중시', '빠른결정', '가격민감', '기술중심'] as const;
 
-function InlineTagSelect({ value, onChange, onDone }: { value: string; onChange: (v: string) => void; onDone: () => void }) {
+function InlineTagSelect({ value, onChange }: { value: string; onChange: (v: string) => void; onDone: () => void }) {
   const selected = value.split(',').map((s) => s.trim()).filter(Boolean);
 
   function toggle(tag: string) {
@@ -548,29 +548,28 @@ function InlineTagSelect({ value, onChange, onDone }: { value: string; onChange:
 
   return (
     <div className="relative">
-      <div className="flex flex-wrap gap-1 rounded border border-blue-400 bg-blue-50 px-2 py-1.5 min-h-[32px]">
+      <div className="flex w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-left h-8">
+        <span className="flex gap-1 overflow-hidden">
+          {selected.length === 0
+            ? <span className="text-[12px] text-zinc-400">태그 선택</span>
+            : selected.map((t) => <span key={t} className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">{t}</span>)
+          }
+        </span>
+      </div>
+      <div className="absolute z-20 mt-1 w-full rounded-md border border-zinc-200 bg-white py-1 shadow-lg">
         {MSP_TAG_OPTIONS.map((tag) => {
           const active = selected.includes(tag);
           return (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => toggle(tag)}
-              className={`rounded px-2 py-0.5 text-[11px] font-semibold transition-colors ${
-                active ? 'bg-blue-600 text-white' : 'bg-white text-zinc-500 border border-zinc-200'
-              }`}
+            <button key={tag} type="button" onClick={() => toggle(tag)}
+              className={`flex w-full items-center gap-2 px-3 py-1.5 text-[12px] transition-colors ${active ? 'bg-blue-50' : 'hover:bg-zinc-50'}`}
             >
-              {tag}
+              <div className={`flex h-3.5 w-3.5 items-center justify-center rounded border ${active ? 'border-blue-600 bg-blue-600' : 'border-zinc-300'}`}>
+                {active && <svg className="h-2.5 w-2.5 text-white" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2.5 6l2.5 2.5 4.5-4.5" /></svg>}
+              </div>
+              <span className={`font-medium ${active ? 'text-blue-600' : 'text-zinc-600'}`}>{tag}</span>
             </button>
           );
         })}
-        <button
-          type="button"
-          onClick={onDone}
-          className="ml-auto rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-700"
-        >
-          완료
-        </button>
       </div>
     </div>
   );
