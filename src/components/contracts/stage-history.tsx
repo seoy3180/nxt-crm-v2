@@ -89,9 +89,9 @@ export function StageHistory({ contractId, contractType }: StageHistoryProps) {
             <h3 className="text-lg font-semibold text-zinc-900">변경 이력</h3>
             <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">{count}건</span>
           </div>
-          {count > 0 && history && (
+          {history && history.length > 0 && (
             <p className="mt-0.5 truncate text-[12px] text-zinc-400">
-              마지막: {history[0].changed_by_name ?? '알 수 없음'} · {renderChangeSummary(history[0], contractType)}
+              마지막: {history[0]!.changed_by_name ?? '알 수 없음'} · {renderChangeSummary(history[0]!, contractType)}
             </p>
           )}
         </div>
