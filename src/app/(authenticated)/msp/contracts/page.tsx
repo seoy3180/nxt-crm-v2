@@ -180,8 +180,11 @@ function MspContractsInner() {
   const basePath = useSectionBasePath();
   const { editMode, tempValue, setTempValue, saveCellEdit, setEditingCell } = inlineEdit;
 
+  const configurableKeys = useMemo(() => new Set(ALL_COLUMNS.map((c) => c.key)), []);
   const defaultCols = useMemo(() => ALL_COLUMNS.map((c) => c.key), []);
-  const { columns: visibleColumns, saveColumns } = useColumnPreference('mspContractsColumns', defaultCols);
+  const { columns: rawVisibleColumns, saveColumns } = useColumnPreference('mspContractsColumns', defaultCols);
+  // 저장된 설정에서 actions 등 유효하지 않은 키 제거
+  const visibleColumns = useMemo(() => rawVisibleColumns.filter((k) => configurableKeys.has(k)), [rawVisibleColumns, configurableKeys]);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
 
   const handleSearchChange = useCallback((value: string) => {
@@ -297,10 +300,7 @@ function MspContractsInner() {
 
   const columns = useMemo(() => {
     const colMap = new Map(ALL_COLUMNS.map((c) => [c.key, c]));
-    const cols = visibleColumns
-      .filter((key) => key !== 'actions')
-      .map((key) => colMap.get(key))
-      .filter(Boolean) as ColumnDef[];
+    const cols = visibleColumns.map((key) => colMap.get(key)).filter(Boolean) as ColumnDef[];
     cols.push(ACTIONS_COLUMN);
     return cols;
   }, [visibleColumns]);
@@ -454,8 +454,8 @@ function MspContractsInner() {
         {viewMode === 'table' && (
           <>
             <ColumnSettings
-              allColumns={ALL_COLUMNS.filter((c) => c.key !== 'actions').map((c) => ({ key: c.key, label: c.label }))}
-              visibleColumns={visibleColumns.filter((k) => k !== 'actions')}
+              allColumns={ALL_COLUMNS.map((c) => ({ key: c.key, label: c.label }))}
+              visibleColumns={visibleColumns}
               onColumnsChange={saveColumns}
               open={showColumnSettings}
               onOpenChange={setShowColumnSettings}
