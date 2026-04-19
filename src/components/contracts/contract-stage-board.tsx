@@ -23,7 +23,7 @@ import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-interface ContractKanbanProps {
+interface ContractStageBoardProps {
   contracts: ContractRow[];
   loading?: boolean;
   contractType: string;
@@ -93,7 +93,7 @@ function DroppableColumn({ stageValue, stageLabel, contracts, isOver, basePath }
   );
 }
 
-export function ContractKanban({ contracts, loading, contractType }: ContractKanbanProps) {
+export function ContractStageBoard({ contracts, loading, contractType }: ContractStageBoardProps) {
   const sectionBase = useSectionBasePath();
   const basePath = `${sectionBase}/contracts`;
   const stages = contractType === 'msp' ? MSP_STAGES : contractType === 'tt' ? EDU_STAGES : MSP_STAGES;

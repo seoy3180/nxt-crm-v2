@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { ContractStageFilter, ContractSearch } from '@/components/contracts/contract-filters';
-import { ContractKanban } from '@/components/contracts/contract-kanban';
+import { ContractStageBoard } from '@/components/contracts/contract-stage-board';
 import { ColumnSettings } from '@/components/common/column-settings';
 import { InlineEditTable } from '@/components/common/inline-edit-table';
 import { InlineEditToggle, InlineEditActions } from '@/components/common/inline-edit-toolbar';
@@ -50,9 +50,9 @@ function ContractsPageInner() {
   const { data: currentUser } = useCurrentUser();
   const searchParams = useSearchParams();
   const initialType = searchParams.get('type') ?? 'msp';
-  const initialView = (searchParams.get('view') ?? 'kanban') as 'kanban' | 'table';
+  const initialView = (searchParams.get('view') ?? 'table') as 'stage' | 'table';
   const [contractType, setContractType] = useState<string>(initialType);
-  const [viewMode, setViewMode] = useState<'kanban' | 'table'>(initialView);
+  const [viewMode, setViewMode] = useState<'stage' | 'table'>(initialView);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [stage, setStage] = useState<string | undefined>();
@@ -112,15 +112,15 @@ function ContractsPageInner() {
     updateUrl(tab, viewMode);
   }
 
-  function handleViewChange(view: 'kanban' | 'table') {
+  function handleViewChange(view: 'stage' | 'table') {
     setViewMode(view);
     updateUrl(contractType, view);
   }
 
-  // 칸반용 쿼리
-  const { data: kanbanData, isLoading: kanbanLoading } = useContracts({
+  // 스테이지 뷰용 쿼리
+  const { data: stageData, isLoading: stageLoading } = useContracts({
     page,
-    pageSize: viewMode === 'kanban' ? 100 : 20,
+    pageSize: viewMode === 'stage' ? 100 : 20,
     search: debouncedSearch || undefined,
     type: contractType as 'msp' | 'tt' | 'dev',
     stage: stage || undefined,
@@ -229,8 +229,8 @@ function ContractsPageInner() {
         </div>
 
         <div className="flex overflow-hidden rounded-lg border border-zinc-200">
-          <button type="button" onClick={() => handleViewChange('kanban')} className={cn('h-8 px-3.5 text-[13px] font-medium transition-colors', viewMode === 'kanban' ? 'bg-blue-600 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50')}>칸반</button>
           <button type="button" onClick={() => handleViewChange('table')} className={cn('h-8 px-3.5 text-[13px] font-medium transition-colors', viewMode === 'table' ? 'bg-blue-600 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50')}>테이블</button>
+          <button type="button" onClick={() => handleViewChange('stage')} className={cn('h-8 px-3.5 text-[13px] font-medium transition-colors', viewMode === 'stage' ? 'bg-blue-600 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50')}>스테이지</button>
         </div>
 
         {viewMode === 'table' && (
@@ -265,8 +265,8 @@ function ContractsPageInner() {
         )}
       </div>
 
-      {viewMode === 'kanban' ? (
-        <ContractKanban contracts={kanbanData?.data ?? []} loading={kanbanLoading} contractType={contractType} />
+      {viewMode === 'stage' ? (
+        <ContractStageBoard contracts={stageData?.data ?? []} loading={stageLoading} contractType={contractType} />
       ) : (
         <>
           <InlineEditTable<ContractTableRow, ContractColumnDef>
