@@ -378,6 +378,14 @@ export const contractService = {
     })) as unknown as ContractHistoryRow[];
   },
 
+  async deleteHistoryEntry(historyId: string) {
+    const { error } = await getClient()
+      .from('contract_history')
+      .delete()
+      .eq('id', historyId);
+    if (error) throw error;
+  },
+
   async softDelete(id: string) {
     const now = new Date().toISOString();
 
