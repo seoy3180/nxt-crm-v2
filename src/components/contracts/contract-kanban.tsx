@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatAmount } from '@/lib/utils';
 import {
@@ -102,6 +102,17 @@ export function ContractKanban({ contracts, loading, contractType }: ContractKan
   const [activeContract, setActiveContract] = useState<ContractRow | null>(null);
   const [overColumn, setOverColumn] = useState<string | null>(null);
 
+  // 로컬 상태로 optimistic update 관리
+  const [localContracts, setLocalContracts] = useState(contracts);
+  const prevContracts = useRef(contracts);
+  useEffect(() => {
+    // 서버 데이터가 변경되면 로컬 상태 동기화
+    if (prevContracts.current !== contracts) {
+      setLocalContracts(contracts);
+      prevContracts.current = contracts;
+    }
+  }, [contracts]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
@@ -122,10 +133,10 @@ export function ContractKanban({ contracts, loading, contractType }: ContractKan
     );
   }
 
-  // 단계별 그룹핑
+  // 단계별 그룹핑 (로컬 상태 기준)
   const grouped = new Map<string, ContractRow[]>();
   stages.forEach((s) => grouped.set(s.value, []));
-  contracts.forEach((c) => {
+  localContracts.forEach((c) => {
     const stageContracts = grouped.get(c.stage ?? '') ?? [];
     stageContracts.push(c);
     if (c.stage) grouped.set(c.stage, stageContracts);
@@ -153,19 +164,11 @@ export function ContractKanban({ contracts, loading, contractType }: ContractKan
     if (contract.stage === newStage) return;
 
     const stageLabel = stages.find((s) => s.value === newStage)?.label ?? newStage;
+    const oldStage = contract.stage;
 
-    // Optimistic: 즉시 캐시 업데이트
-    queryClient.setQueriesData<{ data: ContractRow[] }>(
-      { queryKey: ['contracts'] },
-      (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          data: old.data.map((c) =>
-            c.id === contract.id ? { ...c, stage: newStage } : c,
-          ),
-        };
-      },
+    // Optimistic: 로컬 상태 즉시 업데이트
+    setLocalContracts((prev) =>
+      prev.map((c) => c.id === contract.id ? { ...c, stage: newStage } : c),
     );
 
     try {
@@ -174,22 +177,12 @@ export function ContractKanban({ contracts, loading, contractType }: ContractKan
         { toStage: newStage, note: null },
         currentUser.id,
       );
-      // 서버 데이터로 동기화
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
       toast.success(`"${contract.name}" → ${stageLabel}`);
     } catch (err) {
       // 실패 시 롤백
-      queryClient.setQueriesData<{ data: ContractRow[] }>(
-        { queryKey: ['contracts'] },
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            data: old.data.map((c) =>
-              c.id === contract.id ? { ...c, stage: contract.stage } : c,
-            ),
-          };
-        },
+      setLocalContracts((prev) =>
+        prev.map((c) => c.id === contract.id ? { ...c, stage: oldStage } : c),
       );
       const { getErrorMessage } = await import('@/lib/utils');
       toast.error(`단계 변경 실패: ${getErrorMessage(err)}`);
