@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { formatAmount, getStageColor } from '@/lib/utils';
-import { MSP_STAGES, EDU_STAGES, MSP_TAG_COLORS } from '@/lib/constants';
+import { MSP_STAGES, EDU_STAGES, MSP_TAG_COLORS, AWS_AM_COLORS } from '@/lib/constants';
 import { InlineTagSelect } from '@/components/contracts/inline-tag-select';
 import type { ContractTableRow, ContractColumnDef } from './table-types';
 
@@ -108,6 +108,10 @@ export function renderCellValue(
         {remaining > 0 && <span className="shrink-0 text-[11px] text-zinc-400">+{remaining}</span>}
       </div>
     );
+  }
+  if (col.key === 'awsAm' && displayValue) {
+    const color = AWS_AM_COLORS[displayValue] ?? 'bg-zinc-100 text-zinc-600';
+    return <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${color}`}>{displayValue}</span>;
   }
   if (col.key === 'contactName') return displayValue || '-';
   return displayValue || '-';

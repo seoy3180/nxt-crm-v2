@@ -126,6 +126,10 @@ export const CREDIT_SHARE_OPTIONS = ['가능', '불가능', '미정'] as const;
 export const PAYER_OPTIONS = ['ETV-AWS-13', 'ETV-AWS-14', 'Org-001', 'Billing Transfer'] as const;
 export const BILLING_METHOD_OPTIONS = ['대표님 직접 청구', '매월 10일 세금계산서 발행', '공공기관 별도 청구'] as const;
 export const AWS_AM_OPTIONS = ['방승훈', '김병준'] as const;
+export const AWS_AM_COLORS: Record<string, string> = {
+  '방승훈': 'bg-teal-100 text-teal-700',
+  '김병준': 'bg-indigo-100 text-indigo-700',
+};
 export const MSP_TAG_OPTIONS = ['디자인중시', '빠른결정', '가격민감', '기술중심'] as const;
 export const MSP_TAG_COLORS: Record<string, string> = {
   '디자인중시': 'bg-pink-100 text-pink-600',

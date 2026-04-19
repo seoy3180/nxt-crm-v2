@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEmployees } from '@/hooks/use-employees';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { CREDIT_SHARE_OPTIONS, PAYER_OPTIONS, BILLING_METHOD_OPTIONS, MSP_GRADES, AWS_AM_OPTIONS, MSP_TAG_OPTIONS } from '@/lib/constants';
+import { CREDIT_SHARE_OPTIONS, PAYER_OPTIONS, BILLING_METHOD_OPTIONS, MSP_GRADES, AWS_AM_OPTIONS, AWS_AM_COLORS, MSP_TAG_OPTIONS } from '@/lib/constants';
 import { contractService, type ContractRow, type MspDetailRow, type TechLeadRow } from '@/lib/services/contract-service';
 import { CONTRACT_FIELDS_BY_KEY, type FieldChangeContext } from '@/lib/contracts/field-definitions';
 import { getErrorMessage } from '@/lib/utils';
@@ -218,14 +218,22 @@ export function MspDetailCard({
           />
         </FieldCell>
         <FieldCell label="AWS AM">
-          <FieldSelect
-            editing={editing}
-            value={val('awsAm', details?.aws_am ?? '')}
-            readValue={details?.aws_am}
-            options={AWS_AM_OPTIONS}
-            onChange={handle('awsAm')}
-            placeholder="선택"
-          />
+          {editing ? (
+            <FieldSelect
+              editing={true}
+              value={val('awsAm', details?.aws_am ?? '')}
+              readValue={details?.aws_am}
+              options={AWS_AM_OPTIONS}
+              onChange={handle('awsAm')}
+              placeholder="선택"
+            />
+          ) : details?.aws_am ? (
+            <span className={`inline-block rounded px-2.5 py-0.5 text-[13px] font-semibold ${AWS_AM_COLORS[details.aws_am] ?? 'bg-zinc-100 text-zinc-600'}`}>
+              {details.aws_am}
+            </span>
+          ) : (
+            <FieldReadText>{null}</FieldReadText>
+          )}
         </FieldCell>
         <FieldCell label="빌링온">
           {editing ? (
