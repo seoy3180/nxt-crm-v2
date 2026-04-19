@@ -150,6 +150,102 @@ export function FieldSelect({
   return <FieldReadText className={readClassName}>{readValue}</FieldReadText>;
 }
 
+/** 드롭다운 멀티셀렉트: 고정 선택지에서 다중 선택 */
+export function FieldMultiSelect({
+  editing,
+  value,
+  readValues,
+  options,
+  onChange,
+  placeholder = '선택',
+  chipClassName = 'bg-zinc-100 text-zinc-700',
+}: {
+  editing: boolean;
+  /** CSV 문자열 (편집용) */
+  value: string;
+  readValues?: string[] | null;
+  options: readonly string[];
+  onChange: (v: string) => void;
+  placeholder?: string;
+  chipClassName?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = value.split(',').map((s) => s.trim()).filter(Boolean);
+
+  function toggle(tag: string) {
+    const next = selected.includes(tag)
+      ? selected.filter((t) => t !== tag)
+      : [...selected, tag];
+    onChange(next.join(', '));
+  }
+
+  if (!editing) {
+    if (!readValues || readValues.length === 0) return <FieldReadText>{null}</FieldReadText>;
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {readValues.map((v) => (
+          <span key={v} className={cn('rounded-md px-2 py-0.5 text-[13px] font-medium', chipClassName)}>
+            {v}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm hover:bg-zinc-50 transition-colors"
+      >
+        <span className="flex flex-wrap gap-1">
+          {selected.length === 0 ? (
+            <span className="text-zinc-400">{placeholder}</span>
+          ) : (
+            selected.map((tag) => (
+              <span key={tag} className={cn('rounded px-2 py-0.5 text-[11px] font-semibold', chipClassName)}>
+                {tag}
+              </span>
+            ))
+          )}
+        </span>
+        <svg className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-10 mt-1 w-full rounded-md border border-zinc-200 bg-white py-1 shadow-lg">
+          {options.map((tag) => {
+            const active = selected.includes(tag);
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggle(tag)}
+                className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
+                  active ? 'bg-blue-50' : 'hover:bg-zinc-50'
+                }`}
+              >
+                <div className={`flex h-4 w-4 items-center justify-center rounded border ${active ? 'border-blue-600 bg-blue-600' : 'border-zinc-300'}`}>
+                  {active && (
+                    <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M2.5 6l2.5 2.5 4.5-4.5" />
+                    </svg>
+                  )}
+                </div>
+                <span className={`font-medium ${active ? 'text-blue-600' : 'text-zinc-600'}`}>
+                  {tag}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * 하이브리드 칩 필드: 칩 모드(기본) + 텍스트 모드(벌크 편집) 전환.
  * 읽기 모드에서 collapseAt 초과 시 접기/펼치기.
