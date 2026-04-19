@@ -330,13 +330,11 @@ function HybridChipInput({
   // ── 칩 모드 ──
   return (
     <div className="space-y-1.5">
-      {chips.length >= textModeThreshold && (
-        <div className="flex justify-end">
-          <button type="button" onClick={switchToText} className="text-[11px] text-blue-600 hover:underline">
-            텍스트로 편집
-          </button>
-        </div>
-      )}
+      <div className="flex justify-end">
+        <button type="button" onClick={switchToText} className="text-[11px] text-blue-600 hover:underline">
+          텍스트로 편집
+        </button>
+      </div>
       <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 py-2 focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-400/20">
         {chips.map((chip, i) => (
           <span
