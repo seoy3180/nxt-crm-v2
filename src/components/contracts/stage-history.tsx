@@ -5,6 +5,7 @@ import { useContractHistory } from '@/hooks/use-contract';
 import { useQueryClient } from '@tanstack/react-query';
 import { contractService } from '@/lib/services/contract-service';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { MSP_STAGES, EDU_STAGES } from '@/lib/constants';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { getErrorMessage } from '@/lib/utils';
@@ -83,7 +84,7 @@ export function StageHistory({ contractId, contractType }: StageHistoryProps) {
           {count === 0 ? (
             <p className="py-6 text-center text-sm text-zinc-400">변경 이력이 없습니다</p>
           ) : (
-            <div className="mt-3 max-h-[360px] overflow-y-auto pr-4 space-y-0">
+            <ScrollArea className="mt-3 h-[360px] pr-4" type="always">
               {history!.map((h, idx) => (
                 <div key={h.id} className={`flex items-center justify-between gap-2 py-3 ${idx < count - 1 ? 'border-b border-zinc-100' : ''}`}>
                   <div className="space-y-1 min-w-0">
@@ -104,7 +105,7 @@ export function StageHistory({ contractId, contractType }: StageHistoryProps) {
                   </button>
                 </div>
               ))}
-            </div>
+            </ScrollArea>
           )}
         </div>
       )}
