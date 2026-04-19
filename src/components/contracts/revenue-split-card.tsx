@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TeamAllocation {
@@ -115,41 +115,26 @@ export function RevenueSplitCard({ contractId }: RevenueSplitCardProps) {
         <h3 className="text-lg font-semibold text-zinc-900">매출 배분</h3>
         {editing ? (
           <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="h-7 rounded-md border border-zinc-200 px-2.5 text-[12px] text-zinc-500 hover:bg-zinc-50"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="h-7 rounded-md bg-blue-600 px-2.5 text-[12px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? '저장 중...' : '저장'}
-            </button>
+            <button type="button" onClick={() => setEditing(false)} className="h-[30px] rounded-md border border-zinc-200 px-3 text-[12px] text-zinc-500 hover:bg-zinc-50">취소</button>
+            <button type="button" onClick={handleSave} disabled={saving} className="h-[30px] rounded-md bg-blue-600 px-3 text-[12px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{saving ? '저장 중...' : '저장'}</button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={startEdit}
-            className="h-7 rounded-md border border-zinc-200 px-2.5 text-[12px] text-zinc-500 hover:bg-zinc-50"
-          >
-            편집
+          <button type="button" onClick={startEdit} className="flex h-[30px] items-center gap-1 rounded-md border border-zinc-200 px-2.5 text-[12px] text-zinc-400 hover:bg-zinc-50">
+            <Pencil className="h-3 w-3" /> 수정
           </button>
         )}
       </div>
+
+      <div className="h-px bg-zinc-100" />
 
       {isLoading ? (
         <p className="text-sm text-zinc-400">로딩 중...</p>
       ) : displayAllocations.length === 0 && !editing ? (
         <p className="text-sm text-zinc-400">배분된 팀이 없습니다</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-0">
           {displayAllocations.map((a, idx) => (
-            <div key={a.id ?? `new-${idx}`} className="flex items-center gap-2">
+            <div key={a.id ?? `new-${idx}`} className="flex items-center gap-2 py-1.5">
               {editing ? (
                 <>
                   <Select value={a.teamId} onValueChange={(v) => updateRow(idx, 'teamId', v)}>
@@ -165,23 +150,23 @@ export function RevenueSplitCard({ contractId }: RevenueSplitCardProps) {
                       })}
                     </SelectContent>
                   </Select>
-                  <div className="flex h-8 w-24 items-center overflow-hidden rounded-md border border-zinc-200">
+                  <div className="flex h-8 w-20 items-center overflow-hidden rounded-md border border-zinc-200">
                     <input
                       value={a.percentage || ''}
                       onChange={(e) => updateRow(idx, 'percentage', e.target.value)}
                       inputMode="numeric"
-                      className="h-full w-full border-0 px-2 text-center text-[13px] outline-none"
+                      className="h-full w-full border-0 px-2 text-right text-[13px] outline-none"
                     />
-                    <span className="shrink-0 bg-zinc-50 px-2 text-[12px] text-zinc-400 border-l border-zinc-200 h-full flex items-center">%</span>
+                    <span className="shrink-0 bg-zinc-50 px-1.5 text-[12px] text-zinc-400 border-l border-zinc-200 h-full flex items-center">%</span>
                   </div>
-                  <button type="button" onClick={() => removeRow(idx)} className="text-zinc-400 hover:text-red-500">
+                  <button type="button" onClick={() => removeRow(idx)} className="shrink-0 rounded-md p-1 text-zinc-300 hover:bg-red-50 hover:text-red-500 transition-colors">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </>
               ) : (
                 <>
-                  <span className="flex-1 text-[13px] text-zinc-700">{a.teamName}</span>
-                  <span className="text-[13px] font-semibold text-zinc-900">{a.percentage}%</span>
+                  <span className="flex-1 text-sm text-zinc-700">{a.teamName}</span>
+                  <span className="text-sm font-semibold text-zinc-900">{a.percentage}%</span>
                 </>
               )}
             </div>
@@ -191,18 +176,17 @@ export function RevenueSplitCard({ contractId }: RevenueSplitCardProps) {
             <button
               type="button"
               onClick={addRow}
-              className="flex items-center gap-1 text-[12px] text-blue-600 hover:underline"
+              className="mt-2 flex items-center gap-1 text-[12px] text-blue-600 hover:underline"
             >
               <Plus className="h-3 w-3" />
               팀 추가
             </button>
           )}
 
-          {/* 합계 */}
           {displayAllocations.length > 0 && (
-            <div className="flex items-center justify-between border-t border-zinc-100 pt-2">
-              <span className="text-[12px] text-zinc-400">합계</span>
-              <span className={`text-[13px] font-semibold ${totalPercentage === 100 ? 'text-green-600' : totalPercentage > 100 ? 'text-red-500' : 'text-amber-500'}`}>
+            <div className="flex items-center justify-between border-t border-zinc-100 pt-2.5 mt-1">
+              <span className="text-xs text-zinc-400">합계</span>
+              <span className={`text-sm font-bold ${totalPercentage === 100 ? 'text-green-600' : totalPercentage > 100 ? 'text-red-500' : 'text-amber-500'}`}>
                 {totalPercentage}%
               </span>
             </div>
