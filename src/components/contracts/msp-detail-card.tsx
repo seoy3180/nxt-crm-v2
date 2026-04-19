@@ -280,8 +280,13 @@ export function MspDetailCard({
           value={val('awsAccountIds', (details?.aws_account_ids ?? []).join(', '))}
           readValues={details?.aws_account_ids}
           onChange={handle('awsAccountIds')}
-          placeholder="쉼표로 구분 (예: 123456789012, 987654321098)"
+          placeholder="Account ID 입력 후 Enter"
           chipClassName="bg-blue-50 text-blue-600"
+          validate={(v) => {
+            if (!/^\d+$/.test(v)) return '숫자만 입력 가능합니다';
+            if (v.length !== 12) return 'AWS Account ID는 12자리입니다';
+            return undefined;
+          }}
         />
       </FieldCell>
 
