@@ -10,14 +10,16 @@ interface InlineTagSelectProps {
 }
 
 function useClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
+  const savedHandler = useRef(handler);
+  useEffect(() => { savedHandler.current = handler; });
   useEffect(() => {
     function listener(e: MouseEvent) {
       if (!ref.current || ref.current.contains(e.target as Node)) return;
-      handler();
+      savedHandler.current();
     }
     document.addEventListener('mousedown', listener);
     return () => document.removeEventListener('mousedown', listener);
-  }, [ref, handler]);
+  }, [ref]);
 }
 
 export function InlineTagSelect({ value, onChange, onDone }: InlineTagSelectProps) {
@@ -40,7 +42,7 @@ export function InlineTagSelect({ value, onChange, onDone }: InlineTagSelectProp
   }, [onDone]);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative" role="combobox" aria-expanded={true} aria-haspopup="listbox" aria-label="태그 선택">
       <div className="flex w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 h-8 overflow-hidden">
         <span className="flex gap-1 flex-nowrap overflow-hidden">
           {selected.length === 0
@@ -54,7 +56,7 @@ export function InlineTagSelect({ value, onChange, onDone }: InlineTagSelectProp
           }
         </span>
       </div>
-      <div className="absolute z-20 mt-1 w-full rounded-md border border-zinc-200 bg-white shadow-lg">
+      <div className="absolute z-20 mt-1 w-full rounded-md border border-zinc-200 bg-white shadow-lg" role="listbox" aria-label="MSP 태그 목록" aria-multiselectable="true">
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-100">
           <span className="text-[11px] text-zinc-400">
             {selected.length > 0 ? `${selected.length}개 선택` : '선택 없음'}
@@ -69,7 +71,7 @@ export function InlineTagSelect({ value, onChange, onDone }: InlineTagSelectProp
           {MSP_TAG_OPTIONS.map((tag) => {
             const active = selected.includes(tag);
             return (
-              <button key={tag} type="button" onClick={() => toggle(tag)}
+              <button key={tag} type="button" role="option" aria-selected={active} onClick={() => toggle(tag)}
                 className={`flex w-full items-center gap-2 px-3 py-1.5 text-[12px] transition-colors ${active ? 'bg-blue-50' : 'hover:bg-zinc-50'}`}
               >
                 <div className={`flex h-3.5 w-3.5 items-center justify-center rounded border ${active ? 'border-blue-600 bg-blue-600' : 'border-zinc-300'}`}>

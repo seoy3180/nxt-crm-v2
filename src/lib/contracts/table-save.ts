@@ -29,7 +29,7 @@ export async function saveInlineChanges(opts: {
     columns.forEach((col) => {
       if (!col.editable || !col.dbColumn || !(col.key in change)) return;
       const val = change[col.key];
-      const dbVal = col.type === 'number' ? safeNumber(val)
+      const dbVal = col.type === 'number' ? (String(val ?? '').trim() === '' ? null : safeNumber(val))
         : col.type === 'tags' ? String(val ?? '').split(',').map((s) => s.trim()).filter(Boolean)
         : val;
       if (col.table === 'contracts') contractUpdate[col.dbColumn] = dbVal;
@@ -92,6 +92,8 @@ export async function saveInlineChanges(opts: {
 
       return contractService.logChanges(contractId, currentUserId, fieldChanges);
     });
-    await Promise.all(historyPromises).catch(() => {});
+    await Promise.all(historyPromises).catch((err) => {
+      console.error('[table-save] 변경이력 저장 실패:', err);
+    });
   }
 }

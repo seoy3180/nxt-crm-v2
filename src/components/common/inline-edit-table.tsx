@@ -13,6 +13,12 @@ export interface InlineEditColumnBase {
   label: string;
   width?: string;
   editable: boolean;
+  /** sticky 고정 */
+  sticky?: 'left' | 'right';
+  /** sticky left 오프셋 (px) */
+  stickyOffset?: number;
+  /** 텍스트 정렬 */
+  align?: 'left' | 'center';
 }
 
 interface InlineEditTableProps<T, C extends InlineEditColumnBase> {
@@ -100,11 +106,18 @@ export function InlineEditTable<T, C extends InlineEditColumnBase>({
             {columns.map((col) => (
               <TableHead
                 key={col.key}
+                style={{
+                  ...(col.sticky === 'left' ? { position: 'sticky', left: col.stickyOffset ?? 0, zIndex: 2 } : {}),
+                  ...(col.sticky === 'right' ? { position: 'sticky', right: 0, zIndex: 2 } : {}),
+                }}
                 className={cn(
                   'h-10 px-4 text-xs font-semibold',
                   col.width,
-                  col.key === 'name' ? 'text-left' : 'text-center',
+                  (col.key === 'name' || col.sticky === 'left' || col.align === 'left') ? 'text-left' : 'text-center',
                   editMode ? 'text-blue-600' : 'text-zinc-500',
+                  col.sticky && (editMode ? 'bg-blue-50' : 'bg-zinc-50'),
+                  col.sticky === 'left' && 'relative sticky-left-divider',
+                  col.sticky === 'right' && 'relative sticky-right-divider',
                 )}
               >
                 {col.label}
@@ -127,7 +140,7 @@ export function InlineEditTable<T, C extends InlineEditColumnBase>({
               return (
                 <TableRow
                   key={rowId}
-                  tabIndex={editMode ? undefined : 0}
+                  tabIndex={!editMode && !!hrefTarget ? 0 : undefined}
                   className={cn(
                     'h-11 border-b border-zinc-100',
                     !editMode && hrefTarget && 'cursor-pointer hover:bg-zinc-50',
@@ -154,10 +167,19 @@ export function InlineEditTable<T, C extends InlineEditColumnBase>({
                       pendingChanges.has(rowId) &&
                       col.key in (pendingChanges.get(rowId) ?? {});
 
+                    const stickyStyle: React.CSSProperties | undefined = col.sticky === 'left'
+                      ? { position: 'sticky', left: col.stickyOffset ?? 0, zIndex: 2 }
+                      : col.sticky === 'right'
+                      ? { position: 'sticky', right: 0, zIndex: 2 }
+                      : undefined;
+                    const stickyBg = col.sticky
+                      ? cn('bg-white relative', col.sticky === 'left' && 'sticky-left-divider', col.sticky === 'right' && 'sticky-right-divider')
+                      : '';
+
                     // 현재 편집 중인 셀
                     if (isEditing) {
                       return (
-                        <TableCell key={col.key} className={cn('px-2', col.width)}>
+                        <TableCell key={col.key} style={stickyStyle} className={cn('px-2', col.width, stickyBg)}>
                           {renderEditingCell(row, col)}
                         </TableCell>
                       );
@@ -173,7 +195,8 @@ export function InlineEditTable<T, C extends InlineEditColumnBase>({
                       return (
                         <TableCell
                           key={col.key}
-                          className={cn('px-2', col.width)}
+                          style={stickyStyle}
+                          className={cn('px-2', col.width, stickyBg)}
                           onClick={(e) => {
                             e.stopPropagation();
                             startCellEdit(rowId, col.key, initial);
@@ -182,7 +205,7 @@ export function InlineEditTable<T, C extends InlineEditColumnBase>({
                           <span
                             className={cn(
                               'block cursor-text rounded border px-3 py-1 text-[13px]',
-                              col.key === 'name' ? 'text-left truncate' : 'text-center',
+                              col.sticky === 'left' ? 'text-left truncate' : 'text-center',
                               isChanged
                                 ? 'border-blue-400 bg-blue-100/50 text-zinc-900'
                                 : 'border-blue-200 bg-[#FAFCFF] text-zinc-500',
@@ -198,12 +221,14 @@ export function InlineEditTable<T, C extends InlineEditColumnBase>({
                     return (
                       <TableCell
                         key={col.key}
+                        style={stickyStyle}
                         className={cn(
                           'px-4',
                           col.width,
-                          col.key === 'name'
+                          (col.key === 'name' || col.sticky === 'left' || col.align === 'left')
                             ? 'text-sm font-medium text-zinc-900'
                             : 'text-center text-[13px] text-zinc-500',
+                          stickyBg,
                         )}
                       >
                         {renderCell(row, col, displayValue)}

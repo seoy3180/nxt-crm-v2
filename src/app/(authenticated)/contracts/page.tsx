@@ -9,6 +9,7 @@ import { ContractStageFilter, ContractSearch } from '@/components/contracts/cont
 import { ContractStageBoard } from '@/components/contracts/contract-stage-board';
 import { ColumnSettings } from '@/components/common/column-settings';
 import { InlineEditTable } from '@/components/common/inline-edit-table';
+import { Skeleton } from '@/components/ui/skeleton';
 import { InlineEditToggle, InlineEditActions } from '@/components/common/inline-edit-toolbar';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
@@ -120,12 +121,13 @@ function ContractsPageInner() {
   // 스테이지 뷰용 쿼리
   const { data: stageData, isLoading: stageLoading } = useContracts({
     page,
-    pageSize: viewMode === 'stage' ? 100 : 20,
+    pageSize: 100,
     search: debouncedSearch || undefined,
     type: contractType as 'msp' | 'tt' | 'dev',
     stage: stage || undefined,
     sortBy: 'created_at',
     sortOrder: 'desc',
+    enabled: viewMode === 'stage',
   });
 
   // 직원 목록
@@ -140,9 +142,9 @@ function ContractsPageInner() {
     enabled: viewMode === 'table',
   });
 
-  const dynamicOptions: Record<string, { value: string; label: string }[]> = {
+  const dynamicOptions = useMemo<Record<string, { value: string; label: string }[]>>(() => ({
     employees: employeeOptions ?? [],
-  };
+  }), [employeeOptions]);
 
   // 테이블용 쿼리
   const { data: tableData, isLoading: tableLoading } = useQuery({
@@ -153,7 +155,7 @@ function ContractsPageInner() {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
-      const mspSelect = '*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name))';
+      const mspSelect = '*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)), contract_tech_leads(employees(name))';
       const basicSelect = '*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name)';
       const selectClause = contractType === 'msp' ? mspSelect : basicSelect;
 
@@ -199,6 +201,15 @@ function ContractsPageInner() {
           salesRepId: (mspRaw?.sales_rep_id as string) ?? null,
           salesRepName: emp?.name ?? null,
           awsAmount: (mspRaw?.aws_amount as number) ?? null,
+          awsAm: (mspRaw?.aws_am as string) ?? null,
+          mspGrade: (mspRaw?.msp_grade as string) ?? null,
+          billingOn: (mspRaw?.billing_on as boolean) ?? false,
+          billingOnAlias: (mspRaw?.billing_on_alias as string) ?? null,
+          awsAccountIds: (mspRaw?.aws_account_ids as string[] | null) ?? [],
+          techLeadNames: contractType === 'msp'
+            ? ((row.contract_tech_leads as { employees: { name: string } | null }[] | null) ?? [])
+              .map((tl) => tl.employees?.name).filter(Boolean) as string[]
+            : [],
           tags: (mspRaw?.tags as string[] | null) ?? [],
         };
       });
@@ -295,7 +306,7 @@ function ContractsPageInner() {
 
 export default function ContractsPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<div className="flex h-full flex-col gap-5"><Skeleton className="h-8 w-32" /><Skeleton className="h-10 w-full" /><Skeleton className="h-64 w-full" /></div>}>
       <ContractsPageInner />
     </Suspense>
   );

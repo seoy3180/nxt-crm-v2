@@ -286,7 +286,8 @@ export function MspDetailCard({
           placeholder="Account ID 입력 후 Enter"
           chipClassName="bg-blue-50 text-blue-600"
           validate={(v) => {
-            if (!/^\d+$/.test(v)) return '숫자만 입력 가능합니다';
+            if (v.includes('-')) return undefined; // 라벨 포함 형태 (예: HAEZOOM1 - 002923398493)
+            if (!/^\d+$/.test(v)) return '숫자만 입력하거나 라벨 - ID 형태로 입력하세요';
             if (v.length !== 12) return 'AWS Account ID는 12자리입니다';
             return undefined;
           }}

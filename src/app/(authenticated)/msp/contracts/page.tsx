@@ -10,6 +10,7 @@ import { ContractStageFilter, ContractSearch } from '@/components/contracts/cont
 import { ContractStageBoard } from '@/components/contracts/contract-stage-board';
 import { ColumnSettings } from '@/components/common/column-settings';
 import { InlineEditTable } from '@/components/common/inline-edit-table';
+import { Skeleton } from '@/components/ui/skeleton';
 import { InlineEditToggle, InlineEditActions } from '@/components/common/inline-edit-toolbar';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
@@ -90,12 +91,13 @@ function MspContractsInner() {
   // 스테이지 뷰용 쿼리
   const { data: stageData, isLoading: stageLoading } = useContracts({
     page,
-    pageSize: viewMode === 'stage' ? 100 : 20,
+    pageSize: 100,
     search: debouncedSearch || undefined,
     type: 'msp',
     stage: stage || undefined,
     sortBy: 'created_at',
     sortOrder: 'desc',
+    enabled: viewMode === 'stage',
   });
 
   // 직원 목록
@@ -110,9 +112,9 @@ function MspContractsInner() {
     enabled: viewMode === 'table',
   });
 
-  const dynamicOptions: Record<string, { value: string; label: string }[]> = {
+  const dynamicOptions = useMemo<Record<string, { value: string; label: string }[]>>(() => ({
     employees: employeeOptions ?? [],
-  };
+  }), [employeeOptions]);
 
   // 테이블용 전용 쿼리 (msp_details JOIN)
   const { data: tableContracts, isLoading: tableLoading } = useQuery({
@@ -126,7 +128,7 @@ function MspContractsInner() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let q = (supabase as any)
         .from('contracts')
-        .select('*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name))', { count: 'exact' })
+        .select('*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)), contract_tech_leads(employees(name))', { count: 'exact' })
         .eq('type', 'msp')
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
@@ -163,6 +165,13 @@ function MspContractsInner() {
           salesRepId: (mspRaw?.sales_rep_id as string) ?? null,
           salesRepName: emp?.name ?? null,
           awsAmount: (mspRaw?.aws_amount as number) ?? null,
+          awsAm: (mspRaw?.aws_am as string) ?? null,
+          mspGrade: (mspRaw?.msp_grade as string) ?? null,
+          billingOn: (mspRaw?.billing_on as boolean) ?? false,
+          billingOnAlias: (mspRaw?.billing_on_alias as string) ?? null,
+          awsAccountIds: (mspRaw?.aws_account_ids as string[] | null) ?? [],
+          techLeadNames: ((row.contract_tech_leads as { employees: { name: string } | null }[] | null) ?? [])
+            .map((tl) => tl.employees?.name).filter(Boolean) as string[],
           tags: (mspRaw?.tags as string[] | null) ?? [],
         };
       });
@@ -178,8 +187,6 @@ function MspContractsInner() {
     cols.push(ACTIONS_COLUMN);
     return cols;
   }, [visibleColumns]);
-
-  const renderOpts = { basePath: `${basePath}/contracts` === '/contracts' ? basePath : basePath, contractType: 'msp', dynamicOptions };
 
   return (
     <div className="flex h-full flex-col gap-5">
@@ -253,7 +260,7 @@ function MspContractsInner() {
 
 export default function MspContractsPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<div className="flex h-full flex-col gap-5"><Skeleton className="h-8 w-32" /><Skeleton className="h-10 w-full" /><Skeleton className="h-64 w-full" /></div>}>
       <MspContractsInner />
     </Suspense>
   );

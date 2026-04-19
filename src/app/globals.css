@@ -146,3 +146,24 @@
     @apply font-sans;
   }
 }
+
+/* Sticky 컬럼 구분선 */
+.sticky-left-divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 2px;
+  background: #e4e4e7;
+}
+
+.sticky-right-divider::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -2px;
+  bottom: 0;
+  width: 2px;
+  background: #e4e4e7;
+}
