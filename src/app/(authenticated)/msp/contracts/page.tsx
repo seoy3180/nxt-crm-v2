@@ -401,6 +401,9 @@ function MspContractsInner() {
         </select>
       );
     }
+    if (col.type === 'tags') {
+      return <InlineTagSelect value={tempValue} onChange={setTempValue} onDone={() => saveCellEdit(row)} />;
+    }
     return (
       <input
         autoFocus
@@ -414,7 +417,6 @@ function MspContractsInner() {
           if (e.key === 'Enter') saveCellEdit(row);
           if (e.key === 'Escape') setEditingCell(null);
         }}
-        placeholder={col.type === 'tags' ? '쉼표로 구분 (예: 빠른결정, 기술중심)' : ''}
         className="h-8 w-full rounded border border-blue-400 bg-blue-50 px-2 text-[13px] text-zinc-900 outline-none"
       />
     );
@@ -528,6 +530,48 @@ function MspContractsInner() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+const MSP_TAG_OPTIONS = ['디자인중시', '빠른결정', '가격민감', '기술중심'] as const;
+
+function InlineTagSelect({ value, onChange, onDone }: { value: string; onChange: (v: string) => void; onDone: () => void }) {
+  const selected = value.split(',').map((s) => s.trim()).filter(Boolean);
+
+  function toggle(tag: string) {
+    const next = selected.includes(tag)
+      ? selected.filter((t) => t !== tag)
+      : [...selected, tag];
+    onChange(next.join(', '));
+  }
+
+  return (
+    <div className="relative">
+      <div className="flex flex-wrap gap-1 rounded border border-blue-400 bg-blue-50 px-2 py-1.5 min-h-[32px]">
+        {MSP_TAG_OPTIONS.map((tag) => {
+          const active = selected.includes(tag);
+          return (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => toggle(tag)}
+              className={`rounded px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                active ? 'bg-blue-600 text-white' : 'bg-white text-zinc-500 border border-zinc-200'
+              }`}
+            >
+              {tag}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={onDone}
+          className="ml-auto rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-700"
+        >
+          완료
+        </button>
+      </div>
     </div>
   );
 }
