@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEmployees } from '@/hooks/use-employees';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { CREDIT_SHARE_OPTIONS, PAYER_OPTIONS, BILLING_METHOD_OPTIONS, MSP_GRADES } from '@/lib/constants';
+import { CREDIT_SHARE_OPTIONS, PAYER_OPTIONS, BILLING_METHOD_OPTIONS, MSP_GRADES, AWS_AM_OPTIONS } from '@/lib/constants';
 import { contractService, type ContractRow, type MspDetailRow, type TechLeadRow } from '@/lib/services/contract-service';
 import { CONTRACT_FIELDS_BY_KEY, type FieldChangeContext } from '@/lib/contracts/field-definitions';
 import { getErrorMessage } from '@/lib/utils';
@@ -15,8 +15,11 @@ import {
   FieldNumber,
   FieldSelect,
   FieldChips,
+  FieldMultiSelect,
   FieldReadText,
 } from '@/components/common/field-cell';
+
+const MSP_TAG_OPTIONS = ['디자인중시', '빠른결정', '가격민감', '기술중심'] as const;
 import { Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -216,12 +219,13 @@ export function MspDetailCard({
           />
         </FieldCell>
         <FieldCell label="AWS AM">
-          <FieldText
+          <FieldSelect
             editing={editing}
             value={val('awsAm', details?.aws_am ?? '')}
             readValue={details?.aws_am}
+            options={AWS_AM_OPTIONS}
             onChange={handle('awsAm')}
-            placeholder="AWS 담당자명"
+            placeholder="선택"
           />
         </FieldCell>
         <FieldCell label="빌링온">
@@ -315,12 +319,13 @@ export function MspDetailCard({
       </FieldCell>
 
       <FieldCell label="태그">
-        <FieldChips
+        <FieldMultiSelect
           editing={editing}
           value={val('tags', (details?.tags ?? []).join(', '))}
           readValues={details?.tags}
+          options={MSP_TAG_OPTIONS}
           onChange={handle('tags')}
-          placeholder="쉼표로 구분 (예: 빠른결정, 기술중심)"
+          placeholder="태그 선택"
         />
       </FieldCell>
     </div>
