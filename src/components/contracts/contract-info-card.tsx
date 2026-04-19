@@ -14,8 +14,9 @@ import { getErrorMessage } from '@/lib/utils';
 import { Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
-function formatFullAmount(amount: number) {
-  return `₩ ${new Intl.NumberFormat('ko-KR').format(amount)}`;
+function formatFullAmount(amount: number, currency?: string | null) {
+  const symbol = currency === 'USD' ? '$' : '₩';
+  return `${symbol} ${new Intl.NumberFormat('ko-KR').format(amount)}`;
 }
 
 interface ContractInfoCardProps {
@@ -97,23 +98,33 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-8">
+      <div className="grid grid-cols-2 gap-8">
         <div className="space-y-1">
           <p className="text-xs font-medium text-zinc-400">총 금액</p>
           {editing ? (
-            <Input
-              value={val('totalAmount', String(contract.total_amount))}
-              onChange={(e) => handleFieldChange('totalAmount', e.target.value)}
-              inputMode="numeric"
-              className="h-9 text-base"
-            />
+            <div className="flex h-9 overflow-hidden rounded-md border border-zinc-200">
+              <select
+                value={val('currency', contract.currency ?? 'KRW')}
+                onChange={(e) => handleFieldChange('currency', e.target.value)}
+                className="h-full border-r border-zinc-200 bg-zinc-50 px-2 text-[13px] text-zinc-600 outline-none"
+              >
+                <option value="KRW">₩ 원</option>
+                <option value="USD">$ 달러</option>
+              </select>
+              <input
+                value={val('totalAmount', String(contract.total_amount))}
+                onChange={(e) => handleFieldChange('totalAmount', e.target.value)}
+                inputMode="numeric"
+                className="h-full flex-1 px-3 text-base outline-none"
+                placeholder="금액 입력"
+              />
+            </div>
           ) : (
-            <p className="text-base font-semibold text-zinc-900">{formatFullAmount(contract.total_amount)}</p>
+            <div className="flex items-baseline gap-1.5">
+              <p className="text-base font-semibold text-zinc-900">{formatFullAmount(contract.total_amount, contract.currency)}</p>
+              <span className="text-xs text-zinc-400">{contract.currency ?? 'KRW'}</span>
+            </div>
           )}
-        </div>
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-zinc-400">통화</p>
-          <p className="text-base font-medium text-zinc-900">{contract.currency ?? 'KRW'}</p>
         </div>
         <div className="space-y-1">
           <p className="text-xs font-medium text-zinc-400">고객</p>
@@ -129,7 +140,7 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
 
       <div className="h-px bg-zinc-100" />
 
-      <div className="grid grid-cols-3 gap-8">
+      <div className="grid grid-cols-2 gap-8">
         <div className="space-y-1">
           <p className="text-xs font-medium text-zinc-400">사내 담당자</p>
           {editing ? (

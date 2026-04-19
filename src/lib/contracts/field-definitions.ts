@@ -68,6 +68,14 @@ export const CONTRACT_FIELDS: ContractFieldDef[] = [
     formatDisplay: formatCurrency,
   },
   {
+    key: 'currency',
+    label: '통화',
+    target: 'contract',
+    serviceKey: 'currency',
+    parse: (v) => v || 'KRW',
+    getOriginal: (c) => c.currency ?? 'KRW',
+  },
+  {
     key: 'assignedTo',
     label: '사내 담당자',
     target: 'contract',
