@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEmployees } from '@/hooks/use-employees';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { CREDIT_SHARE_OPTIONS, PAYER_OPTIONS, BILLING_METHOD_OPTIONS, MSP_GRADES, AWS_AM_OPTIONS } from '@/lib/constants';
+import { CREDIT_SHARE_OPTIONS, PAYER_OPTIONS, BILLING_METHOD_OPTIONS, MSP_GRADES, AWS_AM_OPTIONS, MSP_TAG_OPTIONS } from '@/lib/constants';
 import { contractService, type ContractRow, type MspDetailRow, type TechLeadRow } from '@/lib/services/contract-service';
 import { CONTRACT_FIELDS_BY_KEY, type FieldChangeContext } from '@/lib/contracts/field-definitions';
 import { getErrorMessage } from '@/lib/utils';
@@ -19,7 +19,6 @@ import {
   FieldReadText,
 } from '@/components/common/field-cell';
 
-const MSP_TAG_OPTIONS = ['디자인중시', '빠른결정', '가격민감', '기술중심'] as const;
 import { Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
