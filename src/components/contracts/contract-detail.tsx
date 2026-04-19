@@ -66,7 +66,7 @@ export function ContractDetail({ contract }: ContractDetailProps) {
           <ContractDeleteZone
             contractId={contract.id}
             contractName={contract.name}
-            isSettled={contract.stage === 'settled'}
+            isSettled={contract.stage === 'settled' || contract.stage === 'unpaid'}
             inline
           />
         </div>

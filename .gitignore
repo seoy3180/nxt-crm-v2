@@ -60,3 +60,6 @@ supabase/.temp/
 
 # 일회성 마이그레이션/시딩 스크립트 (로컬 유틸)
 /scripts/
+
+# DB 백업 (사내 데이터 유출 방지)
+/backups/

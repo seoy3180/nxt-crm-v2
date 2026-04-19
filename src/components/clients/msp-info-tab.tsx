@@ -57,8 +57,8 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
       return {
         total: contracts.length,
         totalAmount: contracts.reduce((sum, c) => sum + (c.total_amount ?? 0), 0),
-        active: contracts.filter((c) => c.stage && c.stage !== 'settled').length,
-        settled: contracts.filter((c) => c.stage === 'settled').length,
+        active: contracts.filter((c) => c.stage && c.stage !== 'unpaid').length,
+        unpaid: contracts.filter((c) => c.stage === 'unpaid').length,
       };
     },
   });
@@ -144,8 +144,8 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
             <p className="text-xl font-bold text-blue-600">{contractSummary?.active ?? 0}건</p>
           </div>
           <div className="rounded-lg bg-zinc-50 p-4 space-y-1">
-            <p className="text-xs font-medium text-zinc-400">정산 완료</p>
-            <p className="text-xl font-bold text-green-600">{contractSummary?.settled ?? 0}건</p>
+            <p className="text-xs font-medium text-zinc-400">미납/해지</p>
+            <p className="text-xl font-bold text-rose-600">{contractSummary?.unpaid ?? 0}건</p>
           </div>
         </div>
         <p className="text-xs text-zinc-400">상세 계약 정보는 &apos;관련 계약&apos; 탭 또는 계약 상세 페이지에서 확인하세요.</p>

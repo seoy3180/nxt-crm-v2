@@ -26,10 +26,14 @@ export function getErrorMessage(err: unknown): string {
 /** 계약 단계별 배지 색상 (비즈니스 타입 색상 blue/amber/zinc 제외) */
 const STAGE_COLORS: Record<string, string> = {
   pre_contract: 'bg-slate-100 text-slate-600',
+  billing_complete: 'bg-violet-100 text-violet-600',
+  project_closed: 'bg-emerald-100 text-emerald-600',
+  unpaid: 'bg-rose-100 text-rose-600',
+  // 교육 단계
   proposal: 'bg-slate-100 text-slate-600',
   contracted: 'bg-violet-100 text-violet-600',
-  in_progress: 'bg-indigo-100 text-indigo-600',
-  completed: 'bg-emerald-100 text-emerald-600',
+  operating: 'bg-indigo-100 text-indigo-600',
+  op_completed: 'bg-emerald-100 text-emerald-600',
   settled: 'bg-teal-100 text-teal-700',
 };
 

@@ -34,10 +34,10 @@ export type BusinessType = keyof typeof BUSINESS_TYPES;
 
 // MSP 계약 단계 (4단계)
 export const MSP_STAGES = [
-  { value: 'pre_contract', label: '계약전' },
-  { value: 'contracted', label: '계약완료' },
-  { value: 'completed', label: '사업완료' },
-  { value: 'settled', label: '정산' },
+  { value: 'pre_contract', label: '계약 전' },
+  { value: 'billing_complete', label: '빌링 완료' },
+  { value: 'project_closed', label: '프로젝트 종료' },
+  { value: 'unpaid', label: '미납/해지' },
 ] as const;
 export type MspStage = (typeof MSP_STAGES)[number]['value'];
 
