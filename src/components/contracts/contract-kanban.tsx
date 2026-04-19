@@ -19,6 +19,7 @@ import { MSP_STAGES, EDU_STAGES } from '@/lib/constants';
 import { Skeleton } from '@/components/ui/skeleton';
 import { contractService, type ContractRow } from '@/lib/services/contract-service';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -92,10 +93,9 @@ function DroppableColumn({ stageValue, stageLabel, contracts, isOver, basePath }
   );
 }
 
-const BASE_PATHS: Record<string, string> = { msp: '/msp/contracts', tt: '/contracts', dev: '/contracts' };
-
 export function ContractKanban({ contracts, loading, contractType }: ContractKanbanProps) {
-  const basePath = BASE_PATHS[contractType] ?? '/contracts';
+  const sectionBase = useSectionBasePath();
+  const basePath = `${sectionBase}/contracts`;
   const stages = contractType === 'msp' ? MSP_STAGES : contractType === 'tt' ? EDU_STAGES : MSP_STAGES;
   const { data: currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
