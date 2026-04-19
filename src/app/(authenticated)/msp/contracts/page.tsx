@@ -557,6 +557,12 @@ function InlineTagSelect({ value, onChange }: { value: string; onChange: (v: str
         </span>
       </div>
       <div className="absolute z-20 mt-1 w-full rounded-md border border-zinc-200 bg-white py-1 shadow-lg">
+        <button type="button" onClick={() => onChange('')}
+          className={`flex w-full items-center gap-2 px-3 py-1.5 text-[12px] transition-colors ${selected.length === 0 ? 'bg-zinc-50' : 'hover:bg-zinc-50'}`}
+        >
+          <span className={`font-medium ${selected.length === 0 ? 'text-zinc-400' : 'text-zinc-400'}`}>선택 없음</span>
+        </button>
+        <div className="h-px bg-zinc-100" />
         {MSP_TAG_OPTIONS.map((tag) => {
           const active = selected.includes(tag);
           return (
