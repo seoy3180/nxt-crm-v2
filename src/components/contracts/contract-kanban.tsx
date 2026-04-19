@@ -152,16 +152,45 @@ export function ContractKanban({ contracts, loading, contractType }: ContractKan
 
     if (contract.stage === newStage) return;
 
+    const stageLabel = stages.find((s) => s.value === newStage)?.label ?? newStage;
+
+    // Optimistic: 즉시 캐시 업데이트
+    queryClient.setQueriesData<{ data: ContractRow[] }>(
+      { queryKey: ['contracts'] },
+      (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: old.data.map((c) =>
+            c.id === contract.id ? { ...c, stage: newStage } : c,
+          ),
+        };
+      },
+    );
+
     try {
       await contractService.changeStage(
         contract.id,
         { toStage: newStage, note: null },
         currentUser.id,
       );
+      // 서버 데이터로 동기화
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
-      const stageLabel = stages.find((s) => s.value === newStage)?.label ?? newStage;
       toast.success(`"${contract.name}" → ${stageLabel}`);
     } catch (err) {
+      // 실패 시 롤백
+      queryClient.setQueriesData<{ data: ContractRow[] }>(
+        { queryKey: ['contracts'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.map((c) =>
+              c.id === contract.id ? { ...c, stage: contract.stage } : c,
+            ),
+          };
+        },
+      );
       const { getErrorMessage } = await import('@/lib/utils');
       toast.error(`단계 변경 실패: ${getErrorMessage(err)}`);
     }
