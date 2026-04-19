@@ -26,6 +26,8 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+
+
 function renderChange(h: { field_name: string | null; old_value: string | null; new_value: string | null; from_stage: string | null; to_stage: string | null }, contractType: string) {
   if (h.field_name === 'stage' || (!h.field_name && h.to_stage)) {
     const from = h.old_value ?? h.from_stage;
@@ -46,6 +48,15 @@ function renderChange(h: { field_name: string | null; old_value: string | null; 
       <span className="font-semibold">{h.new_value || '(삭제)'}</span>
     </span>
   );
+}
+
+function renderChangeSummary(h: { field_name: string | null; old_value: string | null; new_value: string | null; from_stage: string | null; to_stage: string | null }, contractType: string): string {
+  if (h.field_name === 'stage' || (!h.field_name && h.to_stage)) {
+    const from = h.old_value ?? h.from_stage;
+    const to = h.new_value ?? h.to_stage;
+    return `단계 ${from ? `${getStageLabel(from, contractType)} → ` : ''}${getStageLabel(to, contractType)}`;
+  }
+  return `${h.field_name} ${h.old_value ? `${h.old_value} → ` : ''}${h.new_value || '(삭제)'}`;
 }
 
 export function StageHistory({ contractId, contractType }: StageHistoryProps) {
@@ -73,11 +84,18 @@ export function StageHistory({ contractId, contractType }: StageHistoryProps) {
         onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between px-5 py-4 hover:bg-zinc-50 transition-colors"
       >
-        <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold text-zinc-900">변경 이력</h3>
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">{count}</span>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-zinc-900">변경 이력</h3>
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">{count}건</span>
+          </div>
+          {count > 0 && history && (
+            <p className="mt-0.5 truncate text-[12px] text-zinc-400">
+              마지막: {history[0].changed_by_name ?? '알 수 없음'} · {renderChangeSummary(history[0], contractType)}
+            </p>
+          )}
         </div>
-        {open ? <ChevronUp className="h-4 w-4 text-zinc-400" /> : <ChevronDown className="h-4 w-4 text-zinc-400" />}
+        {open ? <ChevronUp className="h-4 w-4 shrink-0 text-zinc-400" /> : <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" />}
       </button>
       {open && (
         <div className="border-t px-5 pb-4">
