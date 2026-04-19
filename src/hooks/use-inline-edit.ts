@@ -21,7 +21,11 @@ interface UseInlineEditOptions<T> {
 export function useInlineEdit<T>({ onSave, getOriginalValue, getId, getChangeDefaults }: UseInlineEditOptions<T>) {
   const { setIsEditing } = useEditMode();
   const [editMode, setEditModeLocal] = useState(false);
-  const setEditMode = useCallback((v: boolean) => { setEditModeLocal(v); setIsEditing(v); }, [setIsEditing]);
+  const setEditMode = useCallback((v: boolean) => {
+    setEditModeLocal(v);
+    setIsEditing(v);
+    if (!v) setEditingCell(null);
+  }, [setIsEditing]);
 
   const [pendingChanges, setPendingChanges] = useState<Map<string, PendingChange>>(new Map());
   const [saving, setSaving] = useState(false);
