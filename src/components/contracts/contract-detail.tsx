@@ -14,6 +14,7 @@ import { getStageColor } from '@/lib/utils';
 import { RevenueSplitCard } from './revenue-split-card';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRightLeft, ExternalLink } from 'lucide-react';
+import { ContractMemoCard } from './contract-memo-card';
 import { useSectionBasePath } from '@/hooks/use-section-base-path';
 
 interface ContractDetailProps {
@@ -112,6 +113,8 @@ export function ContractDetail({ contract }: ContractDetailProps) {
         <div className="w-[340px] space-y-4">
           {/* 매출 배분 */}
           <RevenueSplitCard contractId={contract.id} />
+          {/* 메모 */}
+          <ContractMemoCard contractId={contract.id} memo={contract.memo} />
           {/* 변경 이력 */}
           <StageHistory contractId={contract.id} contractType={contract.type} />
         </div>

@@ -152,18 +152,6 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
           <p className="text-xs font-medium text-zinc-400">고객사 담당자</p>
           <p className="text-base font-medium text-zinc-900">{contract.contact_name ?? '-'}</p>
         </div>
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-zinc-400">메모</p>
-          {editing ? (
-            <Input
-              value={val('memo', contract.memo ?? '')}
-              onChange={(e) => handleFieldChange('memo', e.target.value)}
-              className="h-9 text-base"
-            />
-          ) : (
-            <p className="text-base font-medium text-zinc-900">{contract.memo || '-'}</p>
-          )}
-        </div>
       </div>
     </div>
   );
