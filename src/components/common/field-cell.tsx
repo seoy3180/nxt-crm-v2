@@ -109,7 +109,7 @@ export function FieldNumber({
 /** Select options: 문자열 배열 또는 {value, label} 객체 배열 */
 type SelectOption = string | { value: string; label: string };
 
-/** 셀렉트 필드: 편집 모드 Select, 읽기 모드 텍스트 */
+/** 셀렉트 필드: 편집 모드 Select, 읽기 모드 텍스트. colors 맵 제공 시 트리거/옵션 모두 배지로 렌더 */
 export function FieldSelect({
   editing,
   value,
@@ -118,6 +118,7 @@ export function FieldSelect({
   onChange,
   placeholder = '선택',
   readClassName,
+  colors,
 }: {
   editing: boolean;
   value: string;
@@ -126,12 +127,20 @@ export function FieldSelect({
   onChange: (v: string) => void;
   placeholder?: string;
   readClassName?: string;
+  /** 값별 배지 색상 (예: { 'A': 'bg-blue-100 text-blue-600' }) */
+  colors?: Record<string, string>;
 }) {
   if (editing) {
     return (
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="h-9">
-          <SelectValue placeholder={placeholder} />
+          {colors && value ? (
+            <span className={cn('rounded px-2 py-0.5 text-[12px] font-semibold', colors[value] ?? 'bg-zinc-100 text-zinc-600')}>
+              {value}
+            </span>
+          ) : (
+            <SelectValue placeholder={placeholder} />
+          )}
         </SelectTrigger>
         <SelectContent>
           {options.map((opt) => {
@@ -139,12 +148,25 @@ export function FieldSelect({
             const label = typeof opt === 'string' ? opt : opt.label;
             return (
               <SelectItem key={v} value={v}>
-                {label}
+                {colors ? (
+                  <span className={cn('rounded px-2 py-0.5 text-[12px] font-semibold', colors[v] ?? 'bg-zinc-100 text-zinc-600')}>
+                    {label}
+                  </span>
+                ) : (
+                  label
+                )}
               </SelectItem>
             );
           })}
         </SelectContent>
       </Select>
+    );
+  }
+  if (colors && readValue) {
+    return (
+      <span className={cn('inline-block rounded px-2.5 py-0.5 text-[13px] font-semibold', colors[readValue] ?? 'bg-zinc-100 text-zinc-600')}>
+        {readValue}
+      </span>
     );
   }
   return <FieldReadText className={readClassName}>{readValue}</FieldReadText>;

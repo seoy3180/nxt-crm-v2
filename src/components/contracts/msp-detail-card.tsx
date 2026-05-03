@@ -219,22 +219,15 @@ export function MspDetailCard({
           />
         </FieldCell>
         <FieldCell label="AWS AM">
-          {editing ? (
-            <FieldSelect
-              editing={true}
-              value={val('awsAm', details?.aws_am ?? '')}
-              readValue={details?.aws_am}
-              options={AWS_AM_OPTIONS}
-              onChange={handle('awsAm')}
-              placeholder="선택"
-            />
-          ) : details?.aws_am ? (
-            <span className={`inline-block rounded px-2.5 py-0.5 text-[13px] font-semibold ${AWS_AM_COLORS[details.aws_am] ?? 'bg-zinc-100 text-zinc-600'}`}>
-              {details.aws_am}
-            </span>
-          ) : (
-            <FieldReadText>{null}</FieldReadText>
-          )}
+          <FieldSelect
+            editing={editing}
+            value={val('awsAm', details?.aws_am ?? '')}
+            readValue={details?.aws_am}
+            options={AWS_AM_OPTIONS}
+            onChange={handle('awsAm')}
+            placeholder="선택"
+            colors={AWS_AM_COLORS}
+          />
         </FieldCell>
         <FieldCell label="빌링온">
           {editing ? (
