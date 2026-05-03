@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEmployees } from '@/hooks/use-employees';
+import { useEmployees, useSalesReps } from '@/hooks/use-employees';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { CREDIT_SHARE_OPTIONS, PAYER_OPTIONS, BILLING_METHOD_OPTIONS, MSP_GRADES, AWS_AM_OPTIONS, AWS_AM_COLORS, MSP_TAG_OPTIONS } from '@/lib/constants';
 import { contractService, type ContractRow, type MspDetailRow, type TechLeadRow } from '@/lib/services/contract-service';
@@ -42,6 +42,7 @@ export function MspDetailCard({
 }: MspDetailCardProps) {
   const queryClient = useQueryClient();
   const { data: employees } = useEmployees();
+  const { data: salesReps } = useSalesReps();
   const { data: currentUser } = useCurrentUser();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -198,7 +199,7 @@ export function MspDetailCard({
             editing={editing}
             value={val('salesRepId', details?.sales_rep_id ?? '')}
             readValue={details?.sales_rep_name}
-            options={(employees ?? []).map((e) => ({ value: e.id, label: e.name }))}
+            options={(salesReps ?? []).map((e) => ({ value: e.id, label: e.name }))}
             onChange={handle('salesRepId')}
           />
         </FieldCell>

@@ -112,9 +112,23 @@ function MspContractsInner() {
     enabled: viewMode === 'table',
   });
 
+  // 영업 담당자 목록
+  const { data: salesRepOptions } = useQuery({
+    queryKey: ['sales-rep-options'],
+    queryFn: async () => {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any).from('employees').select('id, name').eq('is_active', true).eq('is_sales_rep', true).order('name');
+      return (data ?? []).map((e: { id: string; name: string }) => ({ value: e.id, label: e.name }));
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: viewMode === 'table',
+  });
+
   const dynamicOptions = useMemo<Record<string, { value: string; label: string }[]>>(() => ({
     employees: employeeOptions ?? [],
-  }), [employeeOptions]);
+    salesReps: salesRepOptions ?? [],
+  }), [employeeOptions, salesRepOptions]);
 
   // 테이블용 전용 쿼리 (msp_details JOIN)
   const { data: tableContracts, isLoading: tableLoading } = useQuery({

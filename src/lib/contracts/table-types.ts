@@ -60,7 +60,7 @@ export const MSP_COLUMNS: ContractColumnDef[] = [
   { key: 'payer', label: 'Payer', width: 'w-[120px]', editable: true, type: 'select', options: PAYER_OPTIONS, table: 'msp_details', dbColumn: 'payer' },
   { key: 'billingMethod', label: '청구 방식', width: 'w-[140px]', editable: true, type: 'select', options: BILLING_METHOD_OPTIONS, table: 'msp_details', dbColumn: 'billing_method' },
   { key: 'mspGrade', label: 'MSP 등급', width: 'w-[100px]', editable: true, type: 'select', options: MSP_GRADES, table: 'msp_details', dbColumn: 'msp_grade' },
-  { key: 'salesRepId', label: '영업 담당', width: 'w-[120px]', editable: true, type: 'dynamic-select', optionsKey: 'employees', table: 'msp_details', dbColumn: 'sales_rep_id' },
+  { key: 'salesRepId', label: '영업 담당', width: 'w-[120px]', editable: true, type: 'dynamic-select', optionsKey: 'salesReps', table: 'msp_details', dbColumn: 'sales_rep_id' },
   { key: 'assignedTo', label: '사내 담당자', width: 'w-[120px]', editable: true, type: 'dynamic-select', optionsKey: 'employees', table: 'contracts', dbColumn: 'assigned_to' },
   { key: 'contactName', label: '고객사 담당자', width: 'w-[120px]', editable: false, type: 'text', table: 'contracts' },
   { key: 'awsAm', label: 'AWS AM', width: 'w-[100px]', editable: true, type: 'select', options: AWS_AM_OPTIONS, table: 'msp_details', dbColumn: 'aws_am' },
