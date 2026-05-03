@@ -34,6 +34,7 @@ export interface ContractTableRow {
   mspGrade: string | null;
   billingOn: boolean;
   billingOnAlias: string | null;
+  rootAccountEmail: string | null;
   awsAccountIds: string[];
   techLeadNames: string[];
   tags: string[];
@@ -66,6 +67,7 @@ export const MSP_COLUMNS: ContractColumnDef[] = [
   { key: 'awsAmount', label: 'AWS 금액', width: 'w-[120px]', editable: true, type: 'number', table: 'msp_details', dbColumn: 'aws_amount' },
   { key: 'billingOn', label: '빌링온', width: 'w-[80px]', editable: false, type: 'text', table: 'msp_details' },
   { key: 'billingOnAlias', label: '빌링온 별칭', width: 'w-[120px]', editable: true, type: 'text', table: 'msp_details', dbColumn: 'billing_on_alias' },
+  { key: 'rootAccountEmail', label: '루트 계정 메일', width: 'w-[200px]', editable: true, type: 'text', table: 'msp_details', dbColumn: 'root_account_email' },
   { key: 'awsAccountIds', label: 'AWS 계정 ID', width: 'w-[160px]', editable: false, type: 'text', table: 'msp_details' },
   { key: 'techLeadNames', label: '담당 기술', width: 'w-[140px]', editable: false, type: 'text', table: 'msp_details' },
   { key: 'tags', label: '태그', width: 'w-[180px]', editable: true, type: 'tags', table: 'msp_details', dbColumn: 'tags' },

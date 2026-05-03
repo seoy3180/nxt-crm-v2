@@ -188,6 +188,14 @@ export const CONTRACT_FIELDS: ContractFieldDef[] = [
     getOriginal: (c) => c.msp_details?.billing_on_alias ?? null,
   },
   {
+    key: 'rootAccountEmail',
+    label: '루트 계정 메일',
+    target: 'msp_details',
+    serviceKey: 'rootAccountEmail',
+    parse: (v) => v || null,
+    getOriginal: (c) => c.msp_details?.root_account_email ?? null,
+  },
+  {
     key: 'tags',
     label: '태그',
     target: 'msp_details',

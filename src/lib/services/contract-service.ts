@@ -54,6 +54,7 @@ export interface MspDetailRow {
   msp_grade: 'None' | 'FREE' | 'MSP10' | 'MSP15' | 'MSP20' | 'ETC' | null;
   billing_on: boolean;
   billing_on_alias: string | null;
+  root_account_email: string | null;
   tags: string[] | null;
 }
 
@@ -278,6 +279,7 @@ export const contractService = {
     if (input.mspGrade !== undefined) updateData.msp_grade = input.mspGrade;
     if (input.billingOn !== undefined) updateData.billing_on = input.billingOn;
     if (input.billingOnAlias !== undefined) updateData.billing_on_alias = input.billingOnAlias;
+    if (input.rootAccountEmail !== undefined) updateData.root_account_email = input.rootAccountEmail;
     if (input.tags !== undefined) updateData.tags = input.tags;
 
     const { data, error } = await getClient()

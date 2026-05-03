@@ -33,6 +33,7 @@ export const mspDetailSchema = z.object({
   mspGrade: z.enum(['None', 'FREE', 'MSP10', 'MSP15', 'MSP20', 'ETC']).optional().nullable(),
   billingOn: z.boolean().default(false),
   billingOnAlias: z.string().optional().nullable(),
+  rootAccountEmail: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
   techLeadIds: z.array(z.string().uuid()).default([]),
 });

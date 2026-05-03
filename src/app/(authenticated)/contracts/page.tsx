@@ -205,6 +205,7 @@ function ContractsPageInner() {
           mspGrade: (mspRaw?.msp_grade as string) ?? null,
           billingOn: (mspRaw?.billing_on as boolean) ?? false,
           billingOnAlias: (mspRaw?.billing_on_alias as string) ?? null,
+          rootAccountEmail: (mspRaw?.root_account_email as string) ?? null,
           awsAccountIds: (mspRaw?.aws_account_ids as string[] | null) ?? [],
           techLeadNames: contractType === 'msp'
             ? ((row.contract_tech_leads as { employees: { name: string } | null }[] | null) ?? [])

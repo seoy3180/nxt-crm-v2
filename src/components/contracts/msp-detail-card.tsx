@@ -285,6 +285,16 @@ export function MspDetailCard({
         />
       </FieldCell>
 
+      <FieldCell label="루트 계정 메일">
+        <FieldText
+          editing={editing}
+          value={val('rootAccountEmail', details?.root_account_email ?? '')}
+          readValue={details?.root_account_email}
+          onChange={handle('rootAccountEmail')}
+          placeholder="root@example.com"
+        />
+      </FieldCell>
+
       <FieldCell label="AWS 계정 ID">
         <FieldChips
           editing={editing}

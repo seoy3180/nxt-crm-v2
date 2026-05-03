@@ -298,6 +298,7 @@ export type Database = {
             | null
           billing_on: boolean
           billing_on_alias: string | null
+          root_account_email: string | null
           contract_id: string
           created_at: string
           credit_share: Database["public"]["Enums"]["credit_share_type"] | null
@@ -320,6 +321,7 @@ export type Database = {
             | null
           billing_on?: boolean
           billing_on_alias?: string | null
+          root_account_email?: string | null
           contract_id: string
           created_at?: string
           credit_share?: Database["public"]["Enums"]["credit_share_type"] | null
@@ -342,6 +344,7 @@ export type Database = {
             | null
           billing_on?: boolean
           billing_on_alias?: string | null
+          root_account_email?: string | null
           contract_id?: string
           created_at?: string
           credit_share?: Database["public"]["Enums"]["credit_share_type"] | null
