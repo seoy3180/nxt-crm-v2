@@ -4,19 +4,16 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEmployees, useSalesReps } from '@/hooks/use-employees';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { CREDIT_SHARE_OPTIONS, PAYER_OPTIONS, BILLING_METHOD_OPTIONS, MSP_GRADES, AWS_AM_OPTIONS, AWS_AM_COLORS, MSP_TAG_OPTIONS } from '@/lib/constants';
+import { CREDIT_SHARE_OPTIONS, CREDIT_SHARE_COLORS, PAYER_OPTIONS, BILLING_METHOD_OPTIONS, MSP_GRADES, AWS_AM_OPTIONS, AWS_AM_COLORS, MSP_TAG_OPTIONS } from '@/lib/constants';
 import { contractService, type ContractRow, type MspDetailRow, type TechLeadRow } from '@/lib/services/contract-service';
 import { CONTRACT_FIELDS_BY_KEY, type FieldChangeContext } from '@/lib/contracts/field-definitions';
 import { getErrorMessage } from '@/lib/utils';
-import { EmployeeMultiSelect } from '@/components/common/employee-multi-select';
 import {
   FieldCell,
   FieldText,
-  FieldNumber,
   FieldSelect,
   FieldChips,
   FieldMultiSelect,
-  FieldReadText,
 } from '@/components/common/field-cell';
 
 import { Pencil } from 'lucide-react';
@@ -28,17 +25,9 @@ interface MspDetailCardProps {
   techLeads?: TechLeadRow[];
 }
 
-function formatMrr(amount: number) {
-  if (amount >= 10000) {
-    return `₩ ${Math.round(amount / 10000).toLocaleString()}만`;
-  }
-  return `₩ ${amount.toLocaleString()}`;
-}
-
 export function MspDetailCard({
   contract,
   details,
-  techLeads,
 }: MspDetailCardProps) {
   const queryClient = useQueryClient();
   const { data: employees } = useEmployees();
@@ -109,16 +98,6 @@ export function MspDetailCard({
     }
   }
 
-  // techLeadIds는 CSV 문자열로 editValues에 저장
-  const initialTechLeadIds = (techLeads ?? []).map((t) => t.employee_id).join(',');
-  const currentTechLeadIds = val('techLeadIds', initialTechLeadIds)
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  // billing_on은 bool → string 변환
-  const billingOnValue = val('billingOn', details?.billing_on ? 'true' : 'false');
-
   return (
     <div className="rounded-xl border border-zinc-200 p-6 space-y-5">
       <div className="flex items-center justify-between">
@@ -140,41 +119,41 @@ export function MspDetailCard({
         )}
       </div>
 
-      {/* 1행: MSP 등급 / 크레딧 쉐어 / 예상 MRR */}
+      {/* 1행: 빌링온 별칭 / 태그 / 루트 계정 메일 */}
       <div className="grid grid-cols-3 gap-8">
-        <FieldCell label="MSP 등급">
-          <FieldSelect
+        <FieldCell label="빌링온 별칭">
+          <FieldText
             editing={editing}
-            value={val('mspGrade', details?.msp_grade ?? '')}
-            readValue={details?.msp_grade}
-            options={MSP_GRADES}
-            onChange={handle('mspGrade')}
-            readClassName="text-blue-600 font-semibold"
+            value={val('billingOnAlias', details?.billing_on_alias ?? '')}
+            readValue={details?.billing_on_alias}
+            onChange={handle('billingOnAlias')}
+            placeholder="빌링온 계정 별칭"
           />
         </FieldCell>
-        <FieldCell label="크레딧 쉐어">
-          <FieldSelect
+        <FieldCell label="태그">
+          <FieldMultiSelect
             editing={editing}
-            value={val('creditShare', details?.credit_share ?? '')}
-            readValue={details?.credit_share}
-            options={CREDIT_SHARE_OPTIONS}
-            onChange={handle('creditShare')}
+            value={val('tags', (details?.tags ?? []).join(', '))}
+            readValues={details?.tags}
+            options={MSP_TAG_OPTIONS}
+            onChange={handle('tags')}
+            placeholder="태그 선택"
           />
         </FieldCell>
-        <FieldCell label="예상 MRR">
-          <FieldNumber
+        <FieldCell label="루트 계정 메일">
+          <FieldText
             editing={editing}
-            value={val('expectedMrr', String(details?.expected_mrr ?? ''))}
-            readValue={details?.expected_mrr}
-            format={formatMrr}
-            onChange={handle('expectedMrr')}
+            value={val('rootAccountEmail', details?.root_account_email ?? '')}
+            readValue={details?.root_account_email}
+            onChange={handle('rootAccountEmail')}
+            placeholder="root@example.com"
           />
         </FieldCell>
       </div>
 
       <div className="h-px bg-zinc-100" />
 
-      {/* 2행: Payer / 청구 방식 / 영업 담당 */}
+      {/* 2행: Payer / MSP 등급 / 영업 담당 */}
       <div className="grid grid-cols-3 gap-8">
         <FieldCell label="Payer">
           <FieldSelect
@@ -185,13 +164,14 @@ export function MspDetailCard({
             onChange={handle('payer')}
           />
         </FieldCell>
-        <FieldCell label="청구 방식">
+        <FieldCell label="MSP 등급">
           <FieldSelect
             editing={editing}
-            value={val('billingMethod', details?.billing_method ?? '')}
-            readValue={details?.billing_method}
-            options={BILLING_METHOD_OPTIONS}
-            onChange={handle('billingMethod')}
+            value={val('mspGrade', details?.msp_grade ?? '')}
+            readValue={details?.msp_grade}
+            options={MSP_GRADES}
+            onChange={handle('mspGrade')}
+            readClassName="text-blue-600 font-semibold"
           />
         </FieldCell>
         <FieldCell label="영업 담당">
@@ -207,15 +187,25 @@ export function MspDetailCard({
 
       <div className="h-px bg-zinc-100" />
 
-      {/* 3행: AWS 금액 / AWS AM / 빌링온 */}
+      {/* 3행: 크레딧 쉐어 / 청구 방식 / AWS AM */}
       <div className="grid grid-cols-3 gap-8">
-        <FieldCell label="AWS 금액">
-          <FieldNumber
+        <FieldCell label="크레딧 쉐어">
+          <FieldSelect
             editing={editing}
-            value={val('awsAmount', String(details?.aws_amount ?? ''))}
-            readValue={details?.aws_amount}
-            format={formatMrr}
-            onChange={handle('awsAmount')}
+            value={val('creditShare', details?.credit_share ?? '')}
+            readValue={details?.credit_share}
+            options={CREDIT_SHARE_OPTIONS}
+            onChange={handle('creditShare')}
+            colors={CREDIT_SHARE_COLORS}
+          />
+        </FieldCell>
+        <FieldCell label="청구 방식">
+          <FieldSelect
+            editing={editing}
+            value={val('billingMethod', details?.billing_method ?? '')}
+            readValue={details?.billing_method}
+            options={BILLING_METHOD_OPTIONS}
+            onChange={handle('billingMethod')}
           />
         </FieldCell>
         <FieldCell label="AWS AM">
@@ -229,66 +219,11 @@ export function MspDetailCard({
             colors={AWS_AM_COLORS}
           />
         </FieldCell>
-        <FieldCell label="빌링온">
-          {editing ? (
-            <div className="flex h-9 rounded-md bg-zinc-100 p-1 gap-1">
-              <button
-                type="button"
-                onClick={() => handleFieldChange('billingOn', 'true')}
-                className={`flex-1 rounded text-[12px] font-medium transition-colors ${
-                  billingOnValue === 'true'
-                    ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
-                    : 'text-zinc-400'
-                }`}
-              >
-                등록
-              </button>
-              <button
-                type="button"
-                onClick={() => handleFieldChange('billingOn', 'false')}
-                className={`flex-1 rounded text-[12px] font-medium transition-colors ${
-                  billingOnValue === 'false'
-                    ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
-                    : 'text-zinc-400'
-                }`}
-              >
-                미등록
-              </button>
-            </div>
-          ) : (
-            <span
-              className={`inline-block rounded px-2.5 py-0.5 text-[13px] font-semibold ${
-                details?.billing_on
-                  ? 'bg-emerald-100 text-emerald-600'
-                  : 'bg-zinc-100 text-zinc-500'
-              }`}
-            >
-              {details?.billing_on ? '등록' : '미등록'}
-            </span>
-          )}
-        </FieldCell>
       </div>
 
-      <FieldCell label="빌링온 별칭">
-        <FieldText
-          editing={editing}
-          value={val('billingOnAlias', details?.billing_on_alias ?? '')}
-          readValue={details?.billing_on_alias}
-          onChange={handle('billingOnAlias')}
-          placeholder="빌링온 계정 별칭"
-        />
-      </FieldCell>
+      <div className="h-px bg-zinc-100" />
 
-      <FieldCell label="루트 계정 메일">
-        <FieldText
-          editing={editing}
-          value={val('rootAccountEmail', details?.root_account_email ?? '')}
-          readValue={details?.root_account_email}
-          onChange={handle('rootAccountEmail')}
-          placeholder="root@example.com"
-        />
-      </FieldCell>
-
+      {/* 4행: AWS 계정 ID */}
       <FieldCell label="AWS 계정 ID">
         <FieldChips
           editing={editing}
@@ -298,46 +233,11 @@ export function MspDetailCard({
           placeholder="Account ID 입력 후 Enter"
           chipClassName="bg-blue-50 text-blue-600"
           validate={(v) => {
-            if (v.includes('-')) return undefined; // 라벨 포함 형태 (예: HAEZOOM1 - 002923398493)
+            if (v.includes('-')) return undefined;
             if (!/^\d+$/.test(v)) return '숫자만 입력하거나 라벨 - ID 형태로 입력하세요';
             if (v.length !== 12) return 'AWS Account ID는 12자리입니다';
             return undefined;
           }}
-        />
-      </FieldCell>
-
-      <FieldCell label="담당 기술">
-        {editing ? (
-          <EmployeeMultiSelect
-            selectedIds={currentTechLeadIds}
-            onChange={(ids) => handleFieldChange('techLeadIds', ids.join(','))}
-            placeholder="기술 담당자 선택"
-            triggerClassName="h-9"
-          />
-        ) : techLeads && techLeads.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {techLeads.map((t) => (
-              <span
-                key={t.employee_id}
-                className="rounded-md bg-zinc-100 px-2 py-0.5 text-[13px] font-medium text-zinc-700"
-              >
-                {t.name}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <FieldReadText>{null}</FieldReadText>
-        )}
-      </FieldCell>
-
-      <FieldCell label="태그">
-        <FieldMultiSelect
-          editing={editing}
-          value={val('tags', (details?.tags ?? []).join(', '))}
-          readValues={details?.tags}
-          options={MSP_TAG_OPTIONS}
-          onChange={handle('tags')}
-          placeholder="태그 선택"
         />
       </FieldCell>
     </div>
