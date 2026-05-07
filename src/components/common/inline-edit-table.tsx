@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { useInlineEdit } from '@/hooks/use-inline-edit';
 
@@ -19,6 +20,10 @@ export interface InlineEditColumnBase {
   stickyOffset?: number;
   /** 텍스트 정렬 */
   align?: 'left' | 'center';
+  /** 정렬 가능 여부 */
+  sortable?: boolean;
+  /** 정렬 시 서버에 보낼 키 (없으면 key 사용) */
+  sortKey?: string;
 }
 
 interface InlineEditTableProps<T, C extends InlineEditColumnBase> {
@@ -36,6 +41,12 @@ interface InlineEditTableProps<T, C extends InlineEditColumnBase> {
   skeletonRows?: number;
   /** 행 클릭 시 이동할 URL 생성. 편집 모드에선 비활성화됨. */
   rowHref?: (row: T) => string;
+  /** 현재 정렬 키 (column.sortKey 또는 column.key) */
+  sortKey?: string;
+  /** 현재 정렬 방향 */
+  sortOrder?: 'asc' | 'desc';
+  /** 정렬 헤더 클릭 시 호출 */
+  onSortChange?: (key: string, order: 'asc' | 'desc') => void;
   /**
    * 일반(비편집) 셀 내용 렌더.
    * col.key === 'name'은 자동으로 왼쪽 정렬 + 진한 텍스트.
@@ -73,6 +84,9 @@ export function InlineEditTable<T, C extends InlineEditColumnBase>({
   renderCell,
   renderEditingCell,
   getEditInitialValue,
+  sortKey,
+  sortOrder,
+  onSortChange,
 }: InlineEditTableProps<T, C>) {
   const router = useRouter();
   const {
@@ -120,7 +134,31 @@ export function InlineEditTable<T, C extends InlineEditColumnBase>({
                   col.sticky === 'right' && 'relative sticky-right-divider',
                 )}
               >
-                {col.label}
+                {col.sortable && onSortChange ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const key = col.sortKey ?? col.key;
+                      const isCurrent = sortKey === key;
+                      if (!isCurrent) onSortChange(key, 'asc');
+                      else if (sortOrder === 'asc') onSortChange(key, 'desc');
+                      else onSortChange('', 'desc'); // 해제 → 빈 키로 신호
+                    }}
+                    className="inline-flex items-center gap-1.5 hover:text-zinc-700"
+                  >
+                    {col.label}
+                    {(() => {
+                      const key = col.sortKey ?? col.key;
+                      const active = sortKey === key;
+                      if (!active) return <ArrowUpDown className="h-3 w-3 text-zinc-300" />;
+                      return sortOrder === 'asc'
+                        ? <ArrowUp className="h-3 w-3 text-blue-600" />
+                        : <ArrowDown className="h-3 w-3 text-blue-600" />;
+                    })()}
+                  </button>
+                ) : (
+                  col.label
+                )}
               </TableHead>
             ))}
           </TableRow>

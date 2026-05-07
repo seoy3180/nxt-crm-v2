@@ -44,6 +44,8 @@ function MspContractsInner() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [stage, setStage] = useState<string | undefined>();
   const [page, setPage] = useState(1);
+  const [sortKey, setSortKey] = useState<string>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const basePath = useSectionBasePath();
 
@@ -132,7 +134,7 @@ function MspContractsInner() {
 
   // 테이블용 전용 쿼리 (msp_details JOIN)
   const { data: tableContracts, isLoading: tableLoading } = useQuery({
-    queryKey: ['msp-contracts-table', debouncedSearch, stage, page],
+    queryKey: ['msp-contracts-table', debouncedSearch, stage, page, sortKey, sortOrder],
     queryFn: async () => {
       const supabase = createClient();
       const pageSize = 20;
@@ -145,7 +147,7 @@ function MspContractsInner() {
         .select('*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)), contract_tech_leads(employees(name))', { count: 'exact' })
         .eq('type', 'msp')
         .is('deleted_at', null)
-        .order('created_at', { ascending: false });
+        .order(sortKey, { ascending: sortOrder === 'asc' });
 
       if (stage) q = q.eq('stage', stage);
       if (debouncedSearch) q = q.ilike('name', `%${debouncedSearch}%`);
@@ -259,6 +261,13 @@ function MspContractsInner() {
             emptyText="등록된 MSP 계약이 없습니다"
             renderCell={(row, col, val) => sharedRenderCell(row, col, val, { basePath, contractType: 'msp', dynamicOptions })}
             renderEditingCell={(row, col) => sharedRenderEditingCell(row, col, { tempValue, setTempValue, saveCellEdit, setEditingCell, dynamicOptions })}
+            sortKey={sortKey}
+            sortOrder={sortOrder}
+            onSortChange={(key, order) => {
+              if (!key) { setSortKey('created_at'); setSortOrder('desc'); }
+              else { setSortKey(key); setSortOrder(order); }
+              setPage(1);
+            }}
           />
           {tableContracts && tableContracts.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 py-4">

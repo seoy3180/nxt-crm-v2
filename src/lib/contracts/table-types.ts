@@ -51,7 +51,7 @@ export interface ContractColumnDef extends InlineEditColumnBase {
 // ─── 컬럼 정의 ────────────────────────────────────────
 
 export const MSP_COLUMNS: ContractColumnDef[] = [
-  { key: 'name', label: '계약명', width: 'w-[180px]', editable: false, type: 'text', table: 'contracts', sticky: 'left', stickyOffset: 0 },
+  { key: 'name', label: '계약명', width: 'w-[180px]', editable: false, type: 'text', table: 'contracts', sticky: 'left', stickyOffset: 0, sortable: true },
   { key: 'clientName', label: '고객', width: 'w-[140px]', editable: false, type: 'text', table: 'contracts', align: 'left' },
   { key: 'stage', label: '단계', width: 'w-[110px]', editable: true, type: 'select', options: MSP_STAGES, table: 'contracts', dbColumn: 'stage' },
   { key: 'totalAmount', label: '금액', width: 'w-[120px]', editable: true, type: 'number', table: 'contracts', dbColumn: 'total_amount' },
@@ -74,7 +74,7 @@ export const MSP_COLUMNS: ContractColumnDef[] = [
 ];
 
 export const BASIC_COLUMNS: ContractColumnDef[] = [
-  { key: 'name', label: '계약명', width: 'w-[180px]', editable: false, type: 'text', table: 'contracts', sticky: 'left', stickyOffset: 0 },
+  { key: 'name', label: '계약명', width: 'w-[180px]', editable: false, type: 'text', table: 'contracts', sticky: 'left', stickyOffset: 0, sortable: true },
   { key: 'clientName', label: '고객', width: 'w-[140px]', editable: false, type: 'text', table: 'contracts', align: 'left' },
   { key: 'stage', label: '단계', width: 'w-[110px]', editable: true, type: 'select', options: EDU_STAGES, table: 'contracts', dbColumn: 'stage' },
   { key: 'totalAmount', label: '금액', width: 'w-[120px]', editable: true, type: 'number', table: 'contracts', dbColumn: 'total_amount' },
