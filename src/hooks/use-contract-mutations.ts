@@ -75,8 +75,17 @@ export function useDeleteContract() {
 
   return useMutation({
     mutationFn: (id: string) => contractService.softDelete(id),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      // BIZ-5: 예치금 잔액으로 차단된 경우 토스트만 띄우고 invalidate 생략
+      if (result.blocked) {
+        const sym = result.blocked.currency === 'USD' ? '$' : '₩';
+        toast.error(
+          `예치금 잔액이 ${sym} ${Math.abs(result.blocked.balance).toLocaleString('ko-KR')} 남아있어 삭제할 수 없습니다. 환불(refund) 후 다시 시도하세요.`,
+        );
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['deposit'] });
       toast.success('계약이 삭제되었습니다');
     },
     onError: (err) => {

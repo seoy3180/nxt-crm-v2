@@ -298,7 +298,6 @@ export type Database = {
             | null
           billing_on: boolean
           billing_on_alias: string | null
-          root_account_email: string | null
           contract_id: string
           created_at: string
           credit_share: Database["public"]["Enums"]["credit_share_type"] | null
@@ -308,6 +307,7 @@ export type Database = {
           id: string
           msp_grade: Database["public"]["Enums"]["msp_grade_type"] | null
           payer: Database["public"]["Enums"]["payer_type"] | null
+          root_account_email: string | null
           sales_rep_id: string | null
           tags: string[] | null
           updated_at: string
@@ -321,7 +321,6 @@ export type Database = {
             | null
           billing_on?: boolean
           billing_on_alias?: string | null
-          root_account_email?: string | null
           contract_id: string
           created_at?: string
           credit_share?: Database["public"]["Enums"]["credit_share_type"] | null
@@ -331,6 +330,7 @@ export type Database = {
           id?: string
           msp_grade?: Database["public"]["Enums"]["msp_grade_type"] | null
           payer?: Database["public"]["Enums"]["payer_type"] | null
+          root_account_email?: string | null
           sales_rep_id?: string | null
           tags?: string[] | null
           updated_at?: string
@@ -344,7 +344,6 @@ export type Database = {
             | null
           billing_on?: boolean
           billing_on_alias?: string | null
-          root_account_email?: string | null
           contract_id?: string
           created_at?: string
           credit_share?: Database["public"]["Enums"]["credit_share_type"] | null
@@ -354,6 +353,7 @@ export type Database = {
           id?: string
           msp_grade?: Database["public"]["Enums"]["msp_grade_type"] | null
           payer?: Database["public"]["Enums"]["payer_type"] | null
+          root_account_email?: string | null
           sales_rep_id?: string | null
           tags?: string[] | null
           updated_at?: string
@@ -483,8 +483,8 @@ export type Database = {
           created_at: string
           currency: Database["public"]["Enums"]["currency_type"] | null
           deleted_at: string | null
-          memo: string | null
           id: string
+          memo: string | null
           name: string
           stage: string | null
           total_amount: number | null
@@ -499,8 +499,8 @@ export type Database = {
           created_at?: string
           currency?: Database["public"]["Enums"]["currency_type"] | null
           deleted_at?: string | null
-          memo?: string | null
           id?: string
+          memo?: string | null
           name: string
           stage?: string | null
           total_amount?: number | null
@@ -515,8 +515,8 @@ export type Database = {
           created_at?: string
           currency?: Database["public"]["Enums"]["currency_type"] | null
           deleted_at?: string | null
-          memo?: string | null
           id?: string
+          memo?: string | null
           name?: string
           stage?: string | null
           total_amount?: number | null
@@ -550,6 +550,124 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deposit_accounts: {
+        Row: {
+          balance: number
+          contract_id: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          last_recalc_at: string | null
+          total_deposit: number
+          total_usage: number
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          contract_id: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_recalc_at?: string | null
+          total_deposit?: number
+          total_usage?: number
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          contract_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_recalc_at?: string | null
+          total_deposit?: number
+          total_usage?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_accounts_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: true
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_accounts_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: true
+            referencedRelation: "contracts_with_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deposit_transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          memo: string | null
+          source: Database["public"]["Enums"]["deposit_txn_source"]
+          txn_date: string
+          txn_type: Database["public"]["Enums"]["deposit_txn_type"]
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          memo?: string | null
+          source?: Database["public"]["Enums"]["deposit_txn_source"]
+          txn_date: string
+          txn_type: Database["public"]["Enums"]["deposit_txn_type"]
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          memo?: string | null
+          source?: Database["public"]["Enums"]["deposit_txn_source"]
+          txn_date?: string
+          txn_type?: Database["public"]["Enums"]["deposit_txn_type"]
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_transactions_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -965,10 +1083,13 @@ export type Database = {
         Row: {
           assigned_to: string | null
           assigned_to_name: string | null
+          aws_account_ids: string[] | null
+          aws_am: string | null
           aws_amount: number | null
           billing_method:
             | Database["public"]["Enums"]["billing_method_type"]
             | null
+          billing_on: boolean | null
           client_display_id: string | null
           client_id: string | null
           client_name: string | null
@@ -978,10 +1099,11 @@ export type Database = {
           credit_share: Database["public"]["Enums"]["credit_share_type"] | null
           currency: Database["public"]["Enums"]["currency_type"] | null
           deleted_at: string | null
-          memo: string | null
           expected_mrr: number | null
           has_management_fee: boolean | null
           id: string | null
+          memo: string | null
+          msp_grade: Database["public"]["Enums"]["msp_grade_type"] | null
           name: string | null
           payer: Database["public"]["Enums"]["payer_type"] | null
           sales_rep_id: string | null
@@ -1039,13 +1161,13 @@ export type Database = {
       generate_edu_contract_id: { Args: never; Returns: string }
       generate_msp_contract_id: { Args: never; Returns: string }
       is_admin_or_clevel: { Args: never; Returns: boolean }
+      update_contract_teams: {
+        Args: { p_allocations: Json; p_contract_id: string }
+        Returns: undefined
+      }
       user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
-      }
-      update_contract_teams: {
-        Args: { p_contract_id: string; p_allocations: Record<string, unknown>[] }
-        Returns: undefined
       }
       user_team_id: { Args: never; Returns: string }
     }
@@ -1056,7 +1178,13 @@ export type Database = {
         | "공공기관 별도 청구"
       business_type: "msp" | "tt" | "dev"
       client_grade: "A" | "B" | "C" | "D" | "E"
-      client_status_type: "신규" | "진행중" | "활성" | "휴면" | "종료" | "상태없음"
+      client_status_type:
+        | "신규"
+        | "진행중"
+        | "활성"
+        | "휴면"
+        | "종료"
+        | "상태없음"
       client_type: "univ" | "corp" | "govt" | "asso" | "etc"
       company_size_type:
         | "스타트업"
@@ -1067,6 +1195,8 @@ export type Database = {
       contract_type: "msp" | "tt" | "dev"
       credit_share_type: "가능" | "불가능" | "미정"
       currency_type: "KRW" | "USD"
+      deposit_txn_source: "manual" | "aws_api" | "billing_on"
+      deposit_txn_type: "deposit" | "usage" | "adjustment" | "refund"
       industry_type:
         | "IT"
         | "제조"
@@ -1213,7 +1343,14 @@ export const Constants = {
       ],
       business_type: ["msp", "tt", "dev"],
       client_grade: ["A", "B", "C", "D", "E"],
-      client_status_type: ["신규", "진행중", "활성", "휴면", "종료", "상태없음"],
+      client_status_type: [
+        "신규",
+        "진행중",
+        "활성",
+        "휴면",
+        "종료",
+        "상태없음",
+      ],
       client_type: ["univ", "corp", "govt", "asso", "etc"],
       company_size_type: [
         "스타트업",
@@ -1225,6 +1362,8 @@ export const Constants = {
       contract_type: ["msp", "tt", "dev"],
       credit_share_type: ["가능", "불가능", "미정"],
       currency_type: ["KRW", "USD"],
+      deposit_txn_source: ["manual", "aws_api", "billing_on"],
+      deposit_txn_type: ["deposit", "usage", "adjustment", "refund"],
       industry_type: [
         "IT",
         "제조",
