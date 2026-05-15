@@ -35,7 +35,18 @@ export const depositService = {
       .is('deleted_at', null);
     if (error) throw error;
 
-    return (data ?? []).map((row: any) => ({
+    type RawRow = Omit<DepositAccount, never> & {
+      contract: {
+        id: string;
+        name: string;
+        contract_id: string;
+        currency: 'KRW' | 'USD';
+        client_id: string;
+        clients: { name: string } | null;
+      };
+    };
+
+    return ((data ?? []) as unknown as RawRow[]).map((row) => ({
       id: row.id,
       contract_id: row.contract_id,
       balance: row.balance,
