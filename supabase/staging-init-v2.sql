@@ -301,7 +301,9 @@ ALTER TABLE clients ADD CONSTRAINT clients_client_id_key UNIQUE (client_id);
 ALTER TABLE contract_msp_details ADD CONSTRAINT contract_msp_details_contract_id_key UNIQUE (contract_id);
 ALTER TABLE contract_teams ADD CONSTRAINT contract_teams_contract_id_team_id_key UNIQUE (contract_id, team_id);
 ALTER TABLE contracts ADD CONSTRAINT contracts_contract_id_key UNIQUE (contract_id);
-ALTER TABLE deposit_accounts ADD CONSTRAINT deposit_accounts_contract_id_key UNIQUE (contract_id);
+-- 00027과 동기화: 전역 UNIQUE 대신 활성 row 한정 부분 unique index
+CREATE UNIQUE INDEX IF NOT EXISTS deposit_accounts_contract_id_active_unique
+  ON deposit_accounts (contract_id) WHERE deleted_at IS NULL;
 ALTER TABLE profiles ADD CONSTRAINT profiles_email_key UNIQUE (email);
 ALTER TABLE teams ADD CONSTRAINT teams_name_key UNIQUE (name);
 ALTER TABLE user_preferences ADD CONSTRAINT user_preferences_user_id_key UNIQUE (user_id);
@@ -442,6 +444,22 @@ BEGIN
   END IF;
 END; $$;
 
+-- 00028과 동기화: 활성 거래 있는 계좌 비활성화 차단 (BIZ-6 DB 강제)
+CREATE OR REPLACE FUNCTION public.assert_deposit_deactivation_safe()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
+DECLARE v_active int;
+BEGIN
+  IF OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT NULL THEN
+    SELECT COUNT(*) INTO v_active FROM deposit_transactions
+      WHERE account_id = NEW.id AND voided_at IS NULL;
+    IF v_active > 0 THEN
+      RAISE EXCEPTION '활성 거래(%건)가 있는 예치금 계좌는 비활성화할 수 없습니다 (account_id=%)',
+        v_active, NEW.id USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+
 -- 00026과 동기화: 비활성 계좌에 거래 INSERT/UPDATE 차단 (void만 허용)
 CREATE OR REPLACE FUNCTION public.assert_deposit_account_active()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
@@ -568,6 +586,7 @@ CREATE TRIGGER contract_teams_updated_at BEFORE UPDATE ON public.contract_teams 
 CREATE TRIGGER contracts_updated_at BEFORE UPDATE ON public.contracts FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_contract_delete_guard BEFORE UPDATE OF deleted_at ON public.contracts FOR EACH ROW EXECUTE FUNCTION guard_contract_delete_with_deposit();
 CREATE TRIGGER deposit_accounts_updated_at BEFORE UPDATE ON public.deposit_accounts FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_assert_deposit_deactivation_safe BEFORE UPDATE OF deleted_at ON public.deposit_accounts FOR EACH ROW EXECUTE FUNCTION assert_deposit_deactivation_safe();
 CREATE TRIGGER trg_deposit_txn_recalc AFTER INSERT OR DELETE OR UPDATE OF amount, voided_at, txn_type ON public.deposit_transactions FOR EACH ROW EXECUTE FUNCTION recalc_deposit_account_balance();
 CREATE TRIGGER trg_assert_active_account BEFORE INSERT OR UPDATE OF amount, txn_type, voided_at ON public.deposit_transactions FOR EACH ROW EXECUTE FUNCTION assert_deposit_account_active();
 CREATE TRIGGER education_operations_updated_at BEFORE UPDATE ON public.education_operations FOR EACH ROW EXECUTE FUNCTION update_updated_at();

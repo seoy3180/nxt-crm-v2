@@ -177,12 +177,21 @@ export const depositService = {
     if (error) throw error;
   },
 
-  /** 트랜잭션 등록 (INSERT). 트리거가 잔액 자동 갱신. */
+  /**
+   * 트랜잭션 등록 (INSERT). 트리거가 잔액 자동 갱신.
+   * `created_by`에 현재 로그인 user.id를 명시 set →
+   *   RLS에서 본인 거래 void가 가능해짐 (영업 사용자도 본인 입력분 무효화 OK).
+   */
   async addTransaction(params: AddTransactionInput): Promise<DepositTransaction> {
     const supabase = createClient();
+    const { data: userResp } = await supabase.auth.getUser();
     const { data, error } = await supabase
       .from('deposit_transactions')
-      .insert({ ...params, source: 'manual' as const })
+      .insert({
+        ...params,
+        source: 'manual' as const,
+        created_by: userResp.user?.id ?? null,
+      })
       .select()
       .single();
     if (error) throw error;
