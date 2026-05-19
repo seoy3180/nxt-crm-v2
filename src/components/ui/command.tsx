@@ -25,11 +25,9 @@ function Command({
 }
 
 function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command",
   children,
   ...props
-}: DialogProps & { title?: string; description?: string }) {
+}: DialogProps) {
   return (
     <Dialog {...props}>
       <DialogContent className="overflow-hidden p-0">

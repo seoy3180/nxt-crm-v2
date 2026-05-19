@@ -281,7 +281,6 @@ export function FieldChips({
   chipClassName = 'bg-zinc-100 text-zinc-700',
   validate,
   collapseAt = 5,
-  textModeThreshold = 4,
 }: {
   editing: boolean;
   value: string;
@@ -292,8 +291,6 @@ export function FieldChips({
   validate?: (v: string) => string | undefined;
   /** 읽기 모드에서 이 수 초과 시 접기 (기본 5) */
   collapseAt?: number;
-  /** 칩이 이 수 이상일 때 "텍스트로 편집" 토글 표시 (기본 4) */
-  textModeThreshold?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -305,7 +302,6 @@ export function FieldChips({
         placeholder={placeholder}
         chipClassName={chipClassName}
         validate={validate}
-        textModeThreshold={textModeThreshold}
       />
     );
   }
@@ -349,14 +345,12 @@ function HybridChipInput({
   placeholder,
   chipClassName = 'bg-zinc-100 text-zinc-700',
   validate,
-  textModeThreshold,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   chipClassName?: string;
   validate?: (v: string) => string | undefined;
-  textModeThreshold: number;
 }) {
   const chips = value.split(',').map((s) => s.trim()).filter(Boolean);
   const [mode, setMode] = useState<'chip' | 'text'>('chip');

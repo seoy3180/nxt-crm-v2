@@ -16,7 +16,9 @@ import {
   GraduationCap,
   Calendar,
   Code,
+  Wallet,
 } from 'lucide-react';
+import { SidebarDepositBadge } from './sidebar-deposit-badge';
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   'layout-dashboard': LayoutDashboard,
@@ -30,6 +32,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   'graduation-cap': GraduationCap,
   'calendar': Calendar,
   'code': Code,
+  'wallet': Wallet,
 };
 
 interface SidebarNavItemProps {
@@ -37,9 +40,10 @@ interface SidebarNavItemProps {
   label: string;
   icon: string;
   disabled?: boolean;
+  showDepositBadge?: boolean;
 }
 
-export function SidebarNavItem({ href, label, icon, disabled }: SidebarNavItemProps) {
+export function SidebarNavItem({ href, label, icon, disabled, showDepositBadge }: SidebarNavItemProps) {
   const pathname = usePathname();
   const { isEditing } = useEditMode();
   const dashboardPaths = ['/dashboard', '/msp', '/edu', '/dev'];
@@ -85,6 +89,7 @@ export function SidebarNavItem({ href, label, icon, disabled }: SidebarNavItemPr
     >
       {IconComponent && <IconComponent className="h-4 w-4" />}
       <span>{label}</span>
+      {showDepositBadge && <SidebarDepositBadge />}
     </Link>
   );
 }

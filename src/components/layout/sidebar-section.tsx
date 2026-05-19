@@ -3,7 +3,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 
 interface SidebarSectionProps {
   label: string;
-  items: ReadonlyArray<{ href: string; label: string; icon: string; disabled?: boolean; roles?: readonly string[] }>;
+  items: ReadonlyArray<{ href: string; label: string; icon: string; disabled?: boolean; roles?: readonly string[]; showDepositBadge?: boolean }>;
   isFirst?: boolean;
 }
 
@@ -23,7 +23,7 @@ export function SidebarSection({ label, items, isFirst }: SidebarSectionProps) {
         </span>
       </div>
       {filteredItems.map((item) => (
-        <SidebarNavItem key={item.href} href={item.href} label={item.label} icon={item.icon} disabled={item.disabled} />
+        <SidebarNavItem key={item.href} href={item.href} label={item.label} icon={item.icon} disabled={item.disabled} showDepositBadge={item.showDepositBadge} />
       ))}
     </div>
   );

@@ -16,6 +16,8 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowRightLeft, ExternalLink } from 'lucide-react';
 import { ContractMemoCard } from './contract-memo-card';
 import { useSectionBasePath } from '@/hooks/use-section-base-path';
+import { DepositAccountDetail } from '@/components/deposit/deposit-account-detail';
+import { useCurrentUser } from '@/hooks/use-current-user';
 
 interface ContractDetailProps {
   contract: ContractRow;
@@ -30,6 +32,8 @@ function getStageLabel(stage: string | null, type: string) {
 export function ContractDetail({ contract }: ContractDetailProps) {
   const router = useRouter();
   const basePath = useSectionBasePath();
+  const { data: currentUser } = useCurrentUser();
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'c_level';
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
 
   return (
@@ -104,6 +108,13 @@ export function ContractDetail({ contract }: ContractDetailProps) {
               contract={contract}
               details={contract.msp_details ?? null}
               techLeads={contract.tech_leads ?? []}
+            />
+          )}
+          {contract.type === 'msp' && (
+            <DepositAccountDetail
+              contractId={contract.id}
+              currency={(contract.currency === 'USD' ? 'USD' : 'KRW') as 'USD' | 'KRW'}
+              isAdmin={isAdmin}
             />
           )}
           {contract.type === 'tt' && (

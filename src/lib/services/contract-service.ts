@@ -388,7 +388,30 @@ export const contractService = {
     if (error) throw error;
   },
 
-  async softDelete(id: string) {
+  /**
+   * 계약 soft delete.
+   *
+   * 예치금 잔액 사전 체크 (BIZ-5, Pre-mortem T-2):
+   * - 활성 deposit_accounts가 있고 balance != 0이면 차단 후 { blocked }를 반환.
+   * - DB 트리거 `guard_contract_delete_with_deposit`이 최종 안전망.
+   */
+  async softDelete(
+    id: string,
+  ): Promise<{ blocked?: { balance: number; currency: string } }> {
+    // 사전 체크: 예치금 잔액 != 0이면 차단
+    const { data: acct } = await getClient()
+      .from('deposit_accounts')
+      .select('balance, contract:contracts(currency)')
+      .eq('contract_id', id)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (acct && acct.balance !== 0) {
+      const currency =
+        (acct.contract as unknown as { currency: string } | null)?.currency ?? 'KRW';
+      return { blocked: { balance: acct.balance, currency } };
+    }
+
     const now = new Date().toISOString();
 
     const { error } = await getClient()
@@ -402,7 +425,10 @@ export const contractService = {
     await Promise.all([
       getClient().from('contract_teams').update({ deleted_at: now }).eq('contract_id', id),
       getClient().from('contract_msp_details').update({ deleted_at: now }).eq('contract_id', id),
+      getClient().from('deposit_accounts').update({ deleted_at: now }).eq('contract_id', id),
     ]);
+
+    return {};
   },
 };
 
