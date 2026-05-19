@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useId } from 'react';
 import { MSP_TAG_OPTIONS, MSP_TAG_COLORS } from '@/lib/constants';
 
 interface InlineTagSelectProps {
@@ -24,6 +24,7 @@ function useClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () =
 
 export function InlineTagSelect({ value, onChange, onDone }: InlineTagSelectProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
   const selected = value.split(',').map((s) => s.trim()).filter(Boolean);
 
   function toggle(tag: string) {
@@ -42,7 +43,7 @@ export function InlineTagSelect({ value, onChange, onDone }: InlineTagSelectProp
   }, [onDone]);
 
   return (
-    <div ref={ref} className="relative" role="combobox" aria-expanded={true} aria-haspopup="listbox" aria-label="태그 선택">
+    <div ref={ref} className="relative" role="combobox" aria-expanded={true} aria-haspopup="listbox" aria-controls={listboxId} aria-label="태그 선택">
       <div className="flex w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 h-8 overflow-hidden">
         <span className="flex gap-1 flex-nowrap overflow-hidden">
           {selected.length === 0
@@ -56,7 +57,7 @@ export function InlineTagSelect({ value, onChange, onDone }: InlineTagSelectProp
           }
         </span>
       </div>
-      <div className="absolute z-20 mt-1 w-full rounded-md border border-zinc-200 bg-white shadow-lg" role="listbox" aria-label="MSP 태그 목록" aria-multiselectable="true">
+      <div id={listboxId} className="absolute z-20 mt-1 w-full rounded-md border border-zinc-200 bg-white shadow-lg" role="listbox" aria-label="MSP 태그 목록" aria-multiselectable="true">
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-100">
           <span className="text-[11px] text-zinc-400">
             {selected.length > 0 ? `${selected.length}개 선택` : '선택 없음'}
