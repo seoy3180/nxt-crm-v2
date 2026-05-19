@@ -34,6 +34,8 @@ export function ContractDetail({ contract }: ContractDetailProps) {
   const basePath = useSectionBasePath();
   const { data: currentUser } = useCurrentUser();
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'c_level';
+  // 예치금 관리(보정/환불/활성·비활성·재활성)는 team_lead까지 허용 (00029)
+  const canManageDeposit = isAdmin || currentUser?.role === 'team_lead';
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
 
   return (
@@ -114,7 +116,7 @@ export function ContractDetail({ contract }: ContractDetailProps) {
             <DepositAccountDetail
               contractId={contract.id}
               currency={(contract.currency === 'USD' ? 'USD' : 'KRW') as 'USD' | 'KRW'}
-              isAdmin={isAdmin}
+              canManage={canManageDeposit}
             />
           )}
           {contract.type === 'tt' && (

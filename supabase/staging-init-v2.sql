@@ -355,6 +355,14 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'
   SELECT public.user_role() IN ('admin'::user_role, 'c_level'::user_role);
 $$;
 
+-- 00029와 동기화: 예치금 권한 확장용 헬퍼
+CREATE OR REPLACE FUNCTION public.is_admin_clevel_or_lead()
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
+BEGIN
+  RETURN public.is_admin_or_clevel()
+      OR public.user_role() = 'team_lead'::user_role;
+END $$;
+
 CREATE OR REPLACE FUNCTION public.can_access_client(p_client_id uuid)
 RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
 BEGIN
@@ -687,15 +695,17 @@ CREATE POLICY deposit_accounts_select ON deposit_accounts FOR SELECT
     SELECT 1 FROM contracts c WHERE c.id = deposit_accounts.contract_id AND c.type = 'msp'::contract_type AND c.deleted_at IS NULL))));
 CREATE POLICY deposit_accounts_update ON deposit_accounts FOR UPDATE USING (can_access_contract(contract_id));
 
+-- 00029와 동기화: adjustment/refund INSERT 허용을 team_lead까지 확장
 CREATE POLICY deposit_txn_insert ON deposit_transactions FOR INSERT
   WITH CHECK (((EXISTS (
     SELECT 1 FROM deposit_accounts a WHERE a.id = deposit_transactions.account_id AND can_access_contract(a.contract_id)))
-    AND ((txn_type = ANY (ARRAY['deposit'::deposit_txn_type, 'usage'::deposit_txn_type])) OR is_admin_or_clevel())));
+    AND ((txn_type = ANY (ARRAY['deposit'::deposit_txn_type, 'usage'::deposit_txn_type])) OR is_admin_clevel_or_lead())));
 CREATE POLICY deposit_txn_select ON deposit_transactions FOR SELECT
   USING ((EXISTS (
     SELECT 1 FROM deposit_accounts a WHERE a.id = deposit_transactions.account_id AND can_access_contract(a.contract_id))));
+-- 00029와 동기화: void 권한을 team_lead까지 확장
 CREATE POLICY deposit_txn_update ON deposit_transactions FOR UPDATE
-  USING (((created_by = auth.uid()) OR is_admin_or_clevel()));
+  USING (((created_by = auth.uid()) OR is_admin_clevel_or_lead()));
 
 CREATE POLICY edu_op_dates_delete ON education_operation_dates FOR DELETE USING ((auth.uid() IS NOT NULL));
 CREATE POLICY edu_op_dates_insert ON education_operation_dates FOR INSERT WITH CHECK ((auth.uid() IS NOT NULL));

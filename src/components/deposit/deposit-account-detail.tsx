@@ -26,7 +26,8 @@ const ALERT_STYLES: Record<AlertLevel, { balBg: string; balText: string; bar: st
 interface Props {
   contractId: string;
   currency: 'USD' | 'KRW';
-  isAdmin: boolean;
+  /** 보정·환불·활성·비활성·재활성 등 운영 액션 권한 (admin·c_level·team_lead) */
+  canManage: boolean;
 }
 
 /**
@@ -37,7 +38,7 @@ interface Props {
  * - 활성 + 트랜잭션 0건 → Empty (잔액 0)
  * - 활성 + 트랜잭션 있음 → 풀폭 카드 + 거래 테이블
  */
-export function DepositAccountDetail({ contractId, currency, isAdmin }: Props) {
+export function DepositAccountDetail({ contractId, currency, canManage }: Props) {
   const { data: account, isLoading: accountLoading } = useDepositAccountByContract(contractId);
   const { data: txns = [], isLoading: txnLoading } = useDepositTransactions(account?.id ?? null);
   const [modal, setModal] = useState<
@@ -165,7 +166,7 @@ export function DepositAccountDetail({ contractId, currency, isAdmin }: Props) {
           >
             − 사용 차감
           </button>
-          {isAdmin && (
+          {canManage && (
             <>
               <button
                 type="button"
