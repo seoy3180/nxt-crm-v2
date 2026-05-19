@@ -1,7 +1,6 @@
 'use client';
 
-import { DEPOSIT_ALERT_THRESHOLDS } from '@/lib/deposit/constants';
-import type { DepositAccountWithContract } from '@/lib/services/deposit-service';
+import type { DepositAccountWithMetrics } from '@/lib/services/deposit-service';
 
 export type DepositFilter = 'all' | 'critical' | 'warning';
 
@@ -12,23 +11,11 @@ export function DepositFilterBar({
 }: {
   value: DepositFilter;
   onChange: (v: DepositFilter) => void;
-  accounts: DepositAccountWithContract[];
+  accounts: DepositAccountWithMetrics[];
 }) {
-  // 1차 카운트 (KPI/배지와 동일 로직, 카드의 정밀 alertLevel과는 다를 수 있음)
-  const critical = accounts.filter((a) => {
-    if (a.balance < 0) return true;
-    if (a.total_deposit <= 0) return false;
-    return (a.balance / a.total_deposit) * 100 < DEPOSIT_ALERT_THRESHOLDS.critical.balancePct;
-  }).length;
-  const warning = accounts.filter((a) => {
-    if (a.balance < 0) return false;
-    if (a.total_deposit <= 0) return false;
-    const pct = (a.balance / a.total_deposit) * 100;
-    return (
-      pct >= DEPOSIT_ALERT_THRESHOLDS.critical.balancePct &&
-      pct < DEPOSIT_ALERT_THRESHOLDS.warning.balancePct
-    );
-  }).length;
+  // metrics.alertLevel — 카드/KPI/사이드바 배지와 동일 source.
+  const critical = accounts.filter((a) => a.metrics.alertLevel === 'critical').length;
+  const warning = accounts.filter((a) => a.metrics.alertLevel === 'warning').length;
 
   const base = 'h-8 rounded-lg px-3 text-[13px] font-medium transition-colors';
   return (

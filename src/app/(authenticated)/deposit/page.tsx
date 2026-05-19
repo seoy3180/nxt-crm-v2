@@ -6,22 +6,7 @@ import { DepositKpiRow } from '@/components/deposit/deposit-kpi-row';
 import { DepositFilterBar, type DepositFilter } from '@/components/deposit/deposit-filter-bar';
 import { DepositCard } from '@/components/deposit/deposit-card';
 import { DepositEmptyState } from '@/components/deposit/deposit-empty-state';
-import { DEPOSIT_ALERT_THRESHOLDS } from '@/lib/deposit/constants';
-import type { DepositAccountWithContract } from '@/lib/services/deposit-service';
 import type { AlertLevel } from '@/lib/deposit/types';
-
-/**
- * 1차 alertLevel 판정 (트랜잭션 미조회 — KPI/사이드바와 동일 로직).
- * 카드 자체는 useDepositTransactions로 정밀 판정하므로 표시 불일치 가능.
- */
-function quickAlertLevel(a: DepositAccountWithContract): AlertLevel {
-  if (a.balance < 0) return 'critical';
-  if (a.total_deposit <= 0) return 'critical';
-  const pct = (a.balance / a.total_deposit) * 100;
-  if (pct < DEPOSIT_ALERT_THRESHOLDS.critical.balancePct) return 'critical';
-  if (pct < DEPOSIT_ALERT_THRESHOLDS.warning.balancePct) return 'warning';
-  return 'ok';
-}
 
 const ORDER: Record<AlertLevel, number> = { critical: 0, warning: 1, ok: 2 };
 
@@ -31,19 +16,17 @@ export default function DepositDashboardPage() {
 
   const sorted = useMemo(() => {
     return [...accounts].sort((a, b) => {
-      const la = ORDER[quickAlertLevel(a)];
-      const lb = ORDER[quickAlertLevel(b)];
+      const la = ORDER[a.metrics.alertLevel];
+      const lb = ORDER[b.metrics.alertLevel];
       if (la !== lb) return la - lb;
-      // 동일 레벨 내에서는 잔액% 오름차순 (긴박한 순)
-      const pa = a.total_deposit > 0 ? a.balance / a.total_deposit : 0;
-      const pb = b.total_deposit > 0 ? b.balance / b.total_deposit : 0;
-      return pa - pb;
+      // 동일 레벨 내 잔액% 오름차순 (긴박한 순)
+      return a.metrics.balancePct - b.metrics.balancePct;
     });
   }, [accounts]);
 
   const filtered = useMemo(() => {
     if (filter === 'all') return sorted;
-    return sorted.filter((a) => quickAlertLevel(a) === filter);
+    return sorted.filter((a) => a.metrics.alertLevel === filter);
   }, [sorted, filter]);
 
   if (!isLoading && accounts.length === 0) return <DepositEmptyState />;

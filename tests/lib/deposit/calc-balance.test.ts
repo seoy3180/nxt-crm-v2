@@ -122,11 +122,15 @@ describe('calcAlertLevel', () => {
     expect(calcAlertLevel(acct, 100_000)).toBe('ok');
   });
 
-  it('total_deposit 0 + balance 0 → ok (분모 0이라 pct=0, 하지만 days=Infinity)', () => {
-    const acct = account({ balance: 0, total_deposit: 0 });
-    // balancePct = 0 → critical 조건 만족 (< 10), days = Infinity → critical 조건 OR으로 critical
-    // 단 balance가 0이고 활성 기간도 짧으면 ok로 처리할지 critical로 처리할지 정책 결정.
-    // PRD 기본 룰에 따라 balancePct < 10이면 critical로 분류.
-    expect(calcAlertLevel(acct, 0)).toBe('critical');
+  it('활성화 직후 (total_deposit=0 AND total_usage=0) → ok', () => {
+    // 새 계좌 활성화 후 입금/사용 모두 없는 운영 시작 전 상태는 alert 제외.
+    const acct = account({ balance: 0, total_deposit: 0, total_usage: 0 });
+    expect(calcAlertLevel(acct, 0)).toBe('ok');
+  });
+
+  it('total_deposit > 0인데 잔액 0 (전액 소진) → critical', () => {
+    // fresh 분기로 인해 정상 운영 중 전액 소진이 가려지지 않는지 검증.
+    const acct = account({ balance: 0, total_deposit: 1_000_000, total_usage: 1_000_000 });
+    expect(calcAlertLevel(acct, 300_000)).toBe('critical');
   });
 });

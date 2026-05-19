@@ -367,10 +367,27 @@ BEGIN
   );
 END; $$;
 
+-- 00025와 동기화: 도메인 fallback 포함
 CREATE OR REPLACE FUNCTION public.can_access_contract(p_contract_id uuid)
 RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
+DECLARE
+  v_team_name     TEXT;
+  v_contract_type contract_type;
 BEGIN
   IF public.is_admin_or_clevel() THEN RETURN TRUE; END IF;
+
+  SELECT name INTO v_team_name FROM teams WHERE id = public.user_team_id();
+  IF v_team_name IS NULL THEN RETURN FALSE; END IF;
+
+  SELECT type INTO v_contract_type FROM contracts WHERE id = p_contract_id;
+  IF v_contract_type IS NULL THEN RETURN FALSE; END IF;
+
+  IF (v_team_name = 'MSP팀'  AND v_contract_type = 'msp'::contract_type)
+     OR (v_team_name = '교육팀' AND v_contract_type = 'tt'::contract_type)
+     OR (v_team_name = '개발팀' AND v_contract_type = 'dev'::contract_type) THEN
+    RETURN TRUE;
+  END IF;
+
   RETURN EXISTS (
     SELECT 1 FROM contract_teams
     WHERE contract_id = p_contract_id
@@ -424,6 +441,21 @@ BEGIN
     FROM jsonb_array_elements(p_allocations) AS elem;
   END IF;
 END; $$;
+
+-- 00026과 동기화: 비활성 계좌에 거래 INSERT/UPDATE 차단 (void만 허용)
+CREATE OR REPLACE FUNCTION public.assert_deposit_account_active()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
+DECLARE v_deleted_at timestamptz;
+BEGIN
+  SELECT deleted_at INTO v_deleted_at FROM deposit_accounts WHERE id = NEW.account_id;
+  IF v_deleted_at IS NULL THEN RETURN NEW; END IF;
+  IF TG_OP = 'UPDATE' AND OLD.voided_at IS NULL AND NEW.voided_at IS NOT NULL
+     AND NEW.amount = OLD.amount AND NEW.txn_type = OLD.txn_type THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION '비활성화된 예치금 계좌에는 거래를 등록/수정할 수 없습니다 (account_id=%)', NEW.account_id
+    USING ERRCODE = 'check_violation';
+END $$;
 
 CREATE OR REPLACE FUNCTION public.recalc_deposit_account_balance()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
@@ -537,6 +569,7 @@ CREATE TRIGGER contracts_updated_at BEFORE UPDATE ON public.contracts FOR EACH R
 CREATE TRIGGER trg_contract_delete_guard BEFORE UPDATE OF deleted_at ON public.contracts FOR EACH ROW EXECUTE FUNCTION guard_contract_delete_with_deposit();
 CREATE TRIGGER deposit_accounts_updated_at BEFORE UPDATE ON public.deposit_accounts FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_deposit_txn_recalc AFTER INSERT OR DELETE OR UPDATE OF amount, voided_at, txn_type ON public.deposit_transactions FOR EACH ROW EXECUTE FUNCTION recalc_deposit_account_balance();
+CREATE TRIGGER trg_assert_active_account BEFORE INSERT OR UPDATE OF amount, txn_type, voided_at ON public.deposit_transactions FOR EACH ROW EXECUTE FUNCTION assert_deposit_account_active();
 CREATE TRIGGER education_operations_updated_at BEFORE UPDATE ON public.education_operations FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER update_staff_updated_at BEFORE UPDATE ON public.employees FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER instructors_updated_at BEFORE UPDATE ON public.instructors FOR EACH ROW EXECUTE FUNCTION update_updated_at();

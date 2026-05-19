@@ -56,12 +56,16 @@ export function calcBalancePct(account: DepositAccount): number {
 
 /**
  * 알림 레벨 판정.
+ * - 활성화 직후(total_deposit=0 AND total_usage=0): 운영 시작 전이므로 ok
  * - critical: balancePct < 10 OR daysUntilDepleted < 14 (strict <)
  * - warning: balancePct < 25 OR daysUntilDepleted < 45
  * - ok: 그 외
- * 분모 0(total_deposit 0)인 경우 balancePct는 0이 되어 critical 분류됨.
  */
 export function calcAlertLevel(account: DepositAccount, avgMonthlyUsage: number): AlertLevel {
+  if (account.total_deposit === 0 && account.total_usage === 0) {
+    return 'ok';
+  }
+
   const pct = calcBalancePct(account);
   const days = calcDaysUntilDepleted(account.balance, avgMonthlyUsage);
 

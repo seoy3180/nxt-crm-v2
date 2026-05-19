@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { Wallet, TrendingDown, CircleAlert } from 'lucide-react';
-import { calcAvgMonthlyUsage, calcDaysUntilDepleted, calcBalancePct, calcAlertLevel } from '@/lib/deposit/calc-balance';
 import { useDepositTransactions } from '@/hooks/use-deposit-transactions';
 import { DepositTxnModal } from './modals/deposit-txn-modal';
-import type { DepositAccountWithContract } from '@/lib/services/deposit-service';
+import type { DepositAccountWithMetrics } from '@/lib/services/deposit-service';
 import type { AlertLevel } from '@/lib/deposit/types';
 
 const ALERT_STYLES: Record<AlertLevel, { border: string; badgeBg: string; badgeText: string; balBg: string; balText: string; bar: string }> = {
@@ -35,14 +34,11 @@ const ALERT_STYLES: Record<AlertLevel, { border: string; badgeBg: string; badgeT
   },
 };
 
-export function DepositCard({ account }: { account: DepositAccountWithContract }) {
+export function DepositCard({ account }: { account: DepositAccountWithMetrics }) {
   const { data: txns = [] } = useDepositTransactions(account.id);
   const [modalType, setModalType] = useState<null | 'deposit' | 'usage'>(null);
 
-  const avgMonthly = calcAvgMonthlyUsage(account, txns);
-  const days = calcDaysUntilDepleted(account.balance, avgMonthly);
-  const pct = calcBalancePct(account);
-  const level = calcAlertLevel(account, avgMonthly);
+  const { avgMonthlyUsage: avgMonthly, daysUntilDepleted: days, balancePct: pct, alertLevel: level } = account.metrics;
   const style = ALERT_STYLES[level];
 
   const currency = account.contract.currency;
@@ -166,8 +162,3 @@ export function DepositCard({ account }: { account: DepositAccountWithContract }
   );
 }
 
-/** alertLevel 정밀 판정 후 정렬용 (page에서 사용). */
-export function calcAccountAlertLevel(account: DepositAccountWithContract, txns: Parameters<typeof calcAvgMonthlyUsage>[1]): AlertLevel {
-  const avg = calcAvgMonthlyUsage(account, txns);
-  return calcAlertLevel(account, avg);
-}

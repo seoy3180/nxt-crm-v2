@@ -1,8 +1,7 @@
 'use client';
 
 import { AlertTriangle } from 'lucide-react';
-import { DEPOSIT_ALERT_THRESHOLDS } from '@/lib/deposit/constants';
-import type { DepositAccountWithContract } from '@/lib/services/deposit-service';
+import type { DepositAccountWithMetrics } from '@/lib/services/deposit-service';
 
 function fmt(n: number, cur: 'USD' | 'KRW') {
   return `${cur === 'USD' ? '$' : '₩'} ${new Intl.NumberFormat('ko-KR').format(n)}`;
@@ -11,9 +10,9 @@ function fmt(n: number, cur: 'USD' | 'KRW') {
 /**
  * 전역 KPI 4박스 (PRD 옵션 C: USD/KRW 별도 트랙, 환산 합산 X).
  *
- * "알림 필요" 카운트는 1차 판정만 사용 (트랜잭션 미조회). 카드 단에서 정밀 판정.
+ * "알림 필요"는 `metrics.alertLevel` 사용 — 카드·사이드바와 동일 판정.
  */
-export function DepositKpiRow({ accounts }: { accounts: DepositAccountWithContract[] }) {
+export function DepositKpiRow({ accounts }: { accounts: DepositAccountWithMetrics[] }) {
   const split = (cur: 'USD' | 'KRW') => {
     const list = accounts.filter((a) => a.contract.currency === cur);
     return {
@@ -26,21 +25,8 @@ export function DepositKpiRow({ accounts }: { accounts: DepositAccountWithContra
   const usd = split('USD');
   const krw = split('KRW');
 
-  const critical = accounts.filter((a) => {
-    if (a.balance < 0) return true;
-    if (a.total_deposit <= 0) return false;
-    return (a.balance / a.total_deposit) * 100 < DEPOSIT_ALERT_THRESHOLDS.critical.balancePct;
-  }).length;
-
-  const warning = accounts.filter((a) => {
-    if (a.balance < 0) return false;
-    if (a.total_deposit <= 0) return false;
-    const pct = (a.balance / a.total_deposit) * 100;
-    return (
-      pct >= DEPOSIT_ALERT_THRESHOLDS.critical.balancePct &&
-      pct < DEPOSIT_ALERT_THRESHOLDS.warning.balancePct
-    );
-  }).length;
+  const critical = accounts.filter((a) => a.metrics.alertLevel === 'critical').length;
+  const warning = accounts.filter((a) => a.metrics.alertLevel === 'warning').length;
 
   return (
     <div className="grid grid-cols-4 gap-4">

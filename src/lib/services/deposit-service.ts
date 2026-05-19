@@ -1,5 +1,16 @@
 import { createClient } from '@/lib/supabase/client';
-import type { DepositAccount, DepositTransaction, DepositTxnType } from '@/lib/deposit/types';
+import {
+  calcAlertLevel,
+  calcAvgMonthlyUsage,
+  calcBalancePct,
+  calcDaysUntilDepleted,
+} from '@/lib/deposit/calc-balance';
+import type {
+  AlertLevel,
+  DepositAccount,
+  DepositTransaction,
+  DepositTxnType,
+} from '@/lib/deposit/types';
 
 /**
  * 대시보드 카드/KPI 표시용. 계약 + 고객 정보까지 같이 가져온다.
@@ -15,6 +26,17 @@ export interface DepositAccountWithContract extends DepositAccount {
   };
 }
 
+export interface DepositAccountMetrics {
+  avgMonthlyUsage: number;
+  daysUntilDepleted: number;
+  balancePct: number;
+  alertLevel: AlertLevel;
+}
+
+export interface DepositAccountWithMetrics extends DepositAccountWithContract {
+  metrics: DepositAccountMetrics;
+}
+
 export interface AddTransactionInput {
   account_id: string;
   txn_date: string;
@@ -24,6 +46,43 @@ export interface AddTransactionInput {
 }
 
 export const depositService = {
+  /**
+   * 활성 계좌 + 계약 정보 + 정밀 메트릭 (alertLevel/avgMonthlyUsage/daysUntilDepleted/balancePct).
+   * 모든 화면(카드/KPI/사이드바 배지/정렬)이 같은 alertLevel을 source of truth로 사용.
+   * 트랜잭션을 IN 쿼리 1회로 묶어 가져와 클라이언트에서 계좌별 그룹핑 후 메트릭 계산.
+   */
+  async listAccountsWithMetrics(): Promise<DepositAccountWithMetrics[]> {
+    const accounts = await this.listAccounts();
+    if (accounts.length === 0) return [];
+
+    const supabase = createClient();
+    const accountIds = accounts.map((a) => a.id);
+    const { data: txnRows, error } = await supabase
+      .from('deposit_transactions')
+      .select('*')
+      .in('account_id', accountIds);
+    if (error) throw error;
+
+    const txnsByAccount = new Map<string, DepositTransaction[]>();
+    for (const t of (txnRows ?? []) as DepositTransaction[]) {
+      const list = txnsByAccount.get(t.account_id);
+      if (list) list.push(t);
+      else txnsByAccount.set(t.account_id, [t]);
+    }
+
+    return accounts.map((account) => {
+      const txns = txnsByAccount.get(account.id) ?? [];
+      const avgMonthlyUsage = calcAvgMonthlyUsage(account, txns);
+      const daysUntilDepleted = calcDaysUntilDepleted(account.balance, avgMonthlyUsage);
+      const balancePct = calcBalancePct(account);
+      const alertLevel = calcAlertLevel(account, avgMonthlyUsage);
+      return {
+        ...account,
+        metrics: { avgMonthlyUsage, daysUntilDepleted, balancePct, alertLevel },
+      };
+    });
+  },
+
   /** 활성 계좌 + 계약 정보 전체 조회 (대시보드용). */
   async listAccounts(): Promise<DepositAccountWithContract[]> {
     const supabase = createClient();
@@ -130,11 +189,15 @@ export const depositService = {
     return data as DepositTransaction;
   },
 
-  /** 트랜잭션 무효화 (immutable 로그 유지). */
+  /**
+   * 트랜잭션 무효화 (immutable 로그 유지).
+   * 동시 void 가드: `.is('voided_at', null)` + select() row 수 검증 →
+   *   이미 누가 무효화했으면 두 번째 호출은 throw (silent no-op 방지).
+   */
   async voidTransaction(txnId: string, reason: string): Promise<void> {
     const supabase = createClient();
     const { data: userResp } = await supabase.auth.getUser();
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('deposit_transactions')
       .update({
         voided_at: new Date().toISOString(),
@@ -142,7 +205,11 @@ export const depositService = {
         void_reason: reason,
       })
       .eq('id', txnId)
-      .is('voided_at', null);
+      .is('voided_at', null)
+      .select('id');
     if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error('이미 무효화된 거래입니다.');
+    }
   },
 };
