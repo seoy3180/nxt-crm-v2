@@ -48,7 +48,7 @@ export function DepositCard({ account }: { account: DepositAccountWithMetrics })
   const recentTxns = txns.slice(0, 4);
 
   return (
-    <div className={`rounded-xl border bg-white p-5 space-y-4 ${style.border}`}>
+    <div className={`flex flex-col rounded-xl border bg-white p-5 space-y-4 ${style.border}`}>
       {/* 헤더 */}
       <div className="flex items-start justify-between">
         <div className="min-w-0">
@@ -130,8 +130,8 @@ export function DepositCard({ account }: { account: DepositAccountWithMetrics })
         </div>
       )}
 
-      {/* 액션 버튼 */}
-      <div className="flex gap-2 pt-2">
+      {/* 액션 버튼 — 카드 높이 다를 때도 항상 하단 정렬 */}
+      <div className="mt-auto flex gap-2 pt-2">
         <button
           type="button"
           onClick={() => setModalType('deposit')}
