@@ -592,14 +592,14 @@ export type Database = {
           {
             foreignKeyName: "deposit_accounts_contract_id_fkey"
             columns: ["contract_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "contracts"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "deposit_accounts_contract_id_fkey"
             columns: ["contract_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "contracts_with_details"
             referencedColumns: ["id"]
           },
@@ -964,6 +964,21 @@ export type Database = {
           },
         ]
       }
+      team_business_domains: {
+        Row: {
+          business_type: Database["public"]["Enums"]["business_type"]
+          team_type: Database["public"]["Enums"]["team_type"]
+        }
+        Insert: {
+          business_type: Database["public"]["Enums"]["business_type"]
+          team_type: Database["public"]["Enums"]["team_type"]
+        }
+        Update: {
+          business_type?: Database["public"]["Enums"]["business_type"]
+          team_type?: Database["public"]["Enums"]["team_type"]
+        }
+        Relationships: []
+      }
       teams: {
         Row: {
           created_at: string
@@ -1160,7 +1175,10 @@ export type Database = {
       }
       generate_edu_contract_id: { Args: never; Returns: string }
       generate_msp_contract_id: { Args: never; Returns: string }
+      is_admin_clevel_or_lead: { Args: never; Returns: boolean }
       is_admin_or_clevel: { Args: never; Returns: boolean }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       update_contract_teams: {
         Args: { p_allocations: Json; p_contract_id: string }
         Returns: undefined
@@ -1176,7 +1194,7 @@ export type Database = {
         | "대표님 직접 청구"
         | "매월 10일 세금계산서 발행"
         | "공공기관 별도 청구"
-      business_type: "msp" | "tt" | "dev"
+      business_type: "msp" | "edu" | "dev"
       client_grade: "A" | "B" | "C" | "D" | "E"
       client_status_type:
         | "신규"
@@ -1192,7 +1210,7 @@ export type Database = {
         | "중견기업"
         | "대기업"
         | "공공기관"
-      contract_type: "msp" | "tt" | "dev"
+      contract_type: "msp" | "edu" | "dev"
       credit_share_type: "가능" | "불가능" | "미정"
       currency_type: "KRW" | "USD"
       deposit_txn_source: "manual" | "aws_api" | "billing_on"
@@ -1207,7 +1225,7 @@ export type Database = {
         | "기타"
       msp_grade_type: "None" | "FREE" | "MSP10" | "MSP15" | "MSP20" | "ETC"
       payer_type: "ETV-AWS-13" | "ETV-AWS-14" | "Org-001" | "Billing Transfer"
-      team_type: "msp" | "education" | "dev"
+      team_type: "msp" | "tt" | "dev" | "ops" | "ai" | "ptn"
       user_role: "staff" | "team_lead" | "admin" | "c_level"
     }
     CompositeTypes: {
@@ -1341,7 +1359,7 @@ export const Constants = {
         "매월 10일 세금계산서 발행",
         "공공기관 별도 청구",
       ],
-      business_type: ["msp", "tt", "dev"],
+      business_type: ["msp", "edu", "dev"],
       client_grade: ["A", "B", "C", "D", "E"],
       client_status_type: [
         "신규",
@@ -1359,7 +1377,7 @@ export const Constants = {
         "대기업",
         "공공기관",
       ],
-      contract_type: ["msp", "tt", "dev"],
+      contract_type: ["msp", "edu", "dev"],
       credit_share_type: ["가능", "불가능", "미정"],
       currency_type: ["KRW", "USD"],
       deposit_txn_source: ["manual", "aws_api", "billing_on"],
@@ -1375,7 +1393,7 @@ export const Constants = {
       ],
       msp_grade_type: ["None", "FREE", "MSP10", "MSP15", "MSP20", "ETC"],
       payer_type: ["ETV-AWS-13", "ETV-AWS-14", "Org-001", "Billing Transfer"],
-      team_type: ["msp", "education", "dev"],
+      team_type: ["msp", "tt", "dev", "ops", "ai", "ptn"],
       user_role: ["staff", "team_lead", "admin", "c_level"],
     },
   },

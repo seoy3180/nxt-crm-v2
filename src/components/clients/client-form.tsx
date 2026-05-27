@@ -85,7 +85,7 @@ export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade 
       if (mspError) toast.error('MSP 상세 저장에 실패했습니다');
     }
 
-    if (selectedBusinessTypes.includes('tt')) {
+    if (selectedBusinessTypes.includes('edu')) {
       const eduData = {
         client_id: data.id,
         memo: formData.get('eduMemo') || null,
@@ -269,7 +269,7 @@ export function ClientForm({ defaultBusinessTypes, hideBusinessTypes, hideGrade 
       )}
 
       {/* 교육 상세 */}
-      {selectedBusinessTypes.includes('tt') && (
+      {selectedBusinessTypes.includes('edu') && (
         <>
           <div className="h-px bg-zinc-200" />
           <h3 className="text-base font-semibold text-zinc-900">교육 정보</h3>

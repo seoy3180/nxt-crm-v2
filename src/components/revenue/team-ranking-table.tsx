@@ -10,7 +10,7 @@ interface TeamRankingTableProps {
 
 const TEAM_COLOR_MAP: Record<string, string> = {
   MSP팀: REVENUE_COLORS.msp,
-  교육팀: REVENUE_COLORS.tt,
+  교육팀: REVENUE_COLORS.edu,
   개발팀: REVENUE_COLORS.dev,
 };
 

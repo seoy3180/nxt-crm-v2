@@ -14,12 +14,12 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- ============================================================
 
 CREATE TYPE billing_method_type AS ENUM ('대표님 직접 청구', '매월 10일 세금계산서 발행', '공공기관 별도 청구');
-CREATE TYPE business_type AS ENUM ('msp', 'tt', 'dev');
+CREATE TYPE business_type AS ENUM ('msp', 'edu', 'dev');
 CREATE TYPE client_grade AS ENUM ('A', 'B', 'C', 'D', 'E');
 CREATE TYPE client_status_type AS ENUM ('신규', '진행중', '활성', '휴면', '종료', '상태없음');
 CREATE TYPE client_type AS ENUM ('univ', 'corp', 'govt', 'asso', 'etc');
 CREATE TYPE company_size_type AS ENUM ('스타트업', '중소기업', '중견기업', '대기업', '공공기관');
-CREATE TYPE contract_type AS ENUM ('msp', 'tt', 'dev');
+CREATE TYPE contract_type AS ENUM ('msp', 'edu', 'dev');
 CREATE TYPE credit_share_type AS ENUM ('가능', '불가능', '미정');
 CREATE TYPE currency_type AS ENUM ('KRW', 'USD');
 CREATE TYPE deposit_txn_source AS ENUM ('manual', 'aws_api', 'billing_on');
@@ -27,7 +27,7 @@ CREATE TYPE deposit_txn_type AS ENUM ('deposit', 'usage', 'adjustment', 'refund'
 CREATE TYPE industry_type AS ENUM ('IT', '제조', '금융', '유통', '공공', '서울대 연구실', '기타');
 CREATE TYPE msp_grade_type AS ENUM ('None', 'FREE', 'MSP10', 'MSP15', 'MSP20', 'ETC');
 CREATE TYPE payer_type AS ENUM ('ETV-AWS-13', 'ETV-AWS-14', 'Org-001', 'Billing Transfer');
-CREATE TYPE team_type AS ENUM ('msp', 'education', 'dev');
+CREATE TYPE team_type AS ENUM ('msp', 'tt', 'dev', 'ops', 'ai', 'ptn');
 CREATE TYPE user_role AS ENUM ('staff', 'team_lead', 'admin', 'c_level');
 
 -- ============================================================
@@ -40,6 +40,23 @@ CREATE TABLE teams (
   type team_type NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- 00031과 동기화: 팀 ↔ 비즈니스 도메인 매핑 (M:N, 접근 제어용)
+CREATE TABLE team_business_domains (
+  team_type     team_type     NOT NULL,
+  business_type business_type NOT NULL,
+  PRIMARY KEY (team_type, business_type)
+);
+ALTER TABLE team_business_domains ENABLE ROW LEVEL SECURITY;
+CREATE POLICY team_business_domains_select ON team_business_domains
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+INSERT INTO team_business_domains (team_type, business_type) VALUES
+  ('ops'::team_type, 'edu'::business_type),
+  ('ops'::team_type, 'msp'::business_type),
+  ('tt'::team_type,  'edu'::business_type),
+  ('dev'::team_type, 'dev'::business_type),
+  ('ai'::team_type,  'msp'::business_type),
+  ('ptn'::team_type, 'msp'::business_type);
 
 CREATE TABLE profiles (
   id uuid NOT NULL,
@@ -363,38 +380,42 @@ BEGIN
       OR public.user_role() = 'team_lead'::user_role;
 END $$;
 
+-- 00032와 동기화: team_business_domains 기반 (client.business_types ∩ 내 팀 도메인)
 CREATE OR REPLACE FUNCTION public.can_access_client(p_client_id uuid)
 RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
+DECLARE v_team_type team_type;
 BEGIN
   IF public.is_admin_or_clevel() THEN RETURN TRUE; END IF;
+  SELECT t.type INTO v_team_type FROM teams t WHERE t.id = public.user_team_id();
+  IF v_team_type IS NULL THEN RETURN FALSE; END IF;
   RETURN EXISTS (
-    SELECT 1 FROM contracts c
-    JOIN contract_teams ct ON ct.contract_id = c.id
-    WHERE c.client_id = p_client_id
-      AND ct.team_id = public.user_team_id()
-      AND c.deleted_at IS NULL
-      AND ct.deleted_at IS NULL
+    SELECT 1 FROM clients c
+    JOIN team_business_domains d ON d.team_type = v_team_type
+    WHERE c.id = p_client_id
+      AND d.business_type = ANY (c.business_types)
   );
 END; $$;
 
--- 00025와 동기화: 도메인 fallback 포함
+-- 00031과 동기화: team_business_domains 매핑 기반 + contract_teams fallback
 CREATE OR REPLACE FUNCTION public.can_access_contract(p_contract_id uuid)
 RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
 DECLARE
-  v_team_name     TEXT;
+  v_team_type     team_type;
   v_contract_type contract_type;
 BEGIN
   IF public.is_admin_or_clevel() THEN RETURN TRUE; END IF;
 
-  SELECT name INTO v_team_name FROM teams WHERE id = public.user_team_id();
-  IF v_team_name IS NULL THEN RETURN FALSE; END IF;
+  SELECT t.type INTO v_team_type FROM teams t WHERE t.id = public.user_team_id();
+  IF v_team_type IS NULL THEN RETURN FALSE; END IF;
 
   SELECT type INTO v_contract_type FROM contracts WHERE id = p_contract_id;
   IF v_contract_type IS NULL THEN RETURN FALSE; END IF;
 
-  IF (v_team_name = 'MSP팀'  AND v_contract_type = 'msp'::contract_type)
-     OR (v_team_name = '교육팀' AND v_contract_type = 'tt'::contract_type)
-     OR (v_team_name = '개발팀' AND v_contract_type = 'dev'::contract_type) THEN
+  IF EXISTS (
+    SELECT 1 FROM team_business_domains d
+    WHERE d.team_type = v_team_type
+      AND d.business_type::text = v_contract_type::text
+  ) THEN
     RETURN TRUE;
   END IF;
 
@@ -452,17 +473,18 @@ BEGIN
   END IF;
 END; $$;
 
--- 00028과 동기화: 활성 거래 있는 계좌 비활성화 차단 (BIZ-6 DB 강제)
+-- 00030과 동기화: 비활성화 = 잔액 0 + admin·c_level·team_lead 전용
 CREATE OR REPLACE FUNCTION public.assert_deposit_deactivation_safe()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
-DECLARE v_active int;
 BEGIN
   IF OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT NULL THEN
-    SELECT COUNT(*) INTO v_active FROM deposit_transactions
-      WHERE account_id = NEW.id AND voided_at IS NULL;
-    IF v_active > 0 THEN
-      RAISE EXCEPTION '활성 거래(%건)가 있는 예치금 계좌는 비활성화할 수 없습니다 (account_id=%)',
-        v_active, NEW.id USING ERRCODE = 'check_violation';
+    IF NOT public.is_admin_clevel_or_lead() THEN
+      RAISE EXCEPTION '예치금 계좌 비활성화 권한이 없습니다 (admin·c_level·team_lead 전용, account_id=%)',
+        NEW.id USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    IF NEW.balance <> 0 THEN
+      RAISE EXCEPTION '잔액이 0이 아닌 예치금 계좌는 비활성화할 수 없습니다 (잔액=%, account_id=%)',
+        NEW.balance, NEW.id USING ERRCODE = 'check_violation';
     END IF;
   END IF;
   RETURN NEW;
@@ -665,8 +687,11 @@ CREATE POLICY client_msp_select ON client_msp_details FOR SELECT USING (can_acce
 CREATE POLICY client_msp_update ON client_msp_details FOR UPDATE USING (can_access_client(client_id));
 
 CREATE POLICY clients_delete ON clients FOR DELETE USING (can_access_client(id));
-CREATE POLICY clients_insert ON clients FOR INSERT WITH CHECK ((auth.uid() IS NOT NULL));
-CREATE POLICY clients_select ON clients FOR SELECT USING (can_access_client(id));
+CREATE POLICY clients_insert ON clients FOR INSERT WITH CHECK ((is_admin_or_clevel() OR EXISTS (
+  SELECT 1 FROM team_business_domains d
+  WHERE d.team_type = (SELECT type FROM teams WHERE id = user_team_id())
+    AND d.business_type = ANY (business_types))));
+CREATE POLICY clients_select ON clients FOR SELECT USING ((auth.uid() IS NOT NULL));
 CREATE POLICY clients_update ON clients FOR UPDATE USING (can_access_client(id));
 
 CREATE POLICY contacts_delete ON contacts FOR DELETE USING (can_access_client(client_id));
@@ -745,9 +770,10 @@ CREATE POLICY profiles_insert ON profiles FOR INSERT WITH CHECK ((auth.uid() IS 
 CREATE POLICY profiles_select ON profiles FOR SELECT USING (true);
 CREATE POLICY profiles_update ON profiles FOR UPDATE USING ((id = auth.uid()));
 
-CREATE POLICY staff_delete ON employees FOR DELETE USING ((auth.uid() IS NOT NULL));
-CREATE POLICY staff_insert ON employees FOR INSERT WITH CHECK ((auth.uid() IS NOT NULL));
+-- 00032와 동기화: employees C·U·D는 admin만, SELECT는 인증 사용자 유지
+CREATE POLICY staff_delete ON employees FOR DELETE USING ((user_role() = 'admin'::user_role));
+CREATE POLICY staff_insert ON employees FOR INSERT WITH CHECK ((user_role() = 'admin'::user_role));
 CREATE POLICY staff_select ON employees FOR SELECT USING (true);
-CREATE POLICY staff_update ON employees FOR UPDATE USING ((auth.uid() IS NOT NULL));
+CREATE POLICY staff_update ON employees FOR UPDATE USING ((user_role() = 'admin'::user_role));
 
 CREATE POLICY teams_select ON teams FOR SELECT USING (true);

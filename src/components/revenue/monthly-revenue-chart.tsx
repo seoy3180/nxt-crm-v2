@@ -22,7 +22,7 @@ const MONTH_LABELS = [
 interface MonthlyData {
   month: number;
   msp: number;
-  tt: number;
+  edu: number;
   dev: number;
   total: number;
 }
@@ -31,11 +31,11 @@ interface MonthlyRevenueChartProps {
   data: MonthlyData[];
   prevYearData?: MonthlyData[];
   loading?: boolean;
-  typeFilter: string; // 'all' | 'msp' | 'tt' | 'dev'
+  typeFilter: string; // 'all' | 'msp' | 'edu' | 'dev'
   showYoY: boolean;
 }
 
-type TypeKey = 'msp' | 'tt' | 'dev';
+type TypeKey = 'msp' | 'edu' | 'dev';
 
 interface ChartRow {
   name: string;

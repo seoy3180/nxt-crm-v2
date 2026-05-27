@@ -120,7 +120,7 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath =
         }
       }
 
-      if (contractType === 'tt' && operations.length > 0) {
+      if (contractType === 'edu' && operations.length > 0) {
         const { educationOpService } = await import('@/lib/services/contract-service');
         for (const op of operations) {
           if (op.operationName) {
@@ -291,7 +291,7 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath =
       )}
 
       {/* 교육 확장 */}
-      {contractType === 'tt' && (
+      {contractType === 'edu' && (
         <>
           <div className="h-px bg-zinc-200" />
           <EduFields operations={operations} onOperationsChange={setOperations} />

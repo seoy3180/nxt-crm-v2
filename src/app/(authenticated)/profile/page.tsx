@@ -9,9 +9,12 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
 const TEAM_LABELS: Record<string, string> = {
-  msp: 'MSP팀',
-  education: '교육팀',
-  dev: '개발팀',
+  ops: 'Administration & Support',
+  tt: 'Technical Training Team',
+  dev: 'Development Team',
+  ai: 'AI & Architecture Team',
+  ptn: 'Partnerships Team',
+  msp: 'MSP (Legacy)',
 };
 
 export default function ProfilePage() {

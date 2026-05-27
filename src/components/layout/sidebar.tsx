@@ -3,15 +3,18 @@
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useAuthContext } from '@/providers/auth-provider';
 import { canAccessSection } from '@/lib/auth/permissions';
-import { SIDEBAR_SECTIONS } from '@/lib/constants';
+import { SIDEBAR_SECTIONS, type TeamType } from '@/lib/constants';
 import { SidebarSection } from './sidebar-section';
 import { Hexagon, Search, Settings, LogOut } from 'lucide-react';
 import Link from 'next/link';
 
 const TEAM_LABELS: Record<string, string> = {
-  msp: 'MSP팀',
-  education: '교육팀',
-  dev: '개발팀',
+  ops: 'Administration & Support',
+  tt: 'Technical Training Team',
+  dev: 'Development Team',
+  ai: 'AI & Architecture Team',
+  ptn: 'Partnerships Team',
+  msp: 'MSP (Legacy)',
 };
 
 export function Sidebar() {
@@ -24,11 +27,11 @@ export function Sidebar() {
     canAccessSection(
       section.key as 'nxt' | 'msp' | 'edu' | 'dev',
       currentUser.role,
-      currentUser.teamType ?? 'msp',
+      (currentUser.teamType ?? 'ops') as TeamType,
     ),
   );
 
-  const teamLabel = TEAM_LABELS[currentUser.teamType ?? 'msp'] ?? currentUser.teamType;
+  const teamLabel = (currentUser.teamType && TEAM_LABELS[currentUser.teamType]) ?? currentUser.teamType ?? '소속 없음';
 
   return (
     <aside className="flex h-screen w-60 flex-col border-r border-zinc-200 bg-zinc-50">

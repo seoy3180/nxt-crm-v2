@@ -14,12 +14,12 @@ export function DepositDeactivateModal({
   open,
   onOpenChange,
   accountId,
-  hasActiveTransactions,
+  balanceNotZero,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   accountId: string;
-  hasActiveTransactions: boolean;
+  balanceNotZero: boolean;
 }) {
   const deactivate = useDeactivateDeposit();
   async function confirm() {
@@ -32,9 +32,9 @@ export function DepositDeactivateModal({
         <DialogHeader>
           <DialogTitle>예치금 계좌 비활성화</DialogTitle>
         </DialogHeader>
-        {hasActiveTransactions ? (
+        {balanceNotZero ? (
           <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            트랜잭션이 있는 계좌는 비활성화할 수 없습니다. 환불 후 계약을 종료하세요.
+            잔액이 0이 아닌 계좌는 비활성화할 수 없습니다. 환불·보정으로 잔액을 0으로 만든 뒤 비활성화하세요.
           </div>
         ) : (
           <p className="text-sm text-zinc-600 leading-relaxed">
@@ -45,7 +45,7 @@ export function DepositDeactivateModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             취소
           </Button>
-          {!hasActiveTransactions && (
+          {!balanceNotZero && (
             <Button onClick={confirm} disabled={deactivate.isPending}>
               {deactivate.isPending ? '처리 중...' : '비활성화'}
             </Button>

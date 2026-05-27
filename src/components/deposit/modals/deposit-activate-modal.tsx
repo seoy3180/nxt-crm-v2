@@ -34,7 +34,7 @@ export function DepositActivateModal({
           <DialogTitle>예치금 계좌 활성화</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-zinc-600 leading-relaxed">
-          이 계약에 예치금 추적을 시작합니다. 활성화 후 트랜잭션이 1건이라도 등록되면 계좌 비활성화가 제한됩니다.
+          이 계약에 예치금 추적을 시작합니다. 잔액이 0이 아니면 계좌 비활성화가 제한됩니다.
         </p>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

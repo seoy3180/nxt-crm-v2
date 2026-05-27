@@ -13,7 +13,7 @@ function getStageLabel(stage: string) {
 export default function DashboardPage() {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: mspPipeline } = usePipeline('msp');
-  const { data: ttPipeline } = usePipeline('tt');
+  const { data: ttPipeline } = usePipeline('edu');
   const { data: monthlyRevenue } = useMonthlyRevenue();
   const { data: teamRevenue } = useTeamRevenue();
   const { data: activity } = useRecentActivity();
