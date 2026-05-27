@@ -36,3 +36,21 @@ const FEATURE_ACCESS: Record<Feature, UserRole[]> = {
 export function canAccessFeature(feature: Feature, role: UserRole): boolean {
   return FEATURE_ACCESS[feature]?.includes(role) ?? false;
 }
+
+/**
+ * 고객 수정·삭제·연락처 관리 권한 판정 (DB can_access_client과 동일 로직).
+ * - admin·c_level: 전체
+ * - 그 외: 사용자 팀 담당 도메인이 고객 business_types와 하나라도 겹치면 허용
+ * 조회(목록/상세)는 전사 허용이므로 여기서 판정하지 않는다.
+ */
+export function canManageClient(
+  role: UserRole,
+  teamType: TeamType | null,
+  clientBusinessTypes: readonly string[] | null | undefined,
+): boolean {
+  if (role === 'admin' || role === 'c_level') return true;
+  if (!teamType) return false;
+  const domains = TEAM_BUSINESS_DOMAINS[teamType] ?? [];
+  const bts = clientBusinessTypes ?? [];
+  return domains.some((d) => bts.includes(d));
+}

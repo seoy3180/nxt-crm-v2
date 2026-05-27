@@ -21,9 +21,10 @@ import { toast } from 'sonner';
 
 interface ClientInfoCardProps {
   client: ClientRow;
+  canManage: boolean;
 }
 
-export function ClientInfoCard({ client }: ClientInfoCardProps) {
+export function ClientInfoCard({ client, canManage }: ClientInfoCardProps) {
   const [editing, setEditing] = useState(false);
   const [editBusinessTypes, setEditBusinessTypes] = useState<string[]>(client.business_types ?? []);
   const updateClient = useUpdateClient(client.id);
@@ -141,14 +142,16 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
     <div className="rounded-xl border border-zinc-200 p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-zinc-900">고객 정보</h3>
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="flex h-[30px] items-center gap-1 rounded-md border border-zinc-200 px-2.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-50"
-        >
-          <Pencil className="h-[13px] w-[13px]" />
-          수정
-        </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="flex h-[30px] items-center gap-1 rounded-md border border-zinc-200 px-2.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-50"
+          >
+            <Pencil className="h-[13px] w-[13px]" />
+            수정
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-5 gap-8">

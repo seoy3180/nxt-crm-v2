@@ -98,7 +98,7 @@ export function ClientTabs({ client }: ClientTabsProps) {
               <TabsTrigger value="info">기본 정보</TabsTrigger>
               <TabsTrigger value="contracts">관련 계약</TabsTrigger>
             </TabsList>
-            <ClientDeleteZone clientId={client.id} clientName={client.name} inline />
+            {canManage && <ClientDeleteZone clientId={client.id} clientName={client.name} inline />}
           </div>
           <TabsContent value="info" className="space-y-6">
             <ClientInfoCard client={client} canManage={canManage} />
@@ -127,7 +127,7 @@ export function ClientTabs({ client }: ClientTabsProps) {
             {hasBusinessType('edu') && <TabsTrigger value="edu">교육 정보</TabsTrigger>}
             <TabsTrigger value="contracts">관련 계약</TabsTrigger>
           </TabsList>
-          <ClientDeleteZone clientId={client.id} clientName={client.name} inline />
+          {canManage && <ClientDeleteZone clientId={client.id} clientName={client.name} inline />}
         </div>
 
         <TabsContent value="info" className="space-y-4">

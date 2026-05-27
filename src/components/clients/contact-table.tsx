@@ -20,9 +20,10 @@ import type { ContactCreateInput } from '@/lib/validators/client';
 
 interface ContactTableProps {
   clientId: string;
+  canManage: boolean;
 }
 
-export function ContactTable({ clientId }: ContactTableProps) {
+export function ContactTable({ clientId, canManage }: ContactTableProps) {
   const { data: contacts, isLoading } = useContacts(clientId);
   const createContact = useCreateContact(clientId);
   const updateContact = useUpdateContact(clientId);
@@ -64,10 +65,12 @@ export function ContactTable({ clientId }: ContactTableProps) {
         <h3 className="pl-2 text-lg font-semibold text-zinc-900">
           연락처 <span className="text-zinc-400">({contacts?.length ?? 0}명)</span>
         </h3>
-        <Button onClick={() => setFormOpen(true)} className="h-9 gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium hover:bg-blue-700">
-          <Plus className="h-4 w-4" />
-          연락처 추가
-        </Button>
+        {canManage && (
+          <Button onClick={() => setFormOpen(true)} className="h-9 gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium hover:bg-blue-700">
+            <Plus className="h-4 w-4" />
+            연락처 추가
+          </Button>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-zinc-200">
@@ -98,24 +101,26 @@ export function ContactTable({ clientId }: ContactTableProps) {
                   <TableCell className="px-4 text-center text-[13px] text-zinc-500">{contact.phone ?? '-'}</TableCell>
                   <TableCell className="px-4 text-center text-[13px] text-zinc-500">{contact.email ?? '-'}</TableCell>
                   <TableCell className="px-4">
-                    <div className="flex justify-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => setEditingContact(contact)}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => setDeleteTarget(contact)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
+                    {canManage && (
+                      <div className="flex justify-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => setEditingContact(contact)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => setDeleteTarget(contact)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
