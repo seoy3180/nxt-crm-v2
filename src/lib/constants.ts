@@ -2,9 +2,22 @@
 export const USER_ROLES = ['staff', 'team_lead', 'admin', 'c_level'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
-// 팀 타입
-export const TEAM_TYPES = ['msp', 'education', 'dev'] as const;
+// 팀 타입 (실제 배치 5팀. DB enum엔 msp 레거시값이 남지만 배치 인원 0이라 코드에선 미사용)
+export const TEAM_TYPES = ['ops', 'tt', 'dev', 'ai', 'ptn'] as const;
 export type TeamType = (typeof TEAM_TYPES)[number];
+
+// 비즈니스 도메인 (contract_type / business_type)
+export const BUSINESS_DOMAINS = ['msp', 'edu', 'dev'] as const;
+export type BusinessDomain = (typeof BUSINESS_DOMAINS)[number];
+
+// 팀 → 담당 비즈니스 도메인 매핑 (M:N) — DB team_business_domains와 동기화
+export const TEAM_BUSINESS_DOMAINS: Record<TeamType, BusinessDomain[]> = {
+  ops: ['edu', 'msp'],
+  tt: ['edu'],
+  dev: ['dev'],
+  ai: ['msp'],
+  ptn: ['msp'],
+};
 
 // 고객 유형
 export const CLIENT_TYPES = {
@@ -27,7 +40,7 @@ export type MspGrade = (typeof MSP_GRADES)[number];
 // 비즈니스 타입
 export const BUSINESS_TYPES = {
   msp: 'MSP',
-  tt: '교육',
+  edu: '교육',
   dev: '개발',
 } as const;
 export type BusinessType = keyof typeof BUSINESS_TYPES;
@@ -64,7 +77,6 @@ export const SIDEBAR_SECTIONS = [
   {
     key: 'nxt',
     label: 'NXT',
-    allowedRoles: ['admin', 'c_level'] as UserRole[],
     items: [
       { href: '/dashboard', label: '대시보드', icon: 'layout-dashboard', roles: ['admin', 'c_level'] as UserRole[] },
       { href: '/clients', label: '고객 관리', icon: 'users', roles: ['admin', 'c_level'] as UserRole[] },
@@ -75,8 +87,6 @@ export const SIDEBAR_SECTIONS = [
   {
     key: 'msp',
     label: 'MSP',
-    allowedRoles: ['admin', 'c_level'] as UserRole[],
-    allowedTeams: ['msp'] as TeamType[],
     items: [
       { href: '/msp', label: 'MSP 대시보드', icon: 'activity' },
       { href: '/msp/clients', label: 'MSP 고객', icon: 'building' },
@@ -88,8 +98,6 @@ export const SIDEBAR_SECTIONS = [
   {
     key: 'edu',
     label: 'EDU',
-    allowedRoles: ['admin', 'c_level'] as UserRole[],
-    allowedTeams: ['education'] as TeamType[],
     items: [
       { href: '/edu', label: '교육 대시보드', icon: 'layout-dashboard' },
       { href: '/edu/contracts', label: '교육 계약', icon: 'graduation-cap' },
@@ -99,8 +107,6 @@ export const SIDEBAR_SECTIONS = [
   {
     key: 'dev',
     label: 'DEV',
-    allowedRoles: ['admin', 'c_level'] as UserRole[],
-    allowedTeams: ['dev'] as TeamType[],
     items: [
       { href: '/dev', label: '준비 중...', icon: 'code', disabled: true },
     ],
@@ -155,7 +161,7 @@ export const MSP_TAG_COLORS: Record<string, string> = {
 // 매출 분석 색상
 export const REVENUE_COLORS = {
   msp: '#2563eb',
-  tt: '#f59e0b',
+  edu: '#f59e0b',
   dev: '#71717a',
   unallocated: '#e4e4e7',
 } as const;

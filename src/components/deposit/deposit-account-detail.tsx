@@ -80,7 +80,6 @@ export function DepositAccountDetail({ contractId, currency, canManage }: Props)
   }
 
   // 활성 상태
-  const activeTxns = txns.filter((t) => !t.voided_at);
   const avgMonthly = calcAvgMonthlyUsage(account, txns);
   const days = calcDaysUntilDepleted(account.balance, avgMonthly);
   const pct = calcBalancePct(account);
@@ -102,14 +101,16 @@ export function DepositAccountDetail({ contractId, currency, canManage }: Props)
               {level !== 'ok' && <CircleAlert className="h-3 w-3" />}
               {level === 'critical' ? '긴급' : level === 'warning' ? '주의' : '정상'}
             </span>
-            <button
-              type="button"
-              onClick={() => setModal({ kind: 'deactivate' })}
-              className="rounded-md border border-zinc-200 px-2.5 py-1 text-[11px] text-zinc-500 hover:bg-zinc-50"
-              title={activeTxns.length > 0 ? '활성 트랜잭션이 있으면 비활성화 불가' : '계좌 비활성화'}
-            >
-              비활성화
-            </button>
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => setModal({ kind: 'deactivate' })}
+                className="rounded-md border border-zinc-200 px-2.5 py-1 text-[11px] text-zinc-500 hover:bg-zinc-50"
+                title={account.balance !== 0 ? '잔액이 0이 아니면 비활성화 불가' : '계좌 비활성화'}
+              >
+                비활성화
+              </button>
+            )}
           </div>
         </div>
 
@@ -216,7 +217,7 @@ export function DepositAccountDetail({ contractId, currency, canManage }: Props)
         open={modal?.kind === 'deactivate'}
         onOpenChange={(o) => !o && setModal(null)}
         accountId={account.id}
-        hasActiveTransactions={activeTxns.length > 0}
+        balanceNotZero={account.balance !== 0}
       />
     </div>
   );

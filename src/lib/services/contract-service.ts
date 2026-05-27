@@ -233,11 +233,11 @@ export const contractService = {
 
     if (client) {
       const types = client.business_types as string[] ?? [];
-      const btType = input.type === 'tt' ? 'tt' : input.type;
+      const btType = input.type === 'edu' ? 'edu' : input.type;
       if (!types.includes(btType)) {
         await getClient()
           .from('clients')
-          .update({ business_types: [...types, btType] as ("msp" | "tt" | "dev")[] })
+          .update({ business_types: [...types, btType] as ("msp" | "edu" | "dev")[] })
           .eq('id', input.clientId);
       }
     }

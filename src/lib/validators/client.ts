@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const clientTypeEnum = z.enum(['univ', 'corp', 'govt', 'asso', 'etc']);
 const clientGradeEnum = z.enum(['A', 'B', 'C', 'D', 'E']);
-const businessTypeEnum = z.enum(['msp', 'tt', 'dev']);
+const businessTypeEnum = z.enum(['msp', 'edu', 'dev']);
 
 export const clientCreateSchema = z.object({
   name: z.string().min(1, '고객명을 입력해주세요').max(200, '최대 200자까지 입력할 수 있습니다'),

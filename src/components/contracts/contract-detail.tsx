@@ -119,7 +119,7 @@ export function ContractDetail({ contract }: ContractDetailProps) {
               canManage={canManageDeposit}
             />
           )}
-          {contract.type === 'tt' && (
+          {contract.type === 'edu' && (
             <EduOperationsTable contractId={contract.id} />
           )}
         </div>

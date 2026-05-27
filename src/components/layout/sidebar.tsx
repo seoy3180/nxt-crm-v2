@@ -3,7 +3,7 @@
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useAuthContext } from '@/providers/auth-provider';
 import { canAccessSection } from '@/lib/auth/permissions';
-import { SIDEBAR_SECTIONS } from '@/lib/constants';
+import { SIDEBAR_SECTIONS, type TeamType } from '@/lib/constants';
 import { SidebarSection } from './sidebar-section';
 import { Hexagon, Search, Settings, LogOut } from 'lucide-react';
 import Link from 'next/link';
@@ -24,7 +24,7 @@ export function Sidebar() {
     canAccessSection(
       section.key as 'nxt' | 'msp' | 'edu' | 'dev',
       currentUser.role,
-      currentUser.teamType ?? 'msp',
+      (currentUser.teamType ?? 'ops') as TeamType,
     ),
   );
 

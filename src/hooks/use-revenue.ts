@@ -8,12 +8,12 @@ import { createClient } from '@/lib/supabase/client';
 interface MonthlyRevenue {
   month: number; // 1-12
   msp: number;
-  tt: number;
+  edu: number;
   dev: number;
   total: number;
 }
 
-export function useMonthlyRevenue(year: number, type?: 'msp' | 'tt' | 'dev') {
+export function useMonthlyRevenue(year: number, type?: 'msp' | 'edu' | 'dev') {
   return useQuery({
     queryKey: ['revenue-monthly', year, type ?? 'all'],
     queryFn: async () => {
@@ -37,9 +37,9 @@ export function useMonthlyRevenue(year: number, type?: 'msp' | 'tt' | 'dev') {
       if (error) throw error;
 
       // 1~12월 초기화
-      const monthMap = new Map<number, { msp: number; tt: number; dev: number }>();
+      const monthMap = new Map<number, { msp: number; edu: number; dev: number }>();
       for (let m = 1; m <= 12; m++) {
-        monthMap.set(m, { msp: 0, tt: 0, dev: 0 });
+        monthMap.set(m, { msp: 0, edu: 0, dev: 0 });
       }
 
       (data ?? []).forEach((row) => {
@@ -48,7 +48,7 @@ export function useMonthlyRevenue(year: number, type?: 'msp' | 'tt' | 'dev') {
         const entry = monthMap.get(month);
         if (!entry) return;
 
-        const contractType = row.type as 'msp' | 'tt' | 'dev';
+        const contractType = row.type as 'msp' | 'edu' | 'dev';
         if (contractType in entry) {
           entry[contractType] += amount;
         }
@@ -60,9 +60,9 @@ export function useMonthlyRevenue(year: number, type?: 'msp' | 'tt' | 'dev') {
         result.push({
           month: m,
           msp: entry.msp,
-          tt: entry.tt,
+          edu: entry.edu,
           dev: entry.dev,
-          total: entry.msp + entry.tt + entry.dev,
+          total: entry.msp + entry.edu + entry.dev,
         });
       }
 

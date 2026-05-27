@@ -25,7 +25,7 @@ export function useDashboardStats() {
       const [clientsRes, mspRes, ttRes, devRes, revenueRes] = await Promise.all([
         supabase.from('clients').select('id', { count: 'exact', head: true }).is('deleted_at', null),
         supabase.from('contracts').select('id', { count: 'exact', head: true }).eq('type', 'msp').is('deleted_at', null),
-        supabase.from('contracts').select('id', { count: 'exact', head: true }).eq('type', 'tt').is('deleted_at', null),
+        supabase.from('contracts').select('id', { count: 'exact', head: true }).eq('type', 'edu').is('deleted_at', null),
         supabase.from('contracts').select('id', { count: 'exact', head: true }).eq('type', 'dev').is('deleted_at', null),
         supabase.from('contracts').select('total_amount').is('deleted_at', null),
       ]);
@@ -45,7 +45,7 @@ export function useDashboardStats() {
   });
 }
 
-export function usePipeline(type: 'msp' | 'tt') {
+export function usePipeline(type: 'msp' | 'edu') {
   return useQuery({
     queryKey: ['dashboard-pipeline', type],
     queryFn: async () => {

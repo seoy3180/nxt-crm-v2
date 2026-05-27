@@ -36,7 +36,7 @@ export default function ClientsPage() {
     pageSize: 20,
     search: debouncedSearch || undefined,
     clientType: clientType as 'univ' | 'corp' | 'govt' | 'asso' | 'etc' | undefined,
-    businessType: businessType as 'msp' | 'tt' | 'dev' | undefined,
+    businessType: businessType as 'msp' | 'edu' | 'dev' | undefined,
     sortBy: 'name',
     sortOrder: 'asc',
   });

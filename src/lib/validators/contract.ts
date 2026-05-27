@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const contractTypeEnum = z.enum(['msp', 'tt', 'dev']);
+const contractTypeEnum = z.enum(['msp', 'edu', 'dev']);
 const currencyEnum = z.enum(['KRW', 'USD']);
 
 export const contractCreateSchema = z.object({

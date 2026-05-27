@@ -33,7 +33,7 @@ import { saveInlineChanges } from '@/lib/contracts/table-save';
 
 const BIZ_TABS = [
   { value: 'msp', label: 'MSP' },
-  { value: 'tt', label: '교육' },
+  { value: 'edu', label: '교육' },
   { value: 'dev', label: '개발' },
 ] as const;
 
@@ -123,7 +123,7 @@ function ContractsPageInner() {
     page,
     pageSize: 100,
     search: debouncedSearch || undefined,
-    type: contractType as 'msp' | 'tt' | 'dev',
+    type: contractType as 'msp' | 'edu' | 'dev',
     stage: stage || undefined,
     sortBy: 'created_at',
     sortOrder: 'desc',

@@ -20,7 +20,7 @@ const YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => CURRENT_YEAR - 4 + i);
 const TYPE_FILTERS = [
   { value: 'all', label: '전체' },
   { value: 'msp', label: 'MSP' },
-  { value: 'tt', label: '교육' },
+  { value: 'edu', label: '교육' },
   { value: 'dev', label: '개발' },
 ] as const;
 
@@ -156,7 +156,7 @@ function AnnualTab({ year }: { year: number }) {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showYoY, setShowYoY] = useState(false);
 
-  const typeParam = typeFilter === 'all' ? undefined : (typeFilter as 'msp' | 'tt' | 'dev');
+  const typeParam = typeFilter === 'all' ? undefined : (typeFilter as 'msp' | 'edu' | 'dev');
   const { data: currentData, isLoading } = useMonthlyRevenue(year, typeParam);
   const { data: prevData, isLoading: prevLoading } = useMonthlyRevenue(year - 1, typeParam);
 

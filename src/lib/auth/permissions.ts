@@ -1,23 +1,22 @@
-import type { UserRole, TeamType } from '@/lib/constants';
+import { TEAM_BUSINESS_DOMAINS, type UserRole, type TeamType, type BusinessDomain } from '@/lib/constants';
 
-type SectionKey = 'nxt' | 'msp' | 'edu' | 'dev';
+// 사이드바 섹션 키 = 비즈니스 도메인 (nxt는 전사 전용)
+type SectionKey = 'nxt' | BusinessDomain;
 
-const SECTION_TEAM_MAP: Record<string, TeamType> = {
-  msp: 'msp',
-  edu: 'education',
-  dev: 'dev',
-};
-
+/**
+ * 섹션 접근 판정.
+ * - admin·c_level: 전체
+ * - nxt: 전사 전용 (admin·c_level만)
+ * - msp/edu/dev: 사용자 팀이 해당 비즈니스 도메인을 담당하면 허용 (M:N 매핑)
+ */
 export function canAccessSection(
   section: SectionKey,
   role: UserRole,
   teamType: TeamType,
 ): boolean {
   if (role === 'admin' || role === 'c_level') return true;
-  // NXT 섹션은 admin·c_level 전용 — staff·team_lead 모두 차단
   if (section === 'nxt') return false;
-  const requiredTeam = SECTION_TEAM_MAP[section];
-  return requiredTeam === teamType;
+  return TEAM_BUSINESS_DOMAINS[teamType]?.includes(section) ?? false;
 }
 
 type Feature =

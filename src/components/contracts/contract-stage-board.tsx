@@ -96,7 +96,7 @@ function DroppableColumn({ stageValue, stageLabel, contracts, isOver, basePath }
 export function ContractStageBoard({ contracts, loading, contractType }: ContractStageBoardProps) {
   const sectionBase = useSectionBasePath();
   const basePath = `${sectionBase}/contracts`;
-  const stages = contractType === 'msp' ? MSP_STAGES : contractType === 'tt' ? EDU_STAGES : MSP_STAGES;
+  const stages = contractType === 'msp' ? MSP_STAGES : contractType === 'edu' ? EDU_STAGES : MSP_STAGES;
   const { data: currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
   const [activeContract, setActiveContract] = useState<ContractRow | null>(null);
