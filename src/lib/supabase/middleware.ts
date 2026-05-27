@@ -41,7 +41,9 @@ export async function updateSession(request: NextRequest) {
 
   if (user && request.nextUrl.pathname.startsWith('/login')) {
     const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
+    // 루트(/)가 role/team 보고 적절한 랜딩으로 분기 (admin→/dashboard, 그 외 본인 도메인)
+    url.pathname = '/';
+    url.search = '';
     return NextResponse.redirect(url);
   }
 
