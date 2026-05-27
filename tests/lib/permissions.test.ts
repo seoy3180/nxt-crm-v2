@@ -35,9 +35,9 @@ describe('canAccessFeature', () => {
     expect(canAccessFeature('revenue_team', 'staff')).toBe(false);
   });
 
-  it('team_lead는 팀 매출만 접근 가능', () => {
+  it('team_lead는 매출 분석 접근 불가 (NXT 섹션이 admin·c_level 전용)', () => {
     expect(canAccessFeature('revenue_all', 'team_lead')).toBe(false);
-    expect(canAccessFeature('revenue_team', 'team_lead')).toBe(true);
+    expect(canAccessFeature('revenue_team', 'team_lead')).toBe(false);
   });
 
   it('c_level은 전사 매출 접근 가능', () => {

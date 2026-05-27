@@ -14,7 +14,8 @@ export function canAccessSection(
   teamType: TeamType,
 ): boolean {
   if (role === 'admin' || role === 'c_level') return true;
-  if (section === 'nxt') return role === 'team_lead';
+  // NXT 섹션은 admin·c_level 전용 — staff·team_lead 모두 차단
+  if (section === 'nxt') return false;
   const requiredTeam = SECTION_TEAM_MAP[section];
   return requiredTeam === teamType;
 }
@@ -27,7 +28,8 @@ type Feature =
 
 const FEATURE_ACCESS: Record<Feature, UserRole[]> = {
   revenue_all: ['admin', 'c_level'],
-  revenue_team: ['team_lead', 'admin', 'c_level'],
+  // 매출 분석은 NXT 섹션 전용 → team_lead는 진입 불가 (섹션 가드와 일관성)
+  revenue_team: ['admin', 'c_level'],
   user_management: ['admin'],
   nxt_dashboard: ['admin', 'c_level'],
 };
