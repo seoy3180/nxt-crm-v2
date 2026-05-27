@@ -202,7 +202,10 @@ export const contractService = {
     const idFn = input.type === 'msp' ? 'generate_msp_contract_id' : 'generate_edu_contract_id';
     const { data: contractId } = await getClient().rpc(idFn);
 
-    const { data, error } = await getClient()
+    // ⚠️ INSERT ... RETURNING(.select())을 쓰면 RETURNING이 contracts_select RLS를
+    //    평가하는데, can_access_contract가 contracts를 자기참조 조회 → 미커밋 새 row를
+    //    못 봐 team_lead에게 RLS 위반이 남. INSERT(RETURNING 없이) 후 별도 SELECT로 분리.
+    const { error } = await getClient()
       .from('contracts')
       .insert({
         contract_id: contractId as string,
@@ -215,11 +218,17 @@ export const contractService = {
         stage: input.stage ?? (input.type === 'msp' ? 'pre_contract' : null),
         assigned_to: input.assignedTo ?? null,
         contact_id: input.contactId ?? null,
-      })
-      .select()
-      .single();
+      });
 
     if (error) throw error;
+
+    const { data, error: fetchError } = await getClient()
+      .from('contracts')
+      .select()
+      .eq('contract_id', contractId as string)
+      .single();
+
+    if (fetchError) throw fetchError;
 
     if (input.type === 'msp') {
       await getClient().from('contract_msp_details').insert({ contract_id: data.id });
