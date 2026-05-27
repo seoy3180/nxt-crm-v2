@@ -54,3 +54,26 @@ export function canManageClient(
   const bts = clientBusinessTypes ?? [];
   return domains.some((d) => bts.includes(d));
 }
+
+// 비즈니스 도메인 → 사이드바 섹션 첫 경로
+const DOMAIN_LANDING: Record<BusinessDomain, string> = {
+  msp: '/msp',
+  edu: '/edu',
+  dev: '/dev',
+};
+
+/**
+ * 로그인 후 기본 랜딩 경로.
+ * - admin·c_level: NXT 대시보드(/dashboard)
+ * - 그 외: 본인 팀 담당 도메인의 첫 섹션 (msp 우선 → edu → dev)
+ * - 소속/매핑 없으면 /dashboard (RoleGuard가 안내 화면 처리)
+ */
+export function getDefaultLanding(role: UserRole, teamType: TeamType | null): string {
+  if (role === 'admin' || role === 'c_level') return '/dashboard';
+  if (!teamType) return '/dashboard';
+  const domains = TEAM_BUSINESS_DOMAINS[teamType] ?? [];
+  for (const d of ['msp', 'edu', 'dev'] as const) {
+    if (domains.includes(d)) return DOMAIN_LANDING[d];
+  }
+  return '/dashboard';
+}
