@@ -321,6 +321,7 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath =
     <ClientFormDialog
       open={clientDialogOpen}
       onOpenChange={setClientDialogOpen}
+      defaultBusinessTypes={[contractType]}
       onCreated={(client) => {
         setSelectedClientId(client.id);
         setSelectedClientName(client.name);

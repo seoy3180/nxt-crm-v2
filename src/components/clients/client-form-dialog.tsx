@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -31,16 +31,23 @@ interface ClientFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: (client: { id: string; name: string }) => void;
+  /** 계약 폼 등에서 호출 시 비즈니스 타입 고정 (예: MSP 계약 → ['msp']). UI 숨기고 자동 적용. */
+  defaultBusinessTypes?: string[];
 }
 
-export function ClientFormDialog({ open, onOpenChange, onCreated }: ClientFormDialogProps) {
+export function ClientFormDialog({ open, onOpenChange, onCreated, defaultBusinessTypes }: ClientFormDialogProps) {
   const createClient = useCreateClient();
   const { data: clientsData } = useClients({ page: 1, pageSize: 200, sortBy: 'name', sortOrder: 'asc' });
   const parents = clientsData?.data ?? [];
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [selectedBusinessTypes, setSelectedBusinessTypes] = useState<string[]>([]);
+  const [selectedBusinessTypes, setSelectedBusinessTypes] = useState<string[]>(defaultBusinessTypes ?? []);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [parentExpanded, setParentExpanded] = useState(false);
+
+  // 다이얼로그 열릴 때 비즈니스 타입을 호출 맥락(계약 type)으로 고정/리셋
+  useEffect(() => {
+    if (open) setSelectedBusinessTypes(defaultBusinessTypes ?? []);
+  }, [open, defaultBusinessTypes]);
 
   function toggleBusinessType(type: string) {
     setSelectedBusinessTypes((prev) =>
@@ -61,6 +68,11 @@ export function ClientFormDialog({ open, onOpenChange, onCreated }: ClientFormDi
       parentId: selectedParentId,
       memo: formData.get('memo') || null,
     };
+
+    if (selectedBusinessTypes.length === 0) {
+      setErrors({ businessTypes: '비즈니스 타입을 최소 1개 선택하세요.' });
+      return;
+    }
 
     const result = clientCreateSchema.safeParse(raw);
     if (!result.success) {
@@ -170,22 +182,26 @@ export function ClientFormDialog({ open, onOpenChange, onCreated }: ClientFormDi
             )}
           </div>
 
-          <div className="space-y-1.5">
-            <Label>비즈니스 타입</Label>
-            <div className="flex gap-2">
-              {Object.entries(BUSINESS_TYPES).map(([key, label]) => (
-                <Button
-                  key={key}
-                  type="button"
-                  variant={selectedBusinessTypes.includes(key) ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => toggleBusinessType(key)}
-                >
-                  {label}
-                </Button>
-              ))}
+          {/* 계약 폼 등에서 type 고정으로 호출되면 비즈니스 타입 UI 숨김 (자동 적용) */}
+          {!defaultBusinessTypes && (
+            <div className="space-y-1.5">
+              <Label>비즈니스 타입 *</Label>
+              <div className="flex gap-2">
+                {Object.entries(BUSINESS_TYPES).map(([key, label]) => (
+                  <Button
+                    key={key}
+                    type="button"
+                    variant={selectedBusinessTypes.includes(key) ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => toggleBusinessType(key)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              {errors.businessTypes && <p className="text-sm text-red-500">{errors.businessTypes}</p>}
             </div>
-          </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="dlg-client-memo">메모</Label>
