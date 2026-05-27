@@ -380,17 +380,19 @@ BEGIN
       OR public.user_role() = 'team_lead'::user_role;
 END $$;
 
+-- 00032와 동기화: team_business_domains 기반 (client.business_types ∩ 내 팀 도메인)
 CREATE OR REPLACE FUNCTION public.can_access_client(p_client_id uuid)
 RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
+DECLARE v_team_type team_type;
 BEGIN
   IF public.is_admin_or_clevel() THEN RETURN TRUE; END IF;
+  SELECT t.type INTO v_team_type FROM teams t WHERE t.id = public.user_team_id();
+  IF v_team_type IS NULL THEN RETURN FALSE; END IF;
   RETURN EXISTS (
-    SELECT 1 FROM contracts c
-    JOIN contract_teams ct ON ct.contract_id = c.id
-    WHERE c.client_id = p_client_id
-      AND ct.team_id = public.user_team_id()
-      AND c.deleted_at IS NULL
-      AND ct.deleted_at IS NULL
+    SELECT 1 FROM clients c
+    JOIN team_business_domains d ON d.team_type = v_team_type
+    WHERE c.id = p_client_id
+      AND d.business_type = ANY (c.business_types)
   );
 END; $$;
 
@@ -685,8 +687,11 @@ CREATE POLICY client_msp_select ON client_msp_details FOR SELECT USING (can_acce
 CREATE POLICY client_msp_update ON client_msp_details FOR UPDATE USING (can_access_client(client_id));
 
 CREATE POLICY clients_delete ON clients FOR DELETE USING (can_access_client(id));
-CREATE POLICY clients_insert ON clients FOR INSERT WITH CHECK ((auth.uid() IS NOT NULL));
-CREATE POLICY clients_select ON clients FOR SELECT USING (can_access_client(id));
+CREATE POLICY clients_insert ON clients FOR INSERT WITH CHECK ((is_admin_or_clevel() OR EXISTS (
+  SELECT 1 FROM team_business_domains d
+  WHERE d.team_type = (SELECT type FROM teams WHERE id = user_team_id())
+    AND d.business_type = ANY (business_types))));
+CREATE POLICY clients_select ON clients FOR SELECT USING ((auth.uid() IS NOT NULL));
 CREATE POLICY clients_update ON clients FOR UPDATE USING (can_access_client(id));
 
 CREATE POLICY contacts_delete ON contacts FOR DELETE USING (can_access_client(client_id));
@@ -765,9 +770,10 @@ CREATE POLICY profiles_insert ON profiles FOR INSERT WITH CHECK ((auth.uid() IS 
 CREATE POLICY profiles_select ON profiles FOR SELECT USING (true);
 CREATE POLICY profiles_update ON profiles FOR UPDATE USING ((id = auth.uid()));
 
-CREATE POLICY staff_delete ON employees FOR DELETE USING ((auth.uid() IS NOT NULL));
-CREATE POLICY staff_insert ON employees FOR INSERT WITH CHECK ((auth.uid() IS NOT NULL));
+-- 00032와 동기화: employees C·U·D는 admin만, SELECT는 인증 사용자 유지
+CREATE POLICY staff_delete ON employees FOR DELETE USING ((user_role() = 'admin'::user_role));
+CREATE POLICY staff_insert ON employees FOR INSERT WITH CHECK ((user_role() = 'admin'::user_role));
 CREATE POLICY staff_select ON employees FOR SELECT USING (true);
-CREATE POLICY staff_update ON employees FOR UPDATE USING ((auth.uid() IS NOT NULL));
+CREATE POLICY staff_update ON employees FOR UPDATE USING ((user_role() = 'admin'::user_role));
 
 CREATE POLICY teams_select ON teams FOR SELECT USING (true);
