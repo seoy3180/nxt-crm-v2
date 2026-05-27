@@ -13,6 +13,8 @@ import type { ClientRow } from '@/lib/services/client-service';
 import { CLIENT_TYPES } from '@/lib/constants';
 import { ArrowLeft } from 'lucide-react';
 import { useSectionBasePath } from '@/hooks/use-section-base-path';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { canManageClient } from '@/lib/auth/permissions';
 
 interface ClientTabsProps {
   client: ClientRow;
@@ -58,6 +60,12 @@ function ChildClientsTable({ children: childClients }: { children: ClientRow['ch
 
 export function ClientTabs({ client }: ClientTabsProps) {
   const router = useRouter();
+  const { data: currentUser } = useCurrentUser();
+  const canManage = canManageClient(
+    currentUser?.role ?? 'staff',
+    currentUser?.teamType ?? null,
+    client.business_types,
+  );
   const isParent = !client.parent_id && (client.children ?? []).length > 0;
   const hasBusinessType = (type: string) => client.business_types?.includes(type);
 
@@ -93,7 +101,7 @@ export function ClientTabs({ client }: ClientTabsProps) {
             <ClientDeleteZone clientId={client.id} clientName={client.name} inline />
           </div>
           <TabsContent value="info" className="space-y-6">
-            <ClientInfoCard client={client} />
+            <ClientInfoCard client={client} canManage={canManage} />
             <ChildClientsTable>{client.children}</ChildClientsTable>
           </TabsContent>
           <TabsContent value="contracts">
@@ -123,8 +131,8 @@ export function ClientTabs({ client }: ClientTabsProps) {
         </div>
 
         <TabsContent value="info" className="space-y-4">
-          <ClientInfoCard client={client} />
-          <ContactTable clientId={client.id} />
+          <ClientInfoCard client={client} canManage={canManage} />
+          <ContactTable clientId={client.id} canManage={canManage} />
         </TabsContent>
 
         {hasBusinessType('msp') && (
