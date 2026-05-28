@@ -43,14 +43,15 @@ export function ContractStageFilter({ contractType, stage, onStageChange }: Cont
 interface ContractSearchProps {
   search: string;
   onSearchChange: (value: string) => void;
+  placeholder?: string;
 }
 
-export function ContractSearch({ search, onSearchChange }: ContractSearchProps) {
+export function ContractSearch({ search, onSearchChange, placeholder = '계약명 검색...' }: ContractSearchProps) {
   return (
-    <div className="relative w-60">
+    <div className="relative w-72">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
       <Input
-        placeholder="계약명, 고객명 검색..."
+        placeholder={placeholder}
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
         className="h-8 rounded-md border-zinc-200 pl-9 text-[13px]"
