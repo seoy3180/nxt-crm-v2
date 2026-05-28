@@ -150,7 +150,31 @@ function MspContractsInner() {
         .order(sortKey, { ascending: sortOrder === 'asc' });
 
       if (stage) q = q.eq('stage', stage);
-      if (debouncedSearch) q = q.ilike('name', `%${debouncedSearch}%`);
+      if (debouncedSearch) {
+        // 계약명 + 고객명 + AWS account ID 동시 검색 (모두 부분 매칭).
+        // - 계약명: contracts.name ilike (idx_contracts_name_trgm)
+        // - account ID: contract_msp_details.aws_account_search ilike (00033 trgm GIN)
+        // - 고객명: clients.name ilike (00034 trgm GIN) → client_id 목록 OR
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sb = supabase as any;
+        const [{ data: idRows }, { data: clientRows }] = await Promise.all([
+          sb.from('contract_msp_details')
+            .select('contract_id')
+            .is('deleted_at', null)
+            .ilike('aws_account_search', `%${debouncedSearch}%`),
+          sb.from('clients')
+            .select('id')
+            .is('deleted_at', null)
+            .ilike('name', `%${debouncedSearch}%`),
+        ]);
+        const idMatches: string[] = (idRows ?? []).map((r: { contract_id: string }) => r.contract_id);
+        const clientMatches: string[] = (clientRows ?? []).map((r: { id: string }) => r.id);
+
+        const orParts: string[] = [`name.ilike.%${debouncedSearch}%`];
+        if (idMatches.length > 0) orParts.push(`id.in.(${idMatches.join(',')})`);
+        if (clientMatches.length > 0) orParts.push(`client_id.in.(${clientMatches.join(',')})`);
+        q = q.or(orParts.join(','));
+      }
       q = q.range(from, to);
 
       const { data, count, error } = await q;
@@ -231,7 +255,11 @@ function MspContractsInner() {
 
         <ContractStageFilter contractType="msp" stage={stage} onStageChange={(v) => { setStage(v); setPage(1); }} />
         <div className="flex-1" />
-        <ContractSearch search={search} onSearchChange={handleSearchChange} />
+        <ContractSearch
+          search={search}
+          onSearchChange={handleSearchChange}
+          placeholder="계약명, 고객명, Account ID 검색..."
+        />
         {viewMode === 'table' && <InlineEditActions inlineEdit={inlineEdit} />}
 
         {editMode ? (

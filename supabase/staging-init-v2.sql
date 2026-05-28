@@ -34,6 +34,10 @@ CREATE TYPE user_role AS ENUM ('staff', 'team_lead', 'admin', 'c_level');
 -- 3) TABLE 정의 (19개)
 -- ============================================================
 
+-- 00033: generated column(aws_account_search)이 참조하는 immutable wrapper
+CREATE OR REPLACE FUNCTION public.immutable_array_to_string(arr text[])
+RETURNS text LANGUAGE sql IMMUTABLE AS $$ SELECT array_to_string(arr, ' '); $$;
+
 CREATE TABLE teams (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text NOT NULL,
@@ -170,7 +174,9 @@ CREATE TABLE contract_msp_details (
   billing_on_alias text,
   deleted_at timestamptz,
   tags text[] DEFAULT '{}'::text[],
-  root_account_email text
+  root_account_email text,
+  -- 00033: account ID 부분 검색용 (배열→텍스트 generated, immutable wrapper)
+  aws_account_search text GENERATED ALWAYS AS (public.immutable_array_to_string(aws_account_ids)) STORED
 );
 
 CREATE TABLE contract_teams (
@@ -558,6 +564,10 @@ CREATE INDEX idx_contract_tech_leads_employee ON public.contract_tech_leads USIN
 CREATE INDEX idx_contracts_active ON public.contracts USING btree (id) WHERE (deleted_at IS NULL);
 CREATE INDEX idx_contracts_client ON public.contracts USING btree (client_id);
 CREATE INDEX idx_contracts_name_trgm ON public.contracts USING gin (name gin_trgm_ops);
+-- 00033과 동기화: MSP 계약 account ID 부분 검색용 (배열→텍스트 generated + trgm)
+CREATE INDEX idx_contract_msp_details_aws_search ON public.contract_msp_details USING gin (aws_account_search gin_trgm_ops);
+-- 00034와 동기화: 고객명 부분 검색용
+CREATE INDEX idx_clients_name_trgm ON public.clients USING gin (name gin_trgm_ops);
 CREATE INDEX idx_contracts_stage ON public.contracts USING btree (stage);
 CREATE INDEX idx_contracts_type ON public.contracts USING btree (type);
 CREATE INDEX idx_deposit_accounts_contract ON public.deposit_accounts USING btree (contract_id) WHERE (deleted_at IS NULL);
