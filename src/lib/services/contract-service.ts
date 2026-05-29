@@ -113,16 +113,54 @@ export const contractService = {
         contacts!contracts_contact_id_fkey(name)
       `, { count: 'exact' })
       .is('deleted_at', null)
-      .order(sortBy, { ascending: sortOrder === 'asc' })
-      .range(from, to);
+      .order(sortBy, { ascending: sortOrder === 'asc' });
 
-    if (type) {
-      q = q.eq('type', type);
-    }
-    if (stage) {
-      q = q.eq('stage', stage);
+    if (type) q = q.eq('type', type);
+    if (stage) q = q.eq('stage', stage);
+
+    // DB 단 검색: 계약명 + 고객명 + AWS account ID 부분매칭(union).
+    // `.or()` 문자열 인터폴(PostgREST 메타문자 주입 위험)을 피해, 각 매칭 id를 모은 뒤
+    // `.in('id', ids)` 한 절로 합친다. `.ilike()` 값은 PostgREST가 안전하게 파라미터화.
+    if (search) {
+      const [nameRes, clientHitsRes, accountRes] = await Promise.all([
+        getClient()
+          .from('contracts')
+          .select('id')
+          .is('deleted_at', null)
+          .ilike('name', `%${search}%`),
+        getClient()
+          .from('clients')
+          .select('id')
+          .is('deleted_at', null)
+          .ilike('name', `%${search}%`),
+        getClient()
+          .from('contract_msp_details')
+          .select('contract_id')
+          .is('deleted_at', null)
+          .ilike('aws_account_search', `%${search}%`),
+      ]);
+
+      const ids = new Set<string>();
+      (nameRes.data ?? []).forEach((r) => ids.add(r.id));
+      (accountRes.data ?? []).forEach((r) => ids.add(r.contract_id));
+
+      const clientHitIds = (clientHitsRes.data ?? []).map((r) => r.id);
+      if (clientHitIds.length > 0) {
+        const { data: byClient } = await getClient()
+          .from('contracts')
+          .select('id')
+          .is('deleted_at', null)
+          .in('client_id', clientHitIds);
+        (byClient ?? []).forEach((r) => ids.add(r.id));
+      }
+
+      if (ids.size === 0) {
+        return { data: [], total: 0, page, pageSize, totalPages: 0 };
+      }
+      q = q.in('id', Array.from(ids));
     }
 
+    q = q.range(from, to);
     const { data, count, error } = await q;
     if (error) throw error;
 
@@ -134,22 +172,12 @@ export const contractService = {
       client_contact_name: (row.contacts as { name: string } | null)?.name ?? null,
     }));
 
-    // 클라이언트에서 계약명 + 고객명 검색
-    const filtered = search
-      ? mapped.filter((row) => {
-          const s = search.toLowerCase();
-          const name = String((row as Record<string, unknown>).name ?? '').toLowerCase();
-          const clientName = String(row.client_name ?? '').toLowerCase();
-          return name.includes(s) || clientName.includes(s);
-        })
-      : mapped;
-
     return {
-      data: filtered as unknown as ContractRow[],
-      total: search ? filtered.length : (count ?? 0),
+      data: mapped as unknown as ContractRow[],
+      total: count ?? 0,
       page,
       pageSize,
-      totalPages: search ? 1 : Math.ceil((count ?? 0) / pageSize),
+      totalPages: Math.ceil((count ?? 0) / pageSize),
     };
   },
 

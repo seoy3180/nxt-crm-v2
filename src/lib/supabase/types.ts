@@ -7,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -291,6 +289,7 @@ export type Database = {
       contract_msp_details: {
         Row: {
           aws_account_ids: string[] | null
+          aws_account_search: string | null
           aws_am: string | null
           aws_amount: number | null
           billing_method:
@@ -314,6 +313,7 @@ export type Database = {
         }
         Insert: {
           aws_account_ids?: string[] | null
+          aws_account_search?: string | null
           aws_am?: string | null
           aws_amount?: number | null
           billing_method?:
@@ -337,6 +337,7 @@ export type Database = {
         }
         Update: {
           aws_account_ids?: string[] | null
+          aws_account_search?: string | null
           aws_am?: string | null
           aws_amount?: number | null
           billing_method?:
@@ -1175,10 +1176,9 @@ export type Database = {
       }
       generate_edu_contract_id: { Args: never; Returns: string }
       generate_msp_contract_id: { Args: never; Returns: string }
+      immutable_array_to_string: { Args: { arr: string[] }; Returns: string }
       is_admin_clevel_or_lead: { Args: never; Returns: boolean }
       is_admin_or_clevel: { Args: never; Returns: boolean }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       update_contract_teams: {
         Args: { p_allocations: Json; p_contract_id: string }
         Returns: undefined

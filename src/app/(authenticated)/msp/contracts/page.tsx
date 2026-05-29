@@ -151,29 +151,34 @@ function MspContractsInner() {
 
       if (stage) q = q.eq('stage', stage);
       if (debouncedSearch) {
-        // 계약명 + 고객명 + AWS account ID 동시 검색 (모두 부분 매칭).
-        // - 계약명: contracts.name ilike (idx_contracts_name_trgm)
-        // - account ID: contract_msp_details.aws_account_search ilike (00033 trgm GIN)
-        // - 고객명: clients.name ilike (00034 trgm GIN) → client_id 목록 OR
+        // `.or()` 문자열 인터폴(PostgREST 메타문자 주입 위험) 회피.
+        // 각 매칭 id를 모은 뒤 `.in('id', ids)`로 합침. `.ilike()`는 안전 파라미터.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const sb = supabase as any;
-        const [{ data: idRows }, { data: clientRows }] = await Promise.all([
-          sb.from('contract_msp_details')
-            .select('contract_id')
-            .is('deleted_at', null)
-            .ilike('aws_account_search', `%${debouncedSearch}%`),
-          sb.from('clients')
-            .select('id')
-            .is('deleted_at', null)
+        const [nameRes, clientHitsRes, accountRes] = await Promise.all([
+          sb.from('contracts').select('id').eq('type', 'msp').is('deleted_at', null)
             .ilike('name', `%${debouncedSearch}%`),
+          sb.from('clients').select('id').is('deleted_at', null)
+            .ilike('name', `%${debouncedSearch}%`),
+          sb.from('contract_msp_details').select('contract_id').is('deleted_at', null)
+            .ilike('aws_account_search', `%${debouncedSearch}%`),
         ]);
-        const idMatches: string[] = (idRows ?? []).map((r: { contract_id: string }) => r.contract_id);
-        const clientMatches: string[] = (clientRows ?? []).map((r: { id: string }) => r.id);
 
-        const orParts: string[] = [`name.ilike.%${debouncedSearch}%`];
-        if (idMatches.length > 0) orParts.push(`id.in.(${idMatches.join(',')})`);
-        if (clientMatches.length > 0) orParts.push(`client_id.in.(${clientMatches.join(',')})`);
-        q = q.or(orParts.join(','));
+        const ids = new Set<string>();
+        (nameRes.data ?? []).forEach((r: { id: string }) => ids.add(r.id));
+        (accountRes.data ?? []).forEach((r: { contract_id: string }) => ids.add(r.contract_id));
+
+        const clientHitIds: string[] = (clientHitsRes.data ?? []).map((r: { id: string }) => r.id);
+        if (clientHitIds.length > 0) {
+          const { data: byClient } = await sb.from('contracts').select('id')
+            .eq('type', 'msp').is('deleted_at', null).in('client_id', clientHitIds);
+          (byClient ?? []).forEach((r: { id: string }) => ids.add(r.id));
+        }
+
+        if (ids.size === 0) {
+          return { data: [] as ContractTableRow[], total: 0, page, pageSize, totalPages: 0 };
+        }
+        q = q.in('id', Array.from(ids));
       }
       q = q.range(from, to);
 
