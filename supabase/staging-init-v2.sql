@@ -547,6 +547,92 @@ BEGIN
   RETURN NEW;
 END $$;
 
+-- 00035와 동기화: 다단계 쓰기 RPC 트랜잭션화 (SECURITY DEFINER + can_access 가드)
+CREATE OR REPLACE FUNCTION public.replace_contract_tech_leads(
+  p_contract_id uuid, p_employee_ids uuid[]
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT public.can_access_contract(p_contract_id) THEN
+    RAISE EXCEPTION '계약 접근 권한이 없습니다 (contract_id=%)', p_contract_id USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  DELETE FROM contract_tech_leads WHERE contract_id = p_contract_id;
+  IF p_employee_ids IS NOT NULL AND array_length(p_employee_ids, 1) > 0 THEN
+    INSERT INTO contract_tech_leads (contract_id, employee_id)
+    SELECT p_contract_id, unnest(p_employee_ids);
+  END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.change_contract_stage(
+  p_contract_id uuid, p_to_stage text, p_user_id uuid, p_note text DEFAULT NULL
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_from_stage text;
+BEGIN
+  IF NOT public.can_access_contract(p_contract_id) THEN
+    RAISE EXCEPTION '계약 접근 권한이 없습니다 (contract_id=%)', p_contract_id USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  SELECT stage INTO v_from_stage FROM contracts WHERE id = p_contract_id;
+  UPDATE contracts SET stage = p_to_stage WHERE id = p_contract_id;
+  INSERT INTO contract_history (contract_id, field_name, old_value, new_value, from_stage, to_stage, changed_by, note)
+  VALUES (p_contract_id, 'stage', v_from_stage, p_to_stage, v_from_stage, p_to_stage, p_user_id, p_note);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.soft_delete_contract(p_contract_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_now timestamptz := now();
+BEGIN
+  IF NOT public.can_access_contract(p_contract_id) THEN
+    RAISE EXCEPTION '계약 접근 권한이 없습니다 (contract_id=%)', p_contract_id USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  UPDATE contracts            SET deleted_at = v_now WHERE id          = p_contract_id;
+  UPDATE contract_teams       SET deleted_at = v_now WHERE contract_id = p_contract_id;
+  UPDATE contract_msp_details SET deleted_at = v_now WHERE contract_id = p_contract_id;
+  UPDATE deposit_accounts     SET deleted_at = v_now WHERE contract_id = p_contract_id;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.create_contract_with_details(p_input jsonb)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_client_id uuid := (p_input->>'client_id')::uuid;
+  v_type contract_type := (p_input->>'type')::contract_type;
+  v_contract_id text; v_new_id uuid; v_new_row jsonb;
+  v_bt business_type; v_types business_type[];
+BEGIN
+  IF NOT public.can_access_client(v_client_id) THEN
+    RAISE EXCEPTION '고객 접근 권한이 없습니다 (client_id=%)', v_client_id USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF v_type = 'msp'::contract_type THEN v_contract_id := public.generate_msp_contract_id();
+  ELSE v_contract_id := public.generate_edu_contract_id(); END IF;
+  INSERT INTO contracts (contract_id, client_id, type, name, memo, total_amount, currency, stage, assigned_to, contact_id)
+  VALUES (v_contract_id, v_client_id, v_type, p_input->>'name', p_input->>'memo',
+          COALESCE((p_input->>'total_amount')::bigint, 0),
+          COALESCE((p_input->>'currency')::currency_type, 'KRW'::currency_type),
+          COALESCE(p_input->>'stage', CASE WHEN v_type = 'msp'::contract_type THEN 'pre_contract' ELSE NULL END),
+          NULLIF(p_input->>'assigned_to', '')::uuid, NULLIF(p_input->>'contact_id', '')::uuid)
+  RETURNING id INTO v_new_id;
+  IF v_type = 'msp'::contract_type THEN INSERT INTO contract_msp_details (contract_id) VALUES (v_new_id); END IF;
+  v_bt := (v_type::text)::business_type;
+  SELECT business_types INTO v_types FROM clients WHERE id = v_client_id;
+  IF NOT (v_bt = ANY(COALESCE(v_types, '{}'::business_type[]))) THEN
+    UPDATE clients SET business_types = array_append(COALESCE(business_types, '{}'::business_type[]), v_bt)
+    WHERE id = v_client_id;
+  END IF;
+  SELECT to_jsonb(c.*) INTO v_new_row FROM contracts c WHERE c.id = v_new_id;
+  RETURN v_new_row;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.soft_delete_client(p_client_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_now timestamptz := now();
+BEGIN
+  IF NOT public.can_access_client(p_client_id) THEN
+    RAISE EXCEPTION '고객 접근 권한이 없습니다 (client_id=%)', p_client_id USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  UPDATE clients            SET deleted_at = v_now WHERE id        = p_client_id;
+  UPDATE contacts           SET deleted_at = v_now WHERE client_id = p_client_id;
+  UPDATE client_msp_details SET deleted_at = v_now WHERE client_id = p_client_id;
+  UPDATE client_edu_details SET deleted_at = v_now WHERE client_id = p_client_id;
+END $$;
+
 -- ============================================================
 -- 6) INDEX (23개)
 -- ============================================================
