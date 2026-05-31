@@ -24,7 +24,7 @@ describe('contractCreateSchema', () => {
     const result = contractCreateSchema.safeParse({
       name: 'AWS 교육',
       clientId: '550e8400-e29b-41d4-a716-446655440000',
-      type: 'tt',
+      type: 'edu',
       totalAmount: 30000000,
     });
     expect(result.success).toBe(true);
@@ -62,11 +62,11 @@ describe('contractCreateSchema', () => {
 describe('mspDetailSchema', () => {
   it('MSP 확장 필드를 통과시킨다', () => {
     const result = mspDetailSchema.safeParse({
-      billingLevel: 'MSP15',
-      creditShare: 15.0,
+      mspGrade: 'MSP15',
+      creditShare: '가능',
       expectedMrr: 10000000,
-      payer: '삼성SDS',
-      salesRep: '박진성',
+      payer: 'ETV-AWS-13',
+      salesRepId: '550e8400-e29b-41d4-a716-446655440000',
       awsAmount: 100000000,
       hasManagementFee: true,
     });

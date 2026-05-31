@@ -13,7 +13,7 @@ describe('clientCreateSchema', () => {
       name: '서울대학교',
       clientType: 'univ',
       grade: 'A',
-      businessTypes: ['tt'],
+      businessTypes: ['edu'],
       memo: '주요 교육 고객',
     });
     expect(result.success).toBe(true);
