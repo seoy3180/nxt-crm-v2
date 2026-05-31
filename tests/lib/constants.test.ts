@@ -17,8 +17,8 @@ describe('constants', () => {
     expect(USER_ROLES).toEqual(['staff', 'team_lead', 'admin', 'c_level']);
   });
 
-  it('TEAM_TYPES에 3개 팀이 정의되어야 한다', () => {
-    expect(TEAM_TYPES).toEqual(['msp', 'education', 'dev']);
+  it('TEAM_TYPES에 5개 팀이 정의되어야 한다', () => {
+    expect(TEAM_TYPES).toEqual(['ops', 'tt', 'dev', 'ai', 'ptn']);
   });
 
   it('CLIENT_TYPES에 5개 유형이 정의되어야 한다', () => {
@@ -38,9 +38,9 @@ describe('constants', () => {
   it('MSP_STAGES에 4단계가 순서대로 정의되어야 한다', () => {
     expect(MSP_STAGES.map((s) => s.value)).toEqual([
       'pre_contract',
-      'contracted',
-      'completed',
-      'settled',
+      'billing_complete',
+      'project_closed',
+      'unpaid',
     ]);
   });
 
