@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -1170,6 +1172,16 @@ export type Database = {
     Functions: {
       can_access_client: { Args: { p_client_id: string }; Returns: boolean }
       can_access_contract: { Args: { p_contract_id: string }; Returns: boolean }
+      change_contract_stage: {
+        Args: {
+          p_contract_id: string
+          p_note?: string
+          p_to_stage: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      create_contract_with_details: { Args: { p_input: Json }; Returns: Json }
       generate_client_id: {
         Args: { p_type: Database["public"]["Enums"]["client_type"] }
         Returns: string
@@ -1179,6 +1191,17 @@ export type Database = {
       immutable_array_to_string: { Args: { arr: string[] }; Returns: string }
       is_admin_clevel_or_lead: { Args: never; Returns: boolean }
       is_admin_or_clevel: { Args: never; Returns: boolean }
+      replace_contract_tech_leads: {
+        Args: { p_contract_id: string; p_employee_ids: string[] }
+        Returns: undefined
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      soft_delete_client: { Args: { p_client_id: string }; Returns: undefined }
+      soft_delete_contract: {
+        Args: { p_contract_id: string }
+        Returns: undefined
+      }
       update_contract_teams: {
         Args: { p_allocations: Json; p_contract_id: string }
         Returns: undefined

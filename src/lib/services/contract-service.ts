@@ -227,58 +227,22 @@ export const contractService = {
   },
 
   async create(input: ContractCreateInput) {
-    const idFn = input.type === 'msp' ? 'generate_msp_contract_id' : 'generate_edu_contract_id';
-    const { data: contractId } = await getClient().rpc(idFn);
-
-    // ⚠️ INSERT ... RETURNING(.select())을 쓰면 RETURNING이 contracts_select RLS를
-    //    평가하는데, can_access_contract가 contracts를 자기참조 조회 → 미커밋 새 row를
-    //    못 봐 team_lead에게 RLS 위반이 남. INSERT(RETURNING 없이) 후 별도 SELECT로 분리.
-    const { error } = await getClient()
-      .from('contracts')
-      .insert({
-        contract_id: contractId as string,
+    // 계약 생성 + msp_details 미리 생성 + clients.business_types 보강을 단일 트랜잭션으로 (RPC, 00035).
+    // 같은 트랜잭션이라 contracts_select 자기참조 RLS 문제도 자연 해소 (이전 insert+분리 select 트릭 불필요).
+    const { data, error } = await getClient().rpc('create_contract_with_details', {
+      p_input: {
         client_id: input.clientId,
         type: input.type,
         name: input.name,
         memo: input.memo ?? null,
         total_amount: input.totalAmount,
         currency: input.currency,
-        stage: input.stage ?? (input.type === 'msp' ? 'pre_contract' : null),
+        stage: input.stage ?? null,
         assigned_to: input.assignedTo ?? null,
         contact_id: input.contactId ?? null,
-      });
-
+      },
+    });
     if (error) throw error;
-
-    const { data, error: fetchError } = await getClient()
-      .from('contracts')
-      .select()
-      .eq('contract_id', contractId as string)
-      .single();
-
-    if (fetchError) throw fetchError;
-
-    if (input.type === 'msp') {
-      await getClient().from('contract_msp_details').insert({ contract_id: data.id });
-    }
-
-    const { data: client } = await getClient()
-      .from('clients')
-      .select('business_types')
-      .eq('id', input.clientId)
-      .single();
-
-    if (client) {
-      const types = client.business_types as string[] ?? [];
-      const btType = input.type === 'edu' ? 'edu' : input.type;
-      if (!types.includes(btType)) {
-        await getClient()
-          .from('clients')
-          .update({ business_types: [...types, btType] as ("msp" | "edu" | "dev")[] })
-          .eq('id', input.clientId);
-      }
-    }
-
     return data as unknown as ContractRow;
   },
 
@@ -332,55 +296,25 @@ export const contractService = {
 
   /**
    * 담당 기술(다중) 전체 교체.
-   * 기존 연결 모두 삭제 후 새 employeeIds로 재삽입.
+   * DELETE+INSERT를 단일 트랜잭션으로 묶기 위해 RPC(00035) 호출 — 중간 실패 시 롤백.
    */
   async updateTechLeads(contractId: string, employeeIds: string[]) {
-    const { error: delError } = await getClient()
-      .from('contract_tech_leads')
-      .delete()
-      .eq('contract_id', contractId);
-    if (delError) throw delError;
-
-    if (employeeIds.length === 0) return;
-
-    const rows = employeeIds.map((employeeId) => ({
-      contract_id: contractId,
-      employee_id: employeeId,
-    }));
-    const { error: insError } = await getClient()
-      .from('contract_tech_leads')
-      .insert(rows);
-    if (insError) throw insError;
+    const { error } = await getClient().rpc('replace_contract_tech_leads', {
+      p_contract_id: contractId,
+      p_employee_ids: employeeIds,
+    });
+    if (error) throw error;
   },
 
   async changeStage(contractId: string, input: StageChangeInput, userId: string) {
-    const { data: current } = await getClient()
-      .from('contracts')
-      .select('stage')
-      .eq('id', contractId)
-      .single();
-
-    const { error: updateError } = await getClient()
-      .from('contracts')
-      .update({ stage: input.toStage })
-      .eq('id', contractId);
-
-    if (updateError) throw updateError;
-
-    const { error: historyError } = await getClient()
-      .from('contract_history')
-      .insert({
-        contract_id: contractId,
-        field_name: 'stage',
-        old_value: current?.stage ?? null,
-        new_value: input.toStage,
-        from_stage: current?.stage ?? null,
-        to_stage: input.toStage,
-        changed_by: userId,
-        note: input.note ?? null,
-      });
-
-    if (historyError) throw historyError;
+    // 단계 UPDATE + history INSERT를 단일 트랜잭션으로 (RPC, 00035).
+    const { error } = await getClient().rpc('change_contract_stage', {
+      p_contract_id: contractId,
+      p_to_stage: input.toStage,
+      p_user_id: userId,
+      p_note: input.note ?? undefined,
+    });
+    if (error) throw error;
   },
 
   /** 범용 변경이력 기록 (여러 필드 동시 가능) */
@@ -449,21 +383,12 @@ export const contractService = {
       return { blocked: { balance: acct.balance, currency } };
     }
 
-    const now = new Date().toISOString();
-
-    const { error } = await getClient()
-      .from('contracts')
-      .update({ deleted_at: now })
-      .eq('id', id);
-
+    // contracts + 관련 테이블 deleted_at을 단일 트랜잭션으로 (RPC, 00035).
+    // DB 트리거 guard_contract_delete_with_deposit이 최종 안전망.
+    const { error } = await getClient().rpc('soft_delete_contract', {
+      p_contract_id: id,
+    });
     if (error) throw error;
-
-    // 관련 테이블 동시 soft-delete (invariant: detail.deleted_at == parent.deleted_at)
-    await Promise.all([
-      getClient().from('contract_teams').update({ deleted_at: now }).eq('contract_id', id),
-      getClient().from('contract_msp_details').update({ deleted_at: now }).eq('contract_id', id),
-      getClient().from('deposit_accounts').update({ deleted_at: now }).eq('contract_id', id),
-    ]);
 
     return {};
   },

@@ -152,21 +152,9 @@ export const clientService = {
   },
 
   async softDelete(id: string) {
-    const now = new Date().toISOString();
-
-    const { error } = await supabase
-      .from('clients')
-      .update({ deleted_at: now })
-      .eq('id', id);
-
+    // clients + 관련 3 테이블 deleted_at을 단일 트랜잭션으로 (RPC, 00035).
+    const { error } = await supabase.rpc('soft_delete_client', { p_client_id: id });
     if (error) throw error;
-
-    // 관련 테이블 동시 soft-delete (invariant: detail.deleted_at == parent.deleted_at)
-    await Promise.all([
-      supabase.from('contacts').update({ deleted_at: now }).eq('client_id', id),
-      supabase.from('client_msp_details').update({ deleted_at: now }).eq('client_id', id),
-      supabase.from('client_edu_details').update({ deleted_at: now }).eq('client_id', id),
-    ]);
   },
 
   // 부모 고객 검색 (드롭다운용)
