@@ -12,6 +12,7 @@ export const depositKeys = {
   accountByContract: (contractId: string) =>
     [...depositKeys.all, 'by-contract', contractId] as const,
   txns: (accountId: string) => [...depositKeys.all, 'txns', accountId] as const,
+  activatable: () => [...depositKeys.all, 'activatable'] as const,
 };
 
 /**
@@ -22,5 +23,13 @@ export function useDepositAccounts() {
   return useQuery({
     queryKey: depositKeys.accounts(),
     queryFn: () => depositService.listAccountsWithMetrics(),
+  });
+}
+
+/** 예치금 계좌 활성화 대상 MSP 계약 (미설정 + 비활성). */
+export function useActivatableContracts() {
+  return useQuery({
+    queryKey: depositKeys.activatable(),
+    queryFn: () => depositService.listActivatableMspContracts(),
   });
 }

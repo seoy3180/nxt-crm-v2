@@ -37,6 +37,17 @@ export interface DepositAccountWithMetrics extends DepositAccountWithContract {
   metrics: DepositAccountMetrics;
 }
 
+/** 예치금 계좌 활성화 대상 MSP 계약 (미설정 또는 비활성). */
+export interface ActivatableContract {
+  id: string;
+  name: string;
+  contract_id: string;
+  currency: 'KRW' | 'USD';
+  client_name: string | null;
+  /** 이전에 비활성(soft delete)된 계좌가 있으면 true → "재활성화" */
+  hasDeactivated: boolean;
+}
+
 export interface AddTransactionInput {
   account_id: string;
   txn_date: string;
@@ -81,6 +92,44 @@ export const depositService = {
         metrics: { avgMonthlyUsage, daysUntilDepleted, balancePct, alertLevel },
       };
     });
+  },
+
+  /**
+   * 예치금 계좌를 활성화할 수 있는 MSP 계약 목록.
+   * = MSP 계약 중 "활성(deleted_at IS NULL) deposit 계좌가 없는" 것.
+   *   - 계좌가 아예 없음 → 신규 활성화
+   *   - 비활성(deleted) 계좌만 있음 → 재활성화 (hasDeactivated=true)
+   * RLS(can_access_contract)로 본인 도메인 계약만 반환됨.
+   */
+  async listActivatableMspContracts(): Promise<ActivatableContract[]> {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('contracts')
+      .select('id, name, contract_id, currency, clients(name), deposit_accounts(id, deleted_at)')
+      .eq('type', 'msp')
+      .is('deleted_at', null)
+      .order('name');
+    if (error) throw error;
+
+    type Row = {
+      id: string;
+      name: string;
+      contract_id: string;
+      currency: 'KRW' | 'USD';
+      clients: { name: string } | null;
+      deposit_accounts: { id: string; deleted_at: string | null }[] | null;
+    };
+
+    return ((data ?? []) as unknown as Row[])
+      .filter((r) => !(r.deposit_accounts ?? []).some((a) => a.deleted_at === null))
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        contract_id: r.contract_id,
+        currency: r.currency,
+        client_name: r.clients?.name ?? null,
+        hasDeactivated: (r.deposit_accounts ?? []).length > 0,
+      }));
   },
 
   /** 활성 계좌 + 계약 정보 전체 조회 (대시보드용). */
