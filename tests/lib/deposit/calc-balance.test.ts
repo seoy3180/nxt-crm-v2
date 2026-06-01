@@ -69,8 +69,21 @@ describe('calcAvgMonthlyUsage (직전 N개월 평균, 활성 기간 적응)', ()
       txn({ txn_date: '2026-05-20', amount: 100_000, voided_at: '2026-05-21T00:00:00Z' }),
     ];
     const now = new Date('2026-05-31T12:00:00Z');
-    // 활성 3개월, voided 제외하면 직전 3개월 합 300_000 → 100_000/월
-    expect(calcAvgMonthlyUsage(acct, txns, now)).toBe(100_000);
+    // 유효 usage는 5/15 1건(300k)뿐 — voided(5/20)는 제외. 첫 사용=5월 → N=1 → 300,000/월
+    expect(calcAvgMonthlyUsage(acct, txns, now)).toBe(300_000);
+  });
+
+  it('계좌는 최근 생성·사용은 과거부터 → 첫 사용일 기준으로 과거분 반영 (소급 활성화 패턴)', () => {
+    // 예치금 계좌를 5/20에 뒤늦게 활성화(소급)했지만 usage는 3월부터 있음.
+    const acct = account({ created_at: '2026-05-20T00:00:00Z' });
+    const txns = [
+      txn({ txn_date: '2026-03-15', amount: 600_000 }),
+      txn({ txn_date: '2026-04-15', amount: 600_000 }),
+    ];
+    const now = new Date('2026-05-31T12:00:00Z');
+    // 첫 사용=3/15 → 활성개월 3 → N=3, cutoff≈3/3 → 3·4월 포함, 1.2M/3 = 400,000
+    // (계좌 생성일 5/20 기준이었다면 N=1·cutoff=4/30 → 둘 다 잘려 0이 됐을 케이스)
+    expect(calcAvgMonthlyUsage(acct, txns, now)).toBe(400_000);
   });
 });
 
@@ -100,37 +113,68 @@ describe('calcBalancePct', () => {
   });
 });
 
-describe('calcAlertLevel', () => {
-  it('balancePct = 10% 경계는 warning (조건: < 10 strict)', () => {
-    const acct = account({ balance: 1_000_000, total_deposit: 10_000_000 });
-    expect(calcAlertLevel(acct, 0)).toBe('warning');
+describe('calcAlertLevel — 배수 경계 (잔액% 안전망 밖: total_deposit=balance라 잔액%≈100%)', () => {
+  // 월평균 100,000 기준 (긴급 임계 200k, 주의 임계 300k). 잔액%를 100%로 둬 안전망 무력화.
+  const acct = (balance: number) =>
+    account({ balance, total_deposit: balance, total_usage: 1 });
+
+  it('잔액 = 월평균 × 2 (정확히 200k) → critical (경계 포함)', () => {
+    expect(calcAlertLevel(acct(200_000), 100_000)).toBe('critical');
   });
 
-  it('daysUntilDepleted = 5 → critical (< 14)', () => {
-    const acct = account({ balance: 50_000, total_deposit: 1_000_000 });
-    // avg 300_000 → 50_000 / 300_000 * 30 = 5일
-    expect(calcAlertLevel(acct, 300_000)).toBe('critical');
+  it('잔액 = 월평균 × 2 + 1 (200,001) → warning (긴급 경계 초과)', () => {
+    expect(calcAlertLevel(acct(200_001), 100_000)).toBe('warning');
   });
 
-  it('잔액 음수 → critical', () => {
-    const acct = account({ balance: -20, total_deposit: 3_000_000 });
-    expect(calcAlertLevel(acct, 1_000)).toBe('critical');
+  it('잔액 = 월평균 × 3 (정확히 300k) → warning (경계 포함)', () => {
+    expect(calcAlertLevel(acct(300_000), 100_000)).toBe('warning');
   });
 
-  it('충분한 잔액 + 사용량 적음 → ok', () => {
-    const acct = account({ balance: 8_000_000, total_deposit: 10_000_000 });
-    expect(calcAlertLevel(acct, 100_000)).toBe('ok');
+  it('잔액 = 월평균 × 3 + 1 (300,001) → ok (주의 경계 초과)', () => {
+    expect(calcAlertLevel(acct(300_001), 100_000)).toBe('ok');
   });
 
-  it('활성화 직후 (total_deposit=0 AND total_usage=0) → ok', () => {
-    // 새 계좌 활성화 후 입금/사용 모두 없는 운영 시작 전 상태는 alert 제외.
-    const acct = account({ balance: 0, total_deposit: 0, total_usage: 0 });
+  it('충분한 잔액 (월평균의 10배) → ok', () => {
+    expect(calcAlertLevel(acct(1_000_000), 100_000)).toBe('ok');
+  });
+});
+
+describe('calcAlertLevel — 잔액% 안전망 (긴급만, < 10%)', () => {
+  it('사용 멈춤(avg=0) + 잔액% 2.6% → critical (배수론 정상이지만 바닥 포착, 동국대_안효진 케이스)', () => {
+    const acct = account({ balance: 35_470, total_deposit: 1_380_000, total_usage: 1_344_530 });
+    expect(calcAlertLevel(acct, 0)).toBe('critical');
+  });
+
+  it('사용 멈춤(avg=0) + 잔액% 100% → ok (충분히 남음)', () => {
+    const acct = account({ balance: 5_000_000, total_deposit: 5_000_000, total_usage: 0 });
     expect(calcAlertLevel(acct, 0)).toBe('ok');
   });
 
-  it('total_deposit > 0인데 잔액 0 (전액 소진) → critical', () => {
-    // fresh 분기로 인해 정상 운영 중 전액 소진이 가려지지 않는지 검증.
-    const acct = account({ balance: 0, total_deposit: 1_000_000, total_usage: 1_000_000 });
-    expect(calcAlertLevel(acct, 300_000)).toBe('critical');
+  it('잔액% 정확히 10% (경계 미포함, < 10 strict) → 배수 판정으로 (avg=0이면 ok)', () => {
+    // balance 1M / deposit 10M = 10%. 10 < 10 거짓 → 잔액% 안전망 미발동. avg=0·잔액>0 → ok
+    const acct = account({ balance: 1_000_000, total_deposit: 10_000_000, total_usage: 1 });
+    expect(calcAlertLevel(acct, 0)).toBe('ok');
+  });
+
+  it('잔액% 9.9% → critical (안전망 발동)', () => {
+    const acct = account({ balance: 990_000, total_deposit: 10_000_000, total_usage: 1 });
+    expect(calcAlertLevel(acct, 0)).toBe('critical');
+  });
+});
+
+describe('calcAlertLevel — 공통 엣지', () => {
+  it('잔액 음수 → critical', () => {
+    const acct = account({ balance: -20_000, total_deposit: 3_000_000, total_usage: 100 });
+    expect(calcAlertLevel(acct, 1_000)).toBe('critical');
+  });
+
+  it('활성화 직후 (total_deposit=0 AND total_usage=0) → ok', () => {
+    const fresh = account({ balance: 0, total_deposit: 0, total_usage: 0 });
+    expect(calcAlertLevel(fresh, 0)).toBe('ok');
+  });
+
+  it('정상 운영 중 전액 소진 (잔액 0, avg>0) → critical', () => {
+    const depleted = account({ balance: 0, total_deposit: 1_000_000, total_usage: 1_000_000 });
+    expect(calcAlertLevel(depleted, 300_000)).toBe('critical');
   });
 });

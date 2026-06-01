@@ -243,41 +243,49 @@ Then: "예치금" 탭 자체가 표시되지 않는다
 ---
 
 #### FR-7: 알림 레벨 자동 계산 (표시만)
-**설명**: 각 계좌의 잔액 % 및 소진 예상 일수를 기반으로 알림 레벨을 코드에서 계산하여 UI에 표시한다. **DB 컬럼/임계값 컬럼 없음. Slack 알림 등 외부 알림은 MVP 제외.**
+**설명**: 각 계좌의 잔액을 월평균 사용액 대비로 평가해 알림 레벨을 코드에서 계산하여 UI에 표시한다. **DB 컬럼/임계값 컬럼 없음. Slack 알림 등 외부 알림은 MVP 제외.**
 
-**알림 레벨 룰** (코드 상수, 프로토타입과 동일):
+**알림 레벨 룰** (코드 상수 `DEPOSIT_ALERT_THRESHOLDS`. 2026-06 개정: 잔액%(10/25)·일수(14/45) 기준 폐기 → 월평균 사용액 배수 + 잔액% 안전망 하이브리드):
 | 레벨 | 조건 | UI 색상 |
 |------|------|---------|
-| critical (긴급) | balancePct < 10% **또는** daysUntilDepleted < 14일 | 빨간색 |
-| warning (주의) | balancePct < 25% **또는** daysUntilDepleted < 45일 | 호박색 |
+| critical (긴급) | 잔액 ≤ 월평균사용액 × 2 (≈ 잔여 2개월 이하) **또는** 잔액% < 10% | 빨간색 |
+| warning (주의) | 잔액 ≤ 월평균사용액 × 3 (≈ 잔여 3개월 이하, 긴급 아닌 것) | 호박색 |
 | ok (정상) | 그 외 | 초록색 |
+
+- **배수 기준**(소진 속도): 잔액이 월 사용 속도 대비 몇 달치인가 → 소진 임박 포착.
+- **잔액% 안전망**(critical만): 사용이 멈춰 월평균=0이어도(배수론 정상) 예치액 대비 거의 소진된 계좌(잔액% < 10%)를 긴급으로 포착. warning엔 미적용(runway 충분한 계좌 과경보 방지).
+- 활성화 직후(total_deposit=0 AND total_usage=0) 계좌는 ok.
 
 **계산 룰**:
 - `balancePct = balance / total_deposit * 100` (total_deposit=0이면 0)
 - `avgMonthlyUsage = 직전 N개월 usage 트랜잭션 amount 합 / N`
-  - `N = min(3, 계좌 활성 개월수)`
-  - 계좌 활성 개월수 = `ceil((NOW() - deposit_accounts.created_at) / 30일)`
+  - `N = min(3, 활성 개월수)`
+  - **활성 개월수 = `monthsBetween(가장 오래된 usage 거래일, NOW())`** (계좌 created_at 아님 — 예치금 계좌를 뒤늦게 활성화하고 과거 사용분을 소급 입력하는 운영 패턴에서, 계좌 생성일 기준이면 과거 사용분이 평균에서 누락되어 월평균=0으로 왜곡됨)
   - 활성 기간이 1~3개월이면 N도 그만큼 줄임 (분모 적응)
   - usage 트랜잭션 0건이면 0
-- `daysUntilDepleted = balance / avgMonthlyUsage * 30` (avgMonthlyUsage=0이면 Infinity → "—" 표시)
+- `daysUntilDepleted = balance / avgMonthlyUsage * 30` (표시용. avgMonthlyUsage=0이면 Infinity → "—" 표시)
 
 **수용 기준**:
 ```
-Given: balance = 1,000,000 / total_deposit = 10,000,000 (10%)
-Then: balancePct = 10 → 경계값 (조건은 < 10%)이므로 warning
-
-Given: 활성 5개월 / balance = 50,000 / total_deposit = 1,000,000
-And: 직전 3개월(2026-03, 04, 05)의 usage amount 합 = 900,000원
-Then: avgMonthlyUsage = 900,000 / 3 = 300,000 → daysUntilDepleted = 5일 → critical (< 14일)
+Given: balance = 50,000 / 직전 3개월 usage 합 = 900,000 (avgMonthlyUsage = 300,000)
+Then: 50,000 ≤ 300,000 × 2(600,000) → critical (잔여 2개월 이하)
 Then: 카드 우측 상단 배지 "긴급" + 카드 테두리 빨간색
 
-Given: 활성 1개월 / balance = 200,000 / total_deposit = 1,000,000
-And: 활성 1개월의 usage amount 합 = 800,000원 (N = min(3, 1) = 1)
-Then: avgMonthlyUsage = 800,000 / 1 = 800,000 → daysUntilDepleted = 7.5일 → critical
+Given: balance = 1,000,000 / avgMonthlyUsage = 300,000
+Then: 1,000,000 ≤ 600,000 거짓, ≤ 900,000(×3) 거짓 → ok (잔여 3개월 초과)
 
-Given: usage 트랜잭션이 0건이다
-Then: avgMonthlyUsage = 0 → daysUntilDepleted는 Infinity → "—"로 표시
-Then: balancePct만으로 레벨 판정
+Given: balance = 850,000 / avgMonthlyUsage = 300,000
+Then: ≤ 600,000 거짓, ≤ 900,000 참 → warning (잔여 2~3개월)
+
+Given: 사용이 멈춰 avgMonthlyUsage = 0 / balance = 35,000 / total_deposit = 1,380,000 (잔액% 2.5%)
+Then: 배수 임계 0이라 35,000 ≤ 0 거짓이지만, 잔액% 2.5% < 10% → critical (바닥 안전망)
+
+Given: avgMonthlyUsage = 0 / balance = 5,000,000 / total_deposit = 5,000,000 (잔액% 100%)
+Then: 배수·잔액% 모두 미해당 → ok
+
+Given: 첫 usage = 2026-03, 계좌 생성 = 2026-05 (소급 활성화)
+Then: 활성개월수는 첫 usage(3월) 기준 → N=3 → 3·4월 사용분이 평균에 반영됨
+      (계좌 생성일 5월 기준이었다면 N=1로 과거 사용분이 누락돼 월평균=0이 됐을 것)
 ```
 
 ---
