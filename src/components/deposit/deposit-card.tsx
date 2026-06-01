@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Wallet, TrendingDown, CircleAlert } from 'lucide-react';
+import Link from 'next/link';
+import { Wallet, TrendingDown, CircleAlert, ExternalLink } from 'lucide-react';
 import { useDepositTransactions } from '@/hooks/use-deposit-transactions';
+import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { DepositTxnModal } from './modals/deposit-txn-modal';
 import type { DepositAccountWithMetrics } from '@/lib/services/deposit-service';
 import type { AlertLevel } from '@/lib/deposit/types';
@@ -36,6 +38,7 @@ const ALERT_STYLES: Record<AlertLevel, { border: string; badgeBg: string; badgeT
 
 export function DepositCard({ account }: { account: DepositAccountWithMetrics }) {
   const { data: txns = [] } = useDepositTransactions(account.id);
+  const basePath = useSectionBasePath();
   const [modalType, setModalType] = useState<null | 'deposit' | 'usage'>(null);
 
   const { avgMonthlyUsage: avgMonthly, daysUntilDepleted: days, balancePct: pct, alertLevel: level } = account.metrics;
@@ -55,10 +58,19 @@ export function DepositCard({ account }: { account: DepositAccountWithMetrics })
           <h3 className="truncate text-base font-semibold text-zinc-900">{account.contract.name}</h3>
           <p className="truncate text-xs text-zinc-400">{account.contract.client_name ?? '—'}</p>
         </div>
-        <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold ${style.badgeBg}`}>
-          {level !== 'ok' && <CircleAlert className="h-3 w-3" />}
-          {style.badgeText}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold ${style.badgeBg}`}>
+            {level !== 'ok' && <CircleAlert className="h-3 w-3" />}
+            {style.badgeText}
+          </span>
+          <Link
+            href={`${basePath}/contracts/${account.contract.id}`}
+            className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-50 hover:text-zinc-600"
+            title="계약 상세로 이동"
+          >
+            상세 <ExternalLink className="h-3 w-3" />
+          </Link>
+        </div>
       </div>
 
       {/* 잔액 KPI */}
