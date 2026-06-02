@@ -55,6 +55,9 @@ export function EditableContractName({
       }
       queryClient.invalidateQueries({ queryKey: ['contract', contractId] });
       queryClient.invalidateQueries({ queryKey: ['contract-history', contractId] });
+      // 목록 뷰(테이블/스테이지/EduTT)도 갱신 — 뒤로가기 시 stale 캐시 방지
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['msp-contracts-table'] });
       toast.success('계약명이 저장되었습니다');
       setEditing(false);
     } catch (err) {
