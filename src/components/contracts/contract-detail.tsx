@@ -15,6 +15,7 @@ import { RevenueSplitCard } from './revenue-split-card';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRightLeft, ExternalLink } from 'lucide-react';
 import { ContractMemoCard } from './contract-memo-card';
+import { EditableContractName } from './editable-contract-name';
 import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { DepositAccountDetail } from '@/components/deposit/deposit-account-detail';
 import { useCurrentUser } from '@/hooks/use-current-user';
@@ -51,7 +52,7 @@ export function ContractDetail({ contract }: ContractDetailProps) {
             <ArrowLeft className="h-[18px] w-[18px]" />
           </button>
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold text-zinc-900">{contract.name}</h1>
+            <EditableContractName contractId={contract.id} name={contract.name} />
             <div className="flex items-center gap-2">
               <span className="text-[13px] text-zinc-400">{contract.contract_id}</span>
               <span className={`inline-block rounded px-2.5 py-0.5 text-xs font-semibold ${getStageColor(contract.stage)}`}>

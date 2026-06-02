@@ -1,9 +1,18 @@
 -- ============================================================
--- NXT CRM v2 — Staging 환경 초기 스키마 (운영 schema MCP 추출본)
--- 생성: 2026-05-15
--- 사용:
---   https://supabase.com/dashboard/project/afydtaxmuwjdhmdwgemy/sql/new
---   에 전체 paste → Run
+-- NXT CRM v2 — 스키마 정본 (SINGLE SOURCE OF TRUTH)
+-- 운영 DB(ghuevnxgcdltgupoddsn) 스키마 MCP 추출본
+-- 최초 추출: 2026-05-15 · 최신 추출: 2026-05-29
+--
+-- ※ 이 파일이 스키마 정본이다. 신규/staging 환경은 이 파일로 구성한다.
+--   migrations/00001~00035 는 역사적 증분 기록이며 불완전하다(신규 환경에 사용 금지).
+--   자세한 정책은 supabase/README.md 참조.
+--
+-- 사용 (신규/staging 환경 구성):
+--   1) 대시보드 SQL 에디터에 이 파일 전체 paste → Run
+--      staging: https://supabase.com/dashboard/project/afydtaxmuwjdhmdwgemy/sql/new
+--   2) 이어서 staging-seed.sql 실행 (시드 데이터)
+--
+-- 갱신 규율: 운영 스키마 변경 후 `supabase db dump --schema public` 로 재추출해 이 파일을 교체한다.
 -- ============================================================
 
 -- 1) 필수 확장
