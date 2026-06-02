@@ -71,6 +71,9 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
       }
       queryClient.invalidateQueries({ queryKey: ['contract', contract.id] });
       queryClient.invalidateQueries({ queryKey: ['contract-history', contract.id] });
+      // 목록 뷰(테이블/스테이지/EduTT)도 갱신 — 뒤로가기 시 stale 캐시 방지
+      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['msp-contracts-table'] });
       toast.success('계약 정보가 저장되었습니다');
       setEditValues({});
       setEditing(false);
