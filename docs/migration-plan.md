@@ -40,7 +40,7 @@
 
 현 `nxt_crm_v2`(Vercel + Supabase)는 **컷오버 전까지 운영을 멈출 수 없다.** 따라서 현 레포를 뜯어고치지 않고, **새 레포에서 새 구조를 독립적으로 완성한 뒤 통째로 전환**한다(strangler/parallel build).
 
-- **현 레포** = 컷오버까지 운영 + 참조 소스. **기능 개발·구조 변경 금지.** 단 **운영 안정성·보안 수정**(예: `update_contract_teams` 가드)**과 schema 재추출은 예외**
+- **현 레포** = 컷오버까지 운영 + 참조 소스. **마이그레이션 관련 구조 변경 금지.** 단 운영 필수 기능·보안 수정(예: `update_contract_teams` 가드)·schema 재추출은 **승인 후 예외 반영**
 - **"복사 후 분리" 안 함** — 복사본은 supabase 결합·비-FSD 부채를 들고 와 중간 상태가 어정쩡해진다. 새로 짓고 **자산만 이식**한다.
 
 | 무엇 | 방법 | 가져올 자산 |
@@ -61,7 +61,7 @@ crm/                  (새 레포 1개)
 ```
 - **타입 공유**가 핵심 이점: 현재 `lib/supabase/types.ts`로 FE가 받던 DB 타입을 `packages/shared`의 API 계약 타입으로 대체
 - ⚠️ "한 레포"여도 **배포 타겟은 분리**: FE→Amplify(`appRoot=apps/fe`), BE→Lambda/컨테이너. turborepo + 폴더별 빌드로 변경 감지
-- **Amplify monorepo 빌드 체크리스트**: `appRoot` ↔ `AMPLIFY_MONOREPO_APP_ROOT` 일치, `amplify.yml`의 `buildPath`·`baseDirectory`, pnpm/turborepo면 `.npmrc`의 `node-linker=hoisted`
+- **Amplify monorepo 빌드 체크리스트**: `appRoot` ↔ `AMPLIFY_MONOREPO_APP_ROOT` 일치, `amplify.yml`의 `buildPath`·`baseDirectory`, pnpm/turborepo면 필요 시 `.npmrc`의 `node-linker=hoisted` 검증
 
 > BE 스택(+ Amplify 범위)은 §2·§5에서 결정.
 
@@ -96,8 +96,9 @@ crm/                  (새 레포 1개)
 운영 DB가 ClickHouse-managed Postgres(**RDS Data API 미제공, 표준 pg TCP**)로 확정됐으므로:
 - ❌ certi-nav식 RDS Data API 경로는 **선택지에서 제외** (Data API는 Aurora 전용)
 - 남은 후보 (둘 다 `pg` TCP):
-  - **Node/SAM Lambda + `pg`**: 단 Lambda는 cold start·커넥션 고갈 → **PgBouncer류 풀러 필수** + VPC
-  - **Python/FastAPI 상시 컨테이너 + `pg`**: 풀링·세션변수 자연스러움. chatbot-be가 선례(boilerplate)
+  - **Node/SAM Lambda + API Gateway + `pg`**: 단 Lambda는 cold start·커넥션 고갈 → **PgBouncer류 풀러 필수** + **네트워크 경로**(VPC/private link/public egress+NAT — managed Postgres 엔드포인트 유형에 따라) PoC 필요
+  - **컨테이너(ECS/Fargate+ALB 또는 App Runner) + `pg`**: 상시 실행이라 풀링·세션변수 자연스러움. chatbot-be(FastAPI)가 선례(boilerplate)
+- BE 배포 후보를 **SAM Lambda+API GW / ECS·Fargate+ALB / App Runner** 중 무엇으로 PoC할지도 §5에서 결정
 - 결정 기준: **Phase 0.5 세션주입 PoC**(§4) 결과 + Lambda vs 컨테이너 운영 선호
 
 ### Amplify의 BE 함의
@@ -147,6 +148,7 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 - `profiles.id`는 기존 GoTrue uuid **유지**, `cognito_sub`(uuid)는 **별도 컬럼** 추가. FK→`auth.users` 제거
 - **데이터 이관 시 매핑 백필**: 기존 사용자 Cognito 일괄 생성 → `cognito_sub ↔ profiles.id` 매핑 (안 하면 `changed_by`·`created_by` 이력 단절)
 - 요청 흐름: JWT 검증(JWKS 서명·`iss`·`exp`·`token_use`=access·`client_id` — `aud`는 resource binding 사용 시에만) → `cognito_sub`로 `profiles.id` 조회 → UUID 검증 → `SET LOCAL`. 조회 실패 시 401/403
+- ⚠️ **크로스 도메인(FE=Amplify ↔ BE=별도 도메인) CORS/Auth 전달 방식 결정 필요**: 쿠키 기반이면 `SameSite`/`domain`/`Secure` 설정, Bearer 토큰 기반이면 refresh 흐름(401 자동 갱신)을 명시. certi-nav-fe는 httpOnly 쿠키 + 401 refresh 패턴 → 차용 검토 (§5)
 - `handle_new_user` 트리거 제거 → 가입 전용 `SECURITY DEFINER` 함수로 `profiles` INSERT(가입 시점엔 본인 `profiles.id`가 없어 RLS를 못 거치므로)
 
 ### 3.3 `supabase-js` → REST API
@@ -203,7 +205,10 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 1. **BE 스택 + Amplify 범위**: Amplify를 FE 호스팅만 쓸지(→ 별도 BE: Node 또는 Python/FastAPI + pg) vs Amplify Gen2 백엔드까지 쓸지(→ Node 강제). Phase 0.5 PoC + 운영 선호로 결정 (§2 Amplify의 BE 함의)
 2. **[확인필요] ClickHouse-managed Postgres (preview)**: RLS/FORCE RLS 실동작, 비특권 롤 생성·접속, 풀러 모드, GA·SLA
 3. 운영 이관 다운타임 허용 범위(logical replication 컷오버)
-4. i18n 필요 여부 (certi-nav는 en/ko)
+4. **BE 배포 형태**: SAM Lambda+API GW / ECS·Fargate+ALB / App Runner 중 PoC (§2)
+5. **크로스 도메인 CORS/Auth 전달**: 쿠키(SameSite/domain/Secure) vs Bearer(refresh 흐름). Phase 0.5에서 함께 검증
+6. **managed Postgres 네트워크 경로**: public endpoint+TLS/IP allowlist vs private link/peering → BE 연결 방식·VPC 필요 여부 결정
+7. i18n 필요 여부 (certi-nav는 en/ko)
 5. 분석(Phase 7): CDC로 보낼 테이블, 비정규화 모델
 
 ---
