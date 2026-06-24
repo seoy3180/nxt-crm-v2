@@ -11,7 +11,7 @@
 
 > **Vercel+Supabase 풀스택 → AWS Amplify(호스팅) + FE/BE 분리 + Cognito 인증 + 운영 Postgres 유지(ClickHouse-managed Postgres) + 분석은 ClickHouse로 CDC**
 
-인프라도 **Vercel → AWS Amplify**, **Supabase → ClickHouse-managed Postgres**로 전환한다(AWS 스택으로 통일).
+인프라도 **Vercel → AWS Amplify**, **Supabase → ClickHouse-managed Postgres**로 전환한다. **호스팅·인증·백엔드는 AWS 중심**으로 가되, **운영 DB는 AWS 네이티브가 아니라 ClickHouse측 managed Postgres**다.
 
 "ClickHouse 마이그레이션"이라는 착시는 제품명에 'ClickHouse'가 들어가서 생긴 것이다. 운영 DB가 PostgreSQL 호환이므로 **원칙적으로 RLS·트랜잭션·트리거·ORM 전략을 유지할 수 있고**, 그래서 아래 RLS 유지 전략이 성립한다. 단 ClickHouse-managed Postgres는 preview라 실동작 검증이 필요하다(§3.5 운영 DB).
 
@@ -21,7 +21,7 @@
 |---|---|---|
 | 운영 원장 DB | **ClickHouse-managed Postgres** (PG-호환, Data API 없는 pg TCP) | 회사 ClickHouse 생태계 + OLTP는 Postgres 필수 |
 | ClickHouse OLAP를 운영 DB로? | **아니오** | OLTP 트랜잭션·RLS·빈번한 행 단위 UPDATE에 부적합 |
-| 호스팅 | (현) Vercel → **AWS Amplify** | AWS 스택 통일 |
+| 호스팅 | (현) Vercel → **AWS Amplify** | 호스팅·인증·BE는 AWS 중심 (운영 DB는 ClickHouse측) |
 | 권한 전략 | **A안: RLS 유지** (§8 권한 전략 의사결정 표) | CRM은 팀별 행 격리가 핵심 → RLS가 안전·저비용 |
 | 인증 | AWS Cognito | Supabase Auth 탈피 |
 | 분석 | ClickHouse OLAP, CDC로 복제 | 운영과 분리 |
@@ -36,26 +36,11 @@
 
 ---
 
-## 1. 현재 → 목표 매핑
-
-| 영역 | 현재 | 목표 |
-|---|---|---|
-| 호스팅/배포 | **Vercel** | **AWS Amplify** (FE 호스팅; BE 배포 형태는 §2) |
-| 레포 구조 | 단일 Next.js 풀스택 (현 레포 운영 유지) | **새 모노레포**(turborepo): `apps/fe` + `apps/be` + `packages/shared`(타입 공유), 병렬 구축 |
-| DB 접근 | 클라이언트 `supabase-js`가 Supabase Postgres 직접 | BE가 ORM으로 ClickHouse-managed Postgres 접근, FE는 REST |
-| 운영 DB 엔진 | Supabase Postgres | **ClickHouse-managed Postgres** (PG-호환, pg TCP) |
-| 권한 | RLS 62정책 + `auth.uid()` 16곳 | **RLS 유지** + 세션주입 미들웨어(신규) + FE 기능권한 |
-| 인증 | Supabase Auth (`auth.users`, `profiles.id=uid`) | AWS Cognito (`cognito_sub` ↔ `profiles.id` 매핑) |
-| API | PostgREST (자동, 임베디드 리소스) | 수동 BE 핸들러 + DTO 계약 |
-| 분석 | (없음) | ClickHouse OLAP, 운영 PG에서 CDC |
-
----
-
 ## 0.5. 이행 방식 — Parallel Build (현 레포 운영 유지)
 
 현 `nxt_crm_v2`(Vercel + Supabase)는 **컷오버 전까지 운영을 멈출 수 없다.** 따라서 현 레포를 뜯어고치지 않고, **새 레포에서 새 구조를 독립적으로 완성한 뒤 통째로 전환**한다(strangler/parallel build).
 
-- **현 레포** = 컷오버까지 운영 + **읽기 전용 참조 소스** (수정 금지 → 운영 위험 0)
+- **현 레포** = 컷오버까지 운영 + 참조 소스. **기능 개발·구조 변경 금지.** 단 **운영 안정성·보안 수정**(예: `update_contract_teams` 가드)**과 schema 재추출은 예외**
 - **"복사 후 분리" 안 함** — 복사본은 supabase 결합·비-FSD 부채를 들고 와 중간 상태가 어정쩡해진다. 새로 짓고 **자산만 이식**한다.
 
 | 무엇 | 방법 | 가져올 자산 |
@@ -76,8 +61,24 @@ crm/                  (새 레포 1개)
 ```
 - **타입 공유**가 핵심 이점: 현재 `lib/supabase/types.ts`로 FE가 받던 DB 타입을 `packages/shared`의 API 계약 타입으로 대체
 - ⚠️ "한 레포"여도 **배포 타겟은 분리**: FE→Amplify(`appRoot=apps/fe`), BE→Lambda/컨테이너. turborepo + 폴더별 빌드로 변경 감지
+- **Amplify monorepo 빌드 체크리스트**: `appRoot` ↔ `AMPLIFY_MONOREPO_APP_ROOT` 일치, `amplify.yml`의 `buildPath`·`baseDirectory`, pnpm/turborepo면 `.npmrc`의 `node-linker=hoisted`
 
 > BE 스택(+ Amplify 범위)은 §2·§5에서 결정.
+
+---
+
+## 1. 현재 → 목표 매핑
+
+| 영역 | 현재 | 목표 |
+|---|---|---|
+| 호스팅/배포 | **Vercel** | **AWS Amplify** (FE 호스팅; BE 배포 형태는 §2) |
+| 레포 구조 | 단일 Next.js 풀스택 (현 레포 운영 유지) | **새 모노레포**(turborepo): `apps/fe` + `apps/be` + `packages/shared`(타입 공유), 병렬 구축 |
+| DB 접근 | 클라이언트 `supabase-js`가 Supabase Postgres 직접 | BE가 ORM으로 ClickHouse-managed Postgres 접근, FE는 REST |
+| 운영 DB 엔진 | Supabase Postgres | **ClickHouse-managed Postgres** (PG-호환, pg TCP) |
+| 권한 | RLS 62정책 + `auth.uid()` 16곳 | **RLS 유지** + 세션주입 미들웨어(신규) + FE 기능권한 |
+| 인증 | Supabase Auth (`auth.users`, `profiles.id=uid`) | AWS Cognito (`cognito_sub` ↔ `profiles.id` 매핑) |
+| API | PostgREST (자동, 임베디드 리소스) | 수동 BE 핸들러 + DTO 계약 |
+| 분석 | (없음) | ClickHouse OLAP, 운영 PG에서 CDC |
 
 ---
 
@@ -101,10 +102,11 @@ crm/                  (새 레포 1개)
 
 ### Amplify의 BE 함의
 - **Amplify Hosting**(FE 호스팅, Vercel 대체)은 확정. BE 배포 형태는 별개 결정이다.
+- ⚠️ **Amplify-hosted Next의 SSR/API Route에서 DB 직접 접근 금지** — 모든 데이터 접근은 **별도 BE REST API로만**. (Next 서버 코드에서 DB를 직접 만지면 Supabase 풀스택 결합을 그대로 재현하게 됨 → 분리 무의미)
 - ⚠️ **Amplify Gen2 백엔드(TypeScript)**를 BE로 채택하면 → BE 스택이 **Node로 강제**된다(Python/FastAPI 배제). 또한 Amplify Gen2의 기본 data 계층은 AppSync+DynamoDB라 **외부 pg(ClickHouse-managed Postgres) + RLS 모델과 결이 다르다**(우회 필요).
 - 현실적 선택지:
   - (a) **Amplify Hosting(FE) + 별도 BE**(SAM Lambda 또는 컨테이너 + `pg`): BE 스택 자유, ClickHouse-managed Postgres 직결, RLS 모델 그대로
-  - (b) **Amplify Gen2 functions(Node) + `pg`**: Cognito 통합 편리, 단 Node 강제 + Amplify 데이터 모델 우회
+  - (b) **Amplify Gen2 functions(Node) + `pg`**: Cognito 통합 편리, 단 Node 강제 + Amplify 데이터 모델(AppSync+DynamoDB) 우회. **(b)를 후보로 남기려면 "외부 Postgres 연결·VPC/egress·Secret 관리·PgBouncer 연결" PoC를 게이트로 명시**
 - → "Amplify를 FE 호스팅만 쓸지 / 백엔드까지 쓸지"가 BE 스택(특히 Node 강제 여부)을 좌우한다 (§5 확인)
 
 ---
