@@ -27,6 +27,8 @@
 | 분석 | ClickHouse OLAP, CDC로 복제 | 운영과 분리 |
 | 레포 구조 | **모노레포(turborepo)** — `apps/fe`+`apps/be`+`packages/shared` | 타입 공유 + 작은 팀 관리 편의 (§0.5) |
 | **이행 방식** | **parallel build** — 현 레포 운영 유지, 새 레포 병렬 구축 | 운영 중단 불가 (§0.5) |
+| BE 스택 | **Node + TypeScript + pg** (Amplify는 FE 호스팅만, 별도 BE) | FE(Next/TS)와 monorepo 타입 공유 · 배포형태는 P3 PoC (P1 결정) |
+| 다국어(i18n) | **불필요** (한국어 전용 유지) | 사내 CRM · 현재 i18n 인프라 0 (P1 결정) |
 
 ### 검증으로 드러난 hard blocker (착수 전 해소 필수)
 
@@ -99,7 +101,7 @@ crm/                  (새 레포 1개)
   - **Node/SAM Lambda + API Gateway + `pg`**: 단 Lambda는 cold start·커넥션 고갈 → **PgBouncer류 풀러 필수** + **네트워크 경로**(VPC/private link/public egress+NAT — managed Postgres 엔드포인트 유형에 따라) PoC 필요
   - **컨테이너(ECS/Fargate+ALB 또는 App Runner) + `pg`**: 상시 실행이라 풀링·세션변수 자연스러움. chatbot-be(FastAPI)가 선례(boilerplate)
 - BE 배포 후보를 **SAM Lambda+API GW / ECS·Fargate+ALB / App Runner** 중 무엇으로 PoC할지도 §5에서 결정
-- 결정 기준: **P2·P3 PoC**(§4) 결과 + Lambda vs 컨테이너 운영 선호
+- **✅ P1 결정: 언어 = Node + TypeScript**(FE와 monorepo 타입 공유가 근거). 남은 변수는 배포형태(SAM Lambda+API GW / ECS·Fargate+ALB / App Runner) — P2·P3 PoC + Lambda vs 컨테이너 운영 선호로 확정. (컨테이너 선택 시 chatbot-be는 FastAPI 선례지만 구현은 Node)
 
 ### Amplify의 BE 함의
 - **Amplify Hosting**(FE 호스팅, Vercel 대체)은 확정. BE 배포 형태는 별개 결정이다.
@@ -108,7 +110,7 @@ crm/                  (새 레포 1개)
 - 현실적 선택지:
   - (a) **Amplify Hosting(FE) + 별도 BE**(SAM Lambda 또는 컨테이너 + `pg`): BE 스택 자유, ClickHouse-managed Postgres 직결, RLS 모델 그대로
   - (b) **Amplify Gen2 functions(Node) + `pg`**: Cognito 통합 편리, 단 Node 강제 + Amplify 데이터 모델(AppSync+DynamoDB) 우회. **(b)를 후보로 남기려면 "외부 Postgres 연결·VPC/egress·Secret 관리·PgBouncer 연결" PoC를 게이트로 명시**
-- → "Amplify를 FE 호스팅만 쓸지 / 백엔드까지 쓸지"가 BE 스택(특히 Node 강제 여부)을 좌우한다 (§5 확인)
+- **✅ P1 결정: (a) Amplify Hosting(FE) + 별도 Node BE**. Gen2(b)는 PG+RLS 모델과 불일치(AppSync+DynamoDB 우회 부담)로 미채택
 
 ---
 
@@ -210,13 +212,13 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 
 ## 5. 미결정 · 확인 사항
 
-1. **BE 스택 + Amplify 범위**: Amplify를 FE 호스팅만 쓸지(→ 별도 BE: Node 또는 Python/FastAPI + pg) vs Amplify Gen2 백엔드까지 쓸지(→ Node 강제). P2·P3 PoC + 운영 선호로 결정 (§2 Amplify의 BE 함의)
+1. **BE 스택 + Amplify 범위** — **✅ P1 결정: Node + TypeScript + pg, Amplify는 FE 호스팅만(별도 BE)**. FE와 monorepo 타입 공유가 결정 근거. Amplify Gen2는 PG+RLS 모델과 불일치라 미채택. 최종 배포형태(#4)·세션주입 적합성은 P2·P3 PoC로 확정 (§2)
 2. **[확인필요] ClickHouse-managed Postgres (preview)**: RLS/FORCE RLS 실동작, 비특권 롤 생성·접속, 풀러 모드, GA·SLA
 3. 운영 이관 다운타임 허용 범위(logical replication 컷오버)
 4. **BE 배포 형태**: SAM Lambda+API GW / ECS·Fargate+ALB / App Runner 중 PoC (§2)
 5. **크로스 도메인 CORS/Auth 전달**: 쿠키(SameSite/domain/Secure) vs Bearer(refresh 흐름). P3에서 검증
 6. **managed Postgres 네트워크 경로**: public endpoint+TLS/IP allowlist vs private link/peering → BE 연결 방식·VPC 필요 여부 결정
-7. i18n 필요 여부 (certi-nav는 en/ko)
+7. i18n 필요 여부 — **✅ P1 결정: 불필요** (한국어 전용 유지; 필요시 P8 FE에서 next-intl 등 도입)
 8. 분석(P10): CDC로 보낼 테이블, 비정규화 모델
 
 ---
