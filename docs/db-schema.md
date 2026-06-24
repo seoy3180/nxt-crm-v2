@@ -202,7 +202,7 @@ clients ──┬──1 client_msp_details
 
 **인덱스**: `(id) WHERE deleted_at IS NULL` · `(client_id)` · `(name) gin_trgm` · `(stage)` · `(type)`
 
-> **stage CHECK**: `msp` = pre_contract → billing_complete → project_closed → unpaid · `tt`(교육) = proposal → contracted → operating → op_completed → settled · `dev` = 제약 없음
+> **stage CHECK**: `msp` = pre_contract → billing_complete → project_closed → unpaid · `edu`(교육) = proposal → contracted → operating → op_completed → settled · `dev` = 제약 없음
 > **삭제 가드**: 예치금 잔액 ≠ 0이면 `guard_contract_delete_with_deposit()` 트리거가 종료(soft delete)를 차단.
 
 ---
@@ -428,25 +428,34 @@ clients ──┬──1 client_msp_details
 | `can_access_client(id)` | admin·c_level 전체 / 그 외 **고객 business_types ∩ 내 팀 도메인** 교집합 시 |
 | `can_access_contract(id)` | admin·c_level 전체 / 그 외 **계약 type ∈ 내 팀 도메인** OR `contract_teams` 매핑(fallback) |
 
-- **clients/contacts/client_\*_details** → `can_access_client` (SELECT는 인증 사용자 전체)
-- **contracts/contract_\*/education_\*/contract_history** → `can_access_contract`
-- **deposit_accounts** → `can_access_contract` + 계약 type=msp 한정
-- **deposit_transactions** → 계좌 접근 권한 (adjustment·refund·void는 admin·c_level·team_lead)
-- **employees** → SELECT 인증 사용자, C·U·D는 admin만
-- **profiles** → SELECT 전체, UPDATE 본인만 · **user_preferences** → 본인만
+- **clients** → SELECT 인증 사용자 전체 · INSERT는 admin·c_level 또는 내 팀 도메인이 신규 고객 업종 담당 시 · U/D `can_access_client`
+- **contacts/client_\*_details** → `can_access_client`
+- **contracts** → SELECT·U/D `can_access_contract` · INSERT는 인증 사용자(이후 행 접근은 도메인 매핑으로 제한)
+- **contract_\*/education_operations/contract_history** → `can_access_contract`
+- **operation_instructors** → 연결된 `education_operations`의 계약 기준 `can_access_contract`
+- **education_operation_dates** → SELECT 공개, C/U/D는 인증 사용자
+- **deposit_accounts** → `can_access_contract` (SELECT·INSERT는 계약 type=msp 한정, UPDATE는 msp 무관)
+- **deposit_transactions** → SELECT/INSERT는 계좌의 `can_access_contract`; deposit/usage 외 타입과 UPDATE는 admin·c_level·team_lead(또는 작성자 본인)
+- **employees** → SELECT 공개, C·U·D는 admin만
+- **profiles** → SELECT 공개, INSERT 인증 사용자, UPDATE 본인만 · **user_preferences** → 본인만
+- **teams** → SELECT 공개
+- **team_business_domains** → SELECT 인증 사용자
+- **instructors** → SELECT 공개, INSERT/UPDATE 인증 사용자, DELETE 정책 없음
 
 ---
 
 ## 다단계 쓰기 RPC (트랜잭션 보장)
 
-| 함수 | 역할 |
-|---|---|
-| `create_contract_with_details(jsonb)` | 계약 + MSP 상세 생성 + 고객 business_types 갱신 (ID 자동 발번) |
-| `change_contract_stage(...)` | 단계 변경 + 이력 기록 |
-| `replace_contract_tech_leads(...)` | 담당 기술 전체 교체 |
-| `update_contract_teams(...)` | 매출 배분 전체 교체 |
-| `soft_delete_contract(id)` / `soft_delete_client(id)` | 연관 행까지 일괄 soft delete |
-| `generate_client_id` / `generate_msp_contract_id` / `generate_edu_contract_id` | 표시 ID 발번 |
+| 함수 | 역할 | 진입 가드 |
+|---|---|---|
+| `create_contract_with_details(jsonb)` | 계약 + MSP 상세 생성 + 고객 business_types 갱신 (ID 자동 발번) | `can_access_client` |
+| `change_contract_stage(...)` | 단계 변경 + 이력 기록 | `can_access_contract` |
+| `replace_contract_tech_leads(...)` | 담당 기술 전체 교체 | `can_access_contract` |
+| `update_contract_teams(...)` | 매출 배분 전체 교체 | `can_access_contract` |
+| `soft_delete_contract(id)` / `soft_delete_client(id)` | 연관 행까지 일괄 soft delete | `can_access_contract` / `can_access_client` |
+| `generate_client_id` / `generate_msp_contract_id` / `generate_edu_contract_id` | 표시 ID 발번 | 없음 (단순 발번) |
+
+> 전부 SECURITY DEFINER → RLS 우회. 진입부 가드가 유일 방어선이며, `search_path`는 `public, pg_temp`로 고정한다.
 
 ---
 
