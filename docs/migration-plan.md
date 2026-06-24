@@ -190,13 +190,14 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 | **-1. ⛔ 재추출 hard gate** | 운영 DB `pg_dump` 재추출 + migrations 정합성 + 새 PG에 **적용 가능성 검증**(stale CHECK 등 수정) | **통과 전 일체 착수 금지** |
 | **0. 결정 + 전수조사** | BE 스택(pg TCP 전제) 후보, supabase-js 27파일·rpc 7·임베디드/count/배열 인벤토리, RLS 62 컬럼참조 검증, 보안결함 목록 | 체크리스트 |
 | **0.5. ⛔ 세션주입 PoC** | 선택 드라이버(`pg` TCP)로 `BEGIN→SET LOCAL→current_setting→RLS 쿼리`가 동일 컨텍스트로 동작·미설정 시 deny 검증 (+ 풀러 transaction-mode 호환) | **실패 시 BE 스택 재선택 / §8 B안** |
+| **0.6. 인프라 PoC** | 네트워크 경로(VPC / public+NAT / private link)·BE 배포 후보(Lambda+API GW / ECS·Fargate+ALB / App Runner)·크로스도메인 CORS·Auth 전달(쿠키 vs Bearer) 검증 | BE 스택·배포·연결·Auth 방식 확정 |
 | **1. BE 부트스트랩** | 스키마+RLS(FORCE)+트리거 이전, ClickHouse-managed Postgres 연결(비-owner 롤·풀러) | 스키마+RLS DB |
 | **2. 인증** | Cognito, auth 엔드포인트, JWT 검증, `cognito_sub↔profiles.id` + UUID 검증 + `SET LOCAL` 미들웨어, 가입 DEFINER 함수 | 로그인+RLS 작동 |
 | **3. ⛔ RLS 격리 검증** | `current_user_id()` 치환, 팀A 토큰으로 팀B **SELECT/UPDATE/DELETE 차단**, 미주입 시 deny, FORCE RLS·비특권 롤 자동검증 | **통과 전 Phase 4 금지** |
 | **4. 도메인 API 이관** | clients→contracts→deposit→education. RPC→BE 트랜잭션 + **can_access 가드 동등 재현 1:1**, 신원 BE 주입 | 도메인 API |
 | **5. FE 레포** | Next FSD, 화면 이관, supabase-js→axios+React Query, 임베디드/count 대응, FE 기능권한 | 동작 FE |
 | **6. 운영 이관 + 컷오버** | Cognito 사용자 일괄생성 + sub↔id 매핑 백필, 발번 시퀀스 셋업, **pg_dump/logical replication으로 운영 이관**, 쓰기 전환 | 운영 전환 |
-| **7. (후속) 분석 파이프라인** | ClickHouse-managed Postgres → ClickHouse OLAP **Postgres CDC ClickPipe**(풀러 직결), 분석 모델 | 분석 가동 |
+| **7. (후속) 분석 파이프라인** | ClickHouse-managed Postgres → ClickHouse OLAP **Postgres CDC ClickPipe**(PG 엔드포인트 직결, 풀러 경유 금지), 분석 모델 | 분석 가동 |
 
 ---
 
@@ -206,10 +207,10 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 2. **[확인필요] ClickHouse-managed Postgres (preview)**: RLS/FORCE RLS 실동작, 비특권 롤 생성·접속, 풀러 모드, GA·SLA
 3. 운영 이관 다운타임 허용 범위(logical replication 컷오버)
 4. **BE 배포 형태**: SAM Lambda+API GW / ECS·Fargate+ALB / App Runner 중 PoC (§2)
-5. **크로스 도메인 CORS/Auth 전달**: 쿠키(SameSite/domain/Secure) vs Bearer(refresh 흐름). Phase 0.5에서 함께 검증
+5. **크로스 도메인 CORS/Auth 전달**: 쿠키(SameSite/domain/Secure) vs Bearer(refresh 흐름). Phase 0.6에서 검증
 6. **managed Postgres 네트워크 경로**: public endpoint+TLS/IP allowlist vs private link/peering → BE 연결 방식·VPC 필요 여부 결정
 7. i18n 필요 여부 (certi-nav는 en/ko)
-5. 분석(Phase 7): CDC로 보낼 테이블, 비정규화 모델
+8. 분석(Phase 7): CDC로 보낼 테이블, 비정규화 모델
 
 ---
 
