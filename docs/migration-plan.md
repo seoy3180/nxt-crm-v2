@@ -139,10 +139,15 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 
 **⚠️ SECURITY DEFINER RPC는 RLS 우회**: `create_contract_with_details`·`change_contract_stage`·`soft_delete_*`·`replace_contract_tech_leads`·`update_contract_teams`는 DEFINER라 호출자 RLS를 안 받는다. 방어선은 함수 내부 `can_access_*` 가드 → BE 이관 시 동등 재현 (§7 체크리스트).
 
-#### (B) FE 기능 권한 = chatbot-admin-fe 패턴 〔UX 보조〕
-- `user_role`(staff/team_lead/admin/c_level) 기반 메뉴·라우트 가드 (`usePermission`/`hasPagePermission`)
-- role 소스는 **항상 `profiles` DB 조회**(JWT 클레임 신뢰 금지)
-- FE 권한은 UX(숨김)일 뿐 — 실제 격리는 (A) RLS + RPC 가드
+#### (B) FE 권한 — role 화면 게이팅만 (UX 보조)
+
+> **원칙**: FE는 role 기반 화면 게이팅만 담당한다. 행 단위 권한 판단은 BE/DB가 단일 출처이며, BE는 도메인 API 응답에 `canEdit`/`canManage` 플래그를 포함한다. FE는 해당 플래그를 표시 제어에만 사용하고 권한 로직을 재구현하지 않는다.
+
+- **role 게이팅(FE 허용)**: `user_role`(staff/team_lead/admin/c_level) 기반 메뉴·라우트·페이지 숨김 (`RoleGuard`·`permissions.ts`, `usePermission`/`hasPagePermission`). role 소스는 **항상 `profiles` DB 조회**(JWT 클레임 신뢰 금지). 어디까지나 UX용 — 최종 권한은 (A) RLS + RPC 가드가 다시 본다
+- **행 단위 권한(FE 재구현 금지)**: `can_access_contract`처럼 "이 사용자가 이 계약을 수정 가능한가"를 FE가 팀·계약·도메인 매핑으로 조합 판단 금지. BE가 `canEdit`/`canManage`/`canDelete`/`canManageRevenueSplit` 등 플래그로 내려주고 FE는 버튼·인라인편집·카드 표시만 제어
+  - ⚠️ 현 `permissions.ts`는 `can_access_client`과 "동일 로직"을 **수동 복제** 중 = drift 위험. 새 구조에선 행 단위 판단을 FE에서 제거하고 BE 플래그로 단일화
+- **이식·보강 대상**: 이식(P8) = `RoleGuard`·`permissions.ts`의 role 게이팅 → 새 FE로 / 보강(P8) = `RevenueSplitCard`·`EditableContractName` 등 현재 **항상 노출되는 편집 UI** → BE 플래그 기반 숨김·`disabled` 처리
+- **구현 시점**: P7 도메인 API(응답 DTO에 권한 플래그 포함) → P8 FE(플래그로 표시 제어)
 
 ### 3.2 인증: Supabase Auth → AWS Cognito
 - `profiles.id`는 기존 GoTrue uuid **유지**, `cognito_sub`(uuid)는 **별도 컬럼** 추가. FK→`auth.users` 제거
