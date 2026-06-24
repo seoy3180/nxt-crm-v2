@@ -30,8 +30,8 @@
 
 ### 검증으로 드러난 hard blocker (착수 전 해소 필수)
 
-1. **`schema.sql`이 stale** — `contracts_stage_check`가 `'tt'` 참조 / enum엔 `'edu'`만(`00031_a`에서 rename). 그대로 새 DB 적용 시 **실패**. → 단계별 실행 계획(§4)의 **Phase -1**에서 **운영 DB 재추출·적용 검증 없이는 어떤 마이그레이션도 시작 금지**.
-2. **세션주입(`SET LOCAL`)이 선택 드라이버에서 작동하는지 미검증** — 전체 RLS 보안의 단일 의존점. → Phase 0.5 PoC 게이트.
+1. **`schema.sql`이 stale** — `contracts_stage_check`가 `'tt'` 참조 / enum엔 `'edu'`만(`00031_a`에서 rename). 그대로 새 DB 적용 시 **실패**. → 단계별 실행 계획(§4)의 **P0**에서 **운영 DB 재추출·적용 검증 없이는 어떤 마이그레이션도 시작 금지**.
+2. **세션주입(`SET LOCAL`)이 선택 드라이버에서 작동하는지 미검증** — 전체 RLS 보안의 단일 의존점. → P2 세션주입 PoC 게이트.
 3. **SECURITY DEFINER RPC는 RLS 우회** — `update_contract_teams`는 권한 가드·`search_path` 둘 다 없음(취약). → §7 보안 선수정.
 
 ---
@@ -99,7 +99,7 @@ crm/                  (새 레포 1개)
   - **Node/SAM Lambda + API Gateway + `pg`**: 단 Lambda는 cold start·커넥션 고갈 → **PgBouncer류 풀러 필수** + **네트워크 경로**(VPC/private link/public egress+NAT — managed Postgres 엔드포인트 유형에 따라) PoC 필요
   - **컨테이너(ECS/Fargate+ALB 또는 App Runner) + `pg`**: 상시 실행이라 풀링·세션변수 자연스러움. chatbot-be(FastAPI)가 선례(boilerplate)
 - BE 배포 후보를 **SAM Lambda+API GW / ECS·Fargate+ALB / App Runner** 중 무엇으로 PoC할지도 §5에서 결정
-- 결정 기준: **Phase 0.5 세션주입 PoC**(§4) 결과 + Lambda vs 컨테이너 운영 선호
+- 결정 기준: **P2·P3 PoC**(§4) 결과 + Lambda vs 컨테이너 운영 선호
 
 ### Amplify의 BE 함의
 - **Amplify Hosting**(FE 호스팅, Vercel 대체)은 확정. BE 배포 형태는 별개 결정이다.
@@ -155,7 +155,7 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 - 실측: `@supabase/*` 직접 import 4 + 래핑 client 경유 약 27 + `rpc()` 7. 페이지·훅이 `.from()` 직접 호출
 - **PostgREST 의존 패턴 = 전용 엔드포인트 재설계**(단순 치환 불가): 임베디드 리소스(중첩 select), `count: exact, head: true`, 배열 연산자(`.contains()`), `.or()` 검색, 조건부 UPDATE+rowCount 낙관적 락(`voidTransaction`)
 - **신원값은 BE가 JWT에서만 주입**: `change_contract_stage`의 `p_user_id` 제거, `created_by`/`voided_by`/`changed_by`는 세션에서 (FE 입력 신뢰 금지 — 위조 방지)
-- 비-RPC 직접 변이(`.from().update().eq('id')`)는 RLS가 유일 방어 → Phase 3에서 UPDATE/DELETE 격리까지 검증
+- 비-RPC 직접 변이(`.from().update().eq('id')`)는 RLS가 유일 방어 → P6에서 UPDATE/DELETE 격리까지 검증
 
 ### 3.4 DB 스키마 → BE ORM 〔재추출 선행〕
 - **선행: 운영 DB `pg_dump` 재추출** + 적용 migrations 정합성 대조. `schema.sql` stale(`'tt'`→`'edu'` 정정). 이 정정본을 ORM raw SQL 입력으로
@@ -185,32 +185,34 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 
 ## 4. 단계별 실행 계획
 
-| Phase | 작업 | 게이트 |
+> 아래 **단계 번호(P0~P10)는 문서 섹션 번호(§)와 별개**다. `⛔`는 통과 못 하면 다음 단계로 못 가는 차단 게이트.
+
+| 단계 | 작업 | 게이트 |
 |---|---|---|
-| **-1. ⛔ 재추출 hard gate** | 운영 DB `pg_dump` 재추출 + migrations 정합성 + 새 PG에 **적용 가능성 검증**(stale CHECK 등 수정) | **통과 전 일체 착수 금지** |
-| **0. 결정 + 전수조사** | BE 스택(pg TCP 전제) 후보, supabase-js 27파일·rpc 7·임베디드/count/배열 인벤토리, RLS 62 컬럼참조 검증, 보안결함 목록 | 체크리스트 |
-| **0.5. ⛔ 세션주입 PoC** | 선택 드라이버(`pg` TCP)로 `BEGIN→SET LOCAL→current_setting→RLS 쿼리`가 동일 컨텍스트로 동작·미설정 시 deny 검증 (+ 풀러 transaction-mode 호환) | **실패 시 BE 스택 재선택 / §8 B안** |
-| **0.6. 인프라 PoC** | 네트워크 경로(VPC / public+NAT / private link)·BE 배포 후보(Lambda+API GW / ECS·Fargate+ALB / App Runner)·크로스도메인 CORS·Auth 전달(쿠키 vs Bearer) 검증 | BE 스택·배포·연결·Auth 방식 확정 |
-| **1. BE 부트스트랩** | 스키마+RLS(FORCE)+트리거 이전, ClickHouse-managed Postgres 연결(비-owner 롤·풀러) | 스키마+RLS DB |
-| **2. 인증** | Cognito, auth 엔드포인트, JWT 검증, `cognito_sub↔profiles.id` + UUID 검증 + `SET LOCAL` 미들웨어, 가입 DEFINER 함수 | 로그인+RLS 작동 |
-| **3. ⛔ RLS 격리 검증** | `current_user_id()` 치환, 팀A 토큰으로 팀B **SELECT/UPDATE/DELETE 차단**, 미주입 시 deny, FORCE RLS·비특권 롤 자동검증 | **통과 전 Phase 4 금지** |
-| **4. 도메인 API 이관** | clients→contracts→deposit→education. RPC→BE 트랜잭션 + **can_access 가드 동등 재현 1:1**, 신원 BE 주입 | 도메인 API |
-| **5. FE 레포** | Next FSD, 화면 이관, supabase-js→axios+React Query, 임베디드/count 대응, FE 기능권한 | 동작 FE |
-| **6. 운영 이관 + 컷오버** | Cognito 사용자 일괄생성 + sub↔id 매핑 백필, 발번 시퀀스 셋업, **pg_dump/logical replication으로 운영 이관**, 쓰기 전환 | 운영 전환 |
-| **7. (후속) 분석 파이프라인** | ClickHouse-managed Postgres → ClickHouse OLAP **Postgres CDC ClickPipe**(PG 엔드포인트 직결, 풀러 경유 금지), 분석 모델 | 분석 가동 |
+| **P0. ⛔ 재추출 hard gate** | 운영 DB `pg_dump` 재추출 + migrations 정합성 + 새 PG에 **적용 가능성 검증**(stale CHECK 등 수정) | **통과 전 일체 착수 금지** |
+| **P1. 결정 + 전수조사** | BE 스택(pg TCP 전제) 후보, supabase-js 27파일·rpc 7·임베디드/count/배열 인벤토리, RLS 62 컬럼참조 검증, 보안결함 목록 | 체크리스트 |
+| **P2. ⛔ 세션주입 PoC** | 선택 드라이버(`pg` TCP)로 `BEGIN→SET LOCAL→current_setting→RLS 쿼리`가 동일 컨텍스트로 동작·미설정 시 deny 검증 (+ 풀러 transaction-mode 호환) | **실패 시 BE 스택 재선택 / §8 B안** |
+| **P3. 인프라 PoC** | 네트워크 경로(VPC / public+NAT / private link)·BE 배포 후보(Lambda+API GW / ECS·Fargate+ALB / App Runner)·크로스도메인 CORS·Auth 전달(쿠키 vs Bearer) 검증 | BE 스택·배포·연결·Auth 방식 확정 |
+| **P4. BE 부트스트랩** | 스키마+RLS(FORCE)+트리거 이전, ClickHouse-managed Postgres 연결(비-owner 롤·풀러) | 스키마+RLS DB |
+| **P5. 인증** | Cognito, auth 엔드포인트, JWT 검증, `cognito_sub↔profiles.id` + UUID 검증 + `SET LOCAL` 미들웨어, 가입 DEFINER 함수 | 로그인+RLS 작동 |
+| **P6. ⛔ RLS 격리 검증** | `current_user_id()` 치환, 팀A 토큰으로 팀B **SELECT/UPDATE/DELETE 차단**, 미주입 시 deny, FORCE RLS·비특권 롤 자동검증 | **통과 전 P7 금지** |
+| **P7. 도메인 API 이관** | clients→contracts→deposit→education. RPC→BE 트랜잭션 + **can_access 가드 동등 재현 1:1**, 신원 BE 주입 | 도메인 API |
+| **P8. FE 레포** | Next FSD, 화면 이관, supabase-js→axios+React Query, 임베디드/count 대응, FE 기능권한 | 동작 FE |
+| **P9. 운영 이관 + 컷오버** | Cognito 사용자 일괄생성 + sub↔id 매핑 백필, 발번 시퀀스 셋업, **pg_dump/logical replication으로 운영 이관**, 쓰기 전환 | 운영 전환 |
+| **P10. (후속) 분석 파이프라인** | ClickHouse-managed Postgres → ClickHouse OLAP **Postgres CDC ClickPipe**(PG 엔드포인트 직결, 풀러 경유 금지), 분석 모델 | 분석 가동 |
 
 ---
 
 ## 5. 미결정 · 확인 사항
 
-1. **BE 스택 + Amplify 범위**: Amplify를 FE 호스팅만 쓸지(→ 별도 BE: Node 또는 Python/FastAPI + pg) vs Amplify Gen2 백엔드까지 쓸지(→ Node 강제). Phase 0.5 PoC + 운영 선호로 결정 (§2 Amplify의 BE 함의)
+1. **BE 스택 + Amplify 범위**: Amplify를 FE 호스팅만 쓸지(→ 별도 BE: Node 또는 Python/FastAPI + pg) vs Amplify Gen2 백엔드까지 쓸지(→ Node 강제). P2·P3 PoC + 운영 선호로 결정 (§2 Amplify의 BE 함의)
 2. **[확인필요] ClickHouse-managed Postgres (preview)**: RLS/FORCE RLS 실동작, 비특권 롤 생성·접속, 풀러 모드, GA·SLA
 3. 운영 이관 다운타임 허용 범위(logical replication 컷오버)
 4. **BE 배포 형태**: SAM Lambda+API GW / ECS·Fargate+ALB / App Runner 중 PoC (§2)
-5. **크로스 도메인 CORS/Auth 전달**: 쿠키(SameSite/domain/Secure) vs Bearer(refresh 흐름). Phase 0.6에서 검증
+5. **크로스 도메인 CORS/Auth 전달**: 쿠키(SameSite/domain/Secure) vs Bearer(refresh 흐름). P3에서 검증
 6. **managed Postgres 네트워크 경로**: public endpoint+TLS/IP allowlist vs private link/peering → BE 연결 방식·VPC 필요 여부 결정
 7. i18n 필요 여부 (certi-nav는 en/ko)
-8. 분석(Phase 7): CDC로 보낼 테이블, 비정규화 모델
+8. 분석(P10): CDC로 보낼 테이블, 비정규화 모델
 
 ---
 
@@ -243,8 +245,8 @@ BE 이관 시 RPC 가드 동등 재현(1:1): `create_contract_with_details`(can_
 |---|---|---|
 | 격리 | DB 강제 (쿼리 빠뜨려도 막힘) | BE 코드가 매 쿼리 필터 (누수 위험) |
 | 작업량 | 적음 (정책 재사용 + `current_user_id` 치환) | 많음 (62정책 전부 코드로) |
-| 전제 | 세션주입 PoC(Phase 0.5) 통과 | — |
-| 선택 조건 | 기본 | **Phase 0.5 실패** 또는 회사 정책 강제 시에만 |
+| 전제 | 세션주입 PoC(P2) 통과 | — |
+| 선택 조건 | 기본 | **P2 실패** 또는 회사 정책 강제 시에만 |
 
 **A안 채택.** CRM은 팀별 행 격리가 핵심이라 RLS가 안전·저비용. B안은 PoC 실패 시 비상 경로로만.
 
@@ -253,6 +255,6 @@ BE 이관 시 RPC 가드 동등 재현(1:1): `create_contract_with_details`(can_
 ## 9. 핵심 판단
 
 - **이 문서는 "ClickHouse 전환"이 아니라 "Supabase 탈피 + FE/BE 분리 + Cognito"다.** 운영 DB는 PostgreSQL 호환(ClickHouse-managed Postgres)이라 RLS·트랜잭션·ORM 전략을 원칙적으로 유지할 수 있다(단 preview 실동작 검증 필요).
-- **1순위는 BE 스택이 아니라 (Phase -1) schema 재추출과 (Phase 0.5) 세션주입 PoC다.** 전자는 stale 때문에 hard blocker, 후자는 RLS 보안 모델의 단일 의존점.
+- **1순위는 BE 스택이 아니라 (P0) schema 재추출과 (P2) 세션주입 PoC다.** 전자는 stale 때문에 hard blocker, 후자는 RLS 보안 모델의 단일 의존점.
 - 운영 이관(pg_dump/logical replication)과 분석 복제(ClickPipes→ClickHouse OLAP)는 **다른 경로**다. 섞지 말 것.
 - 보안 3중: RLS + RPC 내장 가드 + FE 기능권한. RPC는 RLS 우회하므로 RLS만 믿으면 안 됨.
