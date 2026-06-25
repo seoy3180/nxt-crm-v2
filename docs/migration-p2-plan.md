@@ -33,18 +33,18 @@ Supabase는 `auth.uid()`가 GoTrue 세션에서 신원을 가져왔다. 자체 B
 
 ## 3. 검증 항목 체크리스트
 
-### (a) 로컬 PG — 지금 검증 가능
-- [ ] `current_user_id()` 헬퍼: `NULLIF(current_setting('app.current_user_id', true),'')::uuid` (2-arg 필수, 미설정→NULL)
-- [ ] `BEGIN → SET LOCAL app.current_user_id → current_setting` 읽기 동작
-- [ ] **RLS 격리**: 팀A 신원으로 `SELECT` → 팀A 행만 반환
-- [ ] **쓰기 격리**: 팀A 신원으로 팀B 행 `UPDATE`/`DELETE` → 0 rows (차단)
-- [ ] **쓰기 위조 차단**: 팀A가 보이는 자기 행의 `owner_team_id`를 팀B로 변경 → `WITH CHECK` 거부 (실전 핵심 위조)
-- [ ] **미설정 deny**: `SET` 없이 `SELECT` → 0행, 쓰기 거부 (fail-closed)
-- [ ] **tx 단위 격리**: 풀 커넥션 재사용 시 이전 트랜잭션의 `SET LOCAL`이 다음에 새지 않음
-- [ ] **FORCE RLS 원리**: 비특권 롤(테이블 owner 아님)로 위가 동작 (owner BYPASS 방지)
-- [ ] **INSERT WITH CHECK**: 팀A 신원으로 팀B 소유 행 `INSERT` → 거부 (신원 위조 방지)
-- [ ] **ROLLBACK 후 누수 없음**: tx 중 에러 → `ROLLBACK` 후 다음 쿼리에 신원값 안 남음
-- [ ] **invalid UUID 방어**: wrapper가 UUID 형식 검증 실패 시 DB 주입 안 함 (NULL→deny, 401/403) — §3.1
+### (a) 로컬 PG — ✅ 전부 통과 (2026-06-25, 결과 §6)
+- [x] `current_user_id()` 헬퍼: `NULLIF(current_setting('app.current_user_id', true),'')::uuid` (2-arg 필수, 미설정→NULL)
+- [x] `BEGIN → SET LOCAL app.current_user_id → current_setting` 읽기 동작
+- [x] **RLS 격리**: 팀A 신원으로 `SELECT` → 팀A 행만 반환
+- [x] **쓰기 격리**: 팀A 신원으로 팀B 행 `UPDATE`/`DELETE` → 0 rows (차단)
+- [x] **쓰기 위조 차단**: 팀A가 보이는 자기 행의 `owner_team_id`를 팀B로 변경 → `WITH CHECK` 거부 (실전 핵심 위조)
+- [x] **미설정 deny**: `SET` 없이 `SELECT` → 0행, 쓰기 거부 (fail-closed)
+- [x] **tx 단위 격리**: 풀 커넥션 재사용 시 이전 트랜잭션의 `SET LOCAL`이 다음에 새지 않음
+- [x] **FORCE RLS 원리**: 비특권 롤(테이블 owner 아님)로 위가 동작 (owner BYPASS 방지)
+- [x] **INSERT WITH CHECK**: 팀A 신원으로 팀B 소유 행 `INSERT` → 거부 (신원 위조 방지)
+- [x] **ROLLBACK 후 누수 없음**: tx 중 에러 → `ROLLBACK` 후 다음 쿼리에 신원값 안 남음
+- [x] **invalid UUID 방어**: wrapper가 UUID 형식 검증 실패 시 DB 주입 안 함 (NULL→deny, 401/403) — §3.1
 
 ### (b) ClickHouse-managed Postgres — 인스턴스 확보 후만 검증 가능
 - [ ] 비특권 앱 롤 `CREATE ROLE` 권한 (managed superuser 제약 확인)
@@ -92,7 +92,7 @@ async function withCurrentUser(pool, userId, fn) {
   finally { c.release(); }   // 풀 반환 후 다음 사용 시 컨텍스트 안 새는지 검증
 }
 ```
-- 테스트 케이스: ①팀A SELECT→팀A만 ②팀A가 팀B `UPDATE`→0(차단) ③팀A가 팀B 소유 `INSERT`→WITH CHECK 거부 ④미설정 SELECT→0 ⑤풀 재사용 후 미설정 SELECT→0(누수 없음) ⑥tx 중 에러→`ROLLBACK` 후 다음 쿼리 신원 누수 없음 ⑦invalid UUID→wrapper 검증·거부(DB 주입 안 함)
+- 테스트 케이스: ①팀A SELECT→팀A만 ②팀A가 팀B `UPDATE`→0(차단) ③팀A가 A-1을 팀B 소유로 변경→`WITH CHECK` 거부(위조) ④팀A가 팀B 소유 `INSERT`→거부 ⑤미설정 SELECT→0 ⑥풀 재사용 후 미설정→0(누수 없음) ⑦tx 중 에러→`ROLLBACK` 후 누수 없음 ⑧invalid UUID→wrapper 거부 ⑨FORCE RLS/비특권 롤 격리 적용
 - 각 케이스 `✅/❌` + 기대값 대조 출력
 
 ---
