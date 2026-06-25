@@ -213,7 +213,7 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 ## 5. 미결정 · 확인 사항
 
 1. **BE 스택 + Amplify 범위** — **✅ P1 결정: Node + TypeScript + pg, Amplify는 FE 호스팅만(별도 BE)**. FE와 monorepo 타입 공유가 결정 근거. Amplify Gen2는 PG+RLS 모델과 불일치라 미채택. 최종 배포형태(#4)·세션주입 적합성은 P2·P3 PoC로 확정 (§2)
-2. **[확인필요] ClickHouse-managed Postgres (preview)**: RLS/FORCE RLS 실동작, 비특권 롤 생성·접속, 풀러 모드, GA·SLA
+2. **ClickHouse-managed Postgres** — ✅ **P2 범위 검증 완료 (2026-06-25)**: RLS/FORCE RLS 실동작·비특권 롤 생성·PgBouncer(6432) transaction-mode 전부 확인. **남은 확인: GA 일정·SLA·운영 정책**(기본 `postgres` DB 사용 금지, admin/app 롤 분리 등)
 3. 운영 이관 다운타임 허용 범위(logical replication 컷오버)
 4. **BE 배포 형태**: SAM Lambda+API GW / ECS·Fargate+ALB / App Runner 중 PoC (§2)
 5. **크로스 도메인 CORS/Auth 전달**: 쿠키(SameSite/domain/Secure) vs Bearer(refresh 흐름). P3에서 검증

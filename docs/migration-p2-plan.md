@@ -27,7 +27,7 @@ Supabase는 `auth.uid()`가 GoTrue 세션에서 신원을 가져왔다. 자체 B
 
 > ⚠️ **(a) 통과 = 선행검증일 뿐이다. P2 게이트 통과는 (b)에서만 성립한다.** 로컬에서 되는 것이 managed에서도 된다는 보장은 없다(권한 모델·풀러·extension 차이).
 
-(b)는 인스턴스 권한 문제(403) 해소 후 진행. (a)는 지금 즉시 가능.
+(a)·(b) **모두 ✅ 통과 (2026-06-25)**. (b)는 `nxt_crm` DB + 비특권 롤 `nxt_crm_app` + PgBouncer(6432)에서 검증 완료 (결과 §6).
 
 ---
 
@@ -46,12 +46,14 @@ Supabase는 `auth.uid()`가 GoTrue 세션에서 신원을 가져왔다. 자체 B
 - [x] **ROLLBACK 후 누수 없음**: tx 중 에러 → `ROLLBACK` 후 다음 쿼리에 신원값 안 남음
 - [x] **invalid UUID 방어**: wrapper가 UUID 형식 검증 실패 시 DB 주입 안 함 (NULL→deny, 401/403) — §3.1
 
-### (b) ClickHouse-managed Postgres — 인스턴스 확보 후만 검증 가능
-- [ ] 비특권 앱 롤 `CREATE ROLE` 권한 (managed superuser 제약 확인)
-- [ ] `FORCE ROW LEVEL SECURITY` **허용** 여부 (managed가 막지 않는지)
-- [ ] 필요한 extension 설치 가능 (`pgcrypto`/`uuid-ossp` 등 — schema 의존 시)
-- [ ] **PgBouncer류 풀러 transaction-mode**에서 `SET LOCAL` 동작 + prepared statement 충돌 회피(`?pgbouncer=true`/simple query)
-- [ ] (P10 선행 참고, 필수 아님) publication/replication slot 접근 — CDC용
+### (b) ClickHouse-managed Postgres — ✅ 전부 통과 (2026-06-25, 결과 §6)
+- [x] 비특권 앱 롤 `CREATE ROLE` 권한 (managed가 `nxt_crm_app` 생성 허용)
+- [x] `FORCE ROW LEVEL SECURITY` **허용** (managed가 막지 않음)
+- [x] extension / `gen_random_uuid` (시드 INSERT 성공)
+- [x] **PgBouncer transaction-mode**(6432)에서 `SET LOCAL` 동작 + prepared statement 충돌 없음
+- [x] **RLS 격리** (팀A→A행만, 팀B UPDATE 0) — managed에서 실증
+
+> CDC용 publication/replication slot 접근은 **P10 분석 파이프라인 항목이며 P2 게이트에서 제외**한다.
 
 ---
 
@@ -103,7 +105,10 @@ async function withCurrentUser(pool, userId, fn) {
 2. `npm install && npm run poc` → 항목별 결과표 출력
 3. (a) 전체 ✅ 확인 → 선행검증 통과
 4. 재실행 시: `docker compose down -v`(볼륨 삭제 → init 재적용) 후 1번부터
-5. (b) 인스턴스 확보 후: 같은 `init.sql`+`poc.mjs`를 managed 엔드포인트로 재실행 + (b) 5항목 확인
+5. (b) managed 검증 — **별도 파일 사용**, 접속 host·비번은 문서에 쓰지 않고 env로만:
+   - a. `~/crm-mig-poc/init_managed.sql`을 `nxt_crm`에 `nxt_crm_admin`으로 적용: `psql ... -v APP_ROLE_PASSWORD="'<비번>'" -f init_managed.sql` (앱 롤 `nxt_crm_app`·widgets·RLS 생성)
+   - b. `apps/be`(`@nxt-crm/be`)를 managed `DATABASE_URL`로 실행 — TLS는 `ssl.ca`(`PG_CA_CERT_PATH`), `sslmode`는 URL에서 생략, PgBouncer는 포트 `6432`
+   - c. (b) 5항목(§3·§6) 확인
 
 ---
 
@@ -157,7 +162,7 @@ async function withCurrentUser(pool, userId, fn) {
 
 - [x] PoC 디렉토리 **위치** → **`~/crm-mig-poc/`** (현 `nxt_crm_v2` 밖, 생성 완료. 검증 후 monorepo `apps/be`로 이식)
 - [x] 로컬 PG **버전** → **18** (target managed PG18 일치, (a) 실행 완료)
-- [ ] **(b) 잔여**: ClickHouse-managed 인스턴스 **권한(403) 해소** 후 최종 게이트 재검증
+- [x] **(b) 완료**: 권한(403) 해소 → `nxt_crm`·`nxt_crm_app`·PgBouncer(6432)에서 5/5 통과 (§6)
 
 ---
 
