@@ -27,8 +27,9 @@
 | 분석 | ClickHouse OLAP, CDC로 복제 | 운영과 분리 |
 | 레포 구조 | **모노레포(turborepo)** — `apps/fe`+`apps/be`+`packages/shared` | 타입 공유 + 작은 팀 관리 편의 (§0.5) |
 | **이행 방식** | **parallel build** — 현 레포 운영 유지, 새 레포 병렬 구축 | 운영 중단 불가 (§0.5) |
-| BE 스택 | **Node + TypeScript + pg** (Amplify는 FE 호스팅만, 별도 BE) | FE(Next/TS)와 monorepo 타입 공유 · 배포형태는 P3 PoC (P1 결정) |
+| BE 스택 | **Node + TypeScript + Express + pg** (Amplify는 FE 호스팅만, 별도 BE) | FE(Next/TS)와 타입 공유 · Express=팀 익숙도·빠른완성(P3) · 배포 EC2 단일 MVP(P3) |
 | 다국어(i18n) | **불필요** (한국어 전용 유지) | 사내 CRM · 현재 i18n 인프라 0 (P1 결정) |
+| BE 배포 | **EC2 단일 MVP → 승격**(ALB+ASG/Fargate) | 빠른 이전 우선 · SPOF 수용+승격 전제 (P3 결정) |
 
 ### 검증으로 드러난 hard blocker (착수 전 해소 필수)
 
@@ -215,7 +216,7 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 1. **BE 스택 + Amplify 범위** — **✅ P1 결정: Node + TypeScript + pg, Amplify는 FE 호스팅만(별도 BE)**. FE와 monorepo 타입 공유가 결정 근거. Amplify Gen2는 PG+RLS 모델과 불일치라 미채택. 최종 배포형태(#4)·세션주입 적합성은 P2·P3 PoC로 확정 (§2)
 2. **ClickHouse-managed Postgres** — ✅ **P2 범위 검증 완료 (2026-06-25)**: RLS/FORCE RLS 실동작·비특권 롤 생성·PgBouncer(6432) transaction-mode 전부 확인. **남은 확인: GA 일정·SLA·운영 정책**(기본 `postgres` DB 사용 금지, admin/app 롤 분리 등)
 3. 운영 이관 다운타임 허용 범위(logical replication 컷오버)
-4. **BE 배포 형태**: SAM Lambda+API GW / ECS·Fargate+ALB / App Runner 중 PoC (§2)
+4. **BE 배포 형태** — **✅ P3 결정: EC2 단일 인스턴스 MVP → (운영 안정화 시) ALB+ASG/Fargate 승격** (빠른 이전 우선; App Runner 신규고객 닫힘으로 제외, Lambda 미채택). ⚠️ EC2 단일 SPOF 수용 = 승격 전제 (P3 §5)
 5. **크로스 도메인 CORS/Auth 전달**: 쿠키(SameSite/domain/Secure) vs Bearer(refresh 흐름). P3에서 검증
 6. **managed Postgres 네트워크 경로**: public endpoint+TLS/IP allowlist vs private link/peering → BE 연결 방식·VPC 필요 여부 결정
 7. i18n 필요 여부 — **✅ P1 결정: 불필요** (한국어 전용 유지; 필요시 P8 FE에서 next-intl 등 도입)
