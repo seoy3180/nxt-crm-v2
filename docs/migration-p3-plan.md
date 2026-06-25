@@ -27,23 +27,25 @@
 
 ## 3. P3에서 새로 결정할 것
 
-- 배포형태: **EC2 단일 / ECS·Fargate+ALB / Lambda+API GW** (App Runner 제외 — §4)
-- 프레임워크: **Fastify / Hono / Express**
+- **✅ 배포형태: EC2 단일 MVP → 승격** (App Runner·Lambda 제외 — §4·§5)
+- **✅ 프레임워크: Express** (§5)
 - **✅ Auth 전달: Bearer access token** (도메인 미확보 → cross-site 불가피; 쿠키는 `SameSite=None`이라 CSRF 취약·복잡 → Bearer가 단순+CSRF 무관). **XSS 완화**: 메모리 보관(localStorage 금지)·짧은 만료·Cognito refresh·FE CSP
 - **✅ CORS**: Origin 특정(와일드카드 금지) + `Authorization`·`Content-Type` 헤더 허용 (쿠키 미사용 → credentials 불필요)
 - **승격 경로**: 같은 상위 도메인 확보 시 httpOnly 쿠키로 전환 가능 — 인증 코어(Cognito 검증→profiles.id→withCurrentUser) 동일, **BE 토큰추출 미들웨어 1곳만 교체**
 - 네트워크: IP allowlist(BE IP) / VPC 필요성
-- **HTTPS (도메인 없이)**: EC2 앞에 CloudFront(`*.cloudfront.net`) 또는 API Gateway(`*.execute-api…`) → AWS 기본 도메인 + 무료 TLS (도메인 구매 불필요). Bearer 토큰 평문 노출 방지
+- **✅ HTTPS (도메인 없이)**: **CloudFront 기본 도메인(`*.cloudfront.net`) → EC2 HTTP origin** (AWS 관리 TLS, 도메인 구매 불필요). API GW 대신 CloudFront 채택(origin 지정 단순·동적 API는 캐싱 off). ALB+ACM은 도메인 필요라 제외. Bearer 토큰 평문 노출 방지
 
 ---
 
 ## 4. 배포 후보 비교
 
+> 프레임워크는 **Express 공통**(§5). 아래는 배포형태 비교.
+
 | 후보 | 장점 | 단점 | pg 연결 |
 |---|---|---|---|
-| **EC2 단일 + Fastify** | 가장 빠름·비용 예측 쉬움·pg Pool 자연 | ⚠️ **SPOF(전체 중단)**·운영 직접(HTTPS·배포·패치·로그) | 상시 Pool → 6432 pooler |
-| **ECS·Fargate+ALB + Fastify** | 컨테이너 표준·무중단 배포·고가용 | 셋업 무거움·비용↑ | 상시 Pool → 6432 pooler |
-| **Lambda+API GW + Hono** | 서버리스·운영 최소 | cold start·**커넥션 관리 까다로움**(pooler 필수) | 6432 pooler 필수 (P2서 검증됨) |
+| **EC2 단일** ✅ 채택 | 가장 빠름·비용 예측 쉬움·pg Pool 자연 | ⚠️ **SPOF(전체 중단)**·운영 직접(HTTPS·배포·패치·로그) | 상시 Pool → 6432 pooler |
+| **ECS·Fargate+ALB** (승격 후보) | 컨테이너 표준·무중단 배포·고가용 | 셋업 무거움·비용↑ | 상시 Pool → 6432 pooler |
+| **Lambda+API GW** (미채택) | 서버리스·운영 최소 | cold start·**커넥션 관리 까다로움**(pooler 필수) | 6432 pooler 필수 (P2서 검증됨) |
 
 **App Runner 제외 사유**: AWS 문서 기준(2026-06) App Runner는 **신규 고객에게 닫힘**(기존 고객만 계속 사용). 우리 계정이 기존 App Runner 사용자라는 확인이 없으면 후보에서 제외. [Medium — 결정 시 재확인]
 
@@ -53,9 +55,9 @@
 
 ## 5. 결정 (B) — ✅ EC2 단일 MVP → 승격
 
-- **✅ 확정(2026-06-25)**: **EC2 단일 인스턴스 + Fastify** + systemd 또는 Docker Compose (빠른 이전 우선)
+- **✅ 확정(2026-06-25)**: **EC2 단일 인스턴스 + Express + Docker Compose** (빠른 이전 우선; 승격 시 ECS/Fargate로 **이미지 재사용** 위해 Docker로 고정)
 - **승격 경로**(운영 안정화 시): **EC2+ALB+ASG** 또는 **ECS·Fargate+ALB**로 다중화
-- **✅ 프레임워크: Express** (2026-06-25 확정) — 팀 익숙도·생태계 최다로 **빠른 완성** 우선. `withCurrentUser`는 Express 미들웨어로 감싼다(JWT→cognito_sub→profiles.id→`withCurrentUser`)
+- **프레임워크 Express** 근거: 팀 익숙도·생태계 최다로 **빠른 완성** 우선. `withCurrentUser`는 Express 미들웨어로 감싼다(JWT→cognito_sub→profiles.id→`withCurrentUser`)
 
 **근거**: CRM BE는 Postgres 연결이 핵심 → 상시 실행(EC2)이 Lambda 커넥션 이슈 회피 + pg Pool 자연. P2에서 PgBouncer(6432) 검증됨.
 
@@ -70,14 +72,15 @@
 - **JWT 검증** (Cognito access token 또는 mock)
 - **Amplify origin에서 CORS 성공** (FE↔BE 크로스도메인)
 - ClickHouse-managed Postgres **6432 pooler 연결** (IP allowlist에 BE IP 등록)
+- **토큰 저장/복구 결정**: access=**메모리**(localStorage 금지) / **refresh 저장 위치**(도메인 없어 httpOnly 쿠키 불가 → ⓐ Amplify Auth(amazon-cognito-identity-js)가 관리 ⓑ localStorage+CSP ⓒ 메모리만→새로고침 시 재로그인) / **새로고침 후 세션 복구** 방식 — 셋 중 택1 (보안 vs 편의)
 
 ---
 
 ## 7. 단일 EC2 선택 시 운영 체크리스트
 
-- **HTTPS**: Caddy/Nginx 리버스프록시 또는 ALB
-- **배포**: `git pull` 금지 → Docker image 또는 빌드 artifact 배포
-- **프로세스**: systemd / pm2 / Docker restart policy
+- **HTTPS**: **CloudFront 기본 도메인 → EC2 HTTP origin** (§3; 도메인 없어 ALB+ACM/Let's Encrypt 불가)
+- **배포**: `git pull` 금지 → **Docker image** 배포 (Docker Compose)
+- **프로세스**: **Docker restart policy** (Docker Compose 고정 — 승격 시 ECS/Fargate 이미지 재사용)
 - **로그**: CloudWatch Agent 또는 최소 파일 로테이션
 - **보안**: SSH 직접 접속 최소화 → **SSM Session Manager**
 - **DB 접근**: ClickHouse-managed IP allowlist에 **EC2 Elastic IP** 등록
