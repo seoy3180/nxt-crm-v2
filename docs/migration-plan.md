@@ -217,7 +217,7 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 2. **ClickHouse-managed Postgres** — ✅ **P2 범위 검증 완료 (2026-06-25)**: RLS/FORCE RLS 실동작·비특권 롤 생성·PgBouncer(6432) transaction-mode 전부 확인. **남은 확인: GA 일정·SLA·운영 정책**(기본 `postgres` DB 사용 금지, admin/app 롤 분리 등)
 3. 운영 이관 다운타임 허용 범위(logical replication 컷오버)
 4. **BE 배포 형태** — **✅ P3 결정: EC2 단일 인스턴스 MVP → (운영 안정화 시) ALB+ASG/Fargate 승격** (빠른 이전 우선; App Runner 신규고객 닫힘으로 제외, Lambda 미채택). ⚠️ EC2 단일 SPOF 수용 = 승격 전제 (P3 §5)
-5. **크로스 도메인 CORS/Auth 전달**: 쿠키(SameSite/domain/Secure) vs Bearer(refresh 흐름). P3에서 검증
+5. **크로스 도메인 CORS/Auth 전달** — **✅ P3 결정: Bearer access token** (도메인 미확보로 cross-site 불가피 → 쿠키 `SameSite=None`은 CSRF 취약, Bearer가 단순). CORS는 Origin 특정 + `Authorization` 헤더. XSS 완화(메모리·짧은만료·Cognito refresh·CSP). HTTPS는 CloudFront/API GW(AWS 기본 도메인). **도메인 확보 시 httpOnly 쿠키 승격 가능**
 6. **managed Postgres 네트워크 경로**: public endpoint+TLS/IP allowlist vs private link/peering → BE 연결 방식·VPC 필요 여부 결정
 7. i18n 필요 여부 — **✅ P1 결정: 불필요** (한국어 전용 유지; 필요시 P8 FE에서 next-intl 등 도입)
 8. 분석(P10): CDC로 보낼 테이블, 비정규화 모델

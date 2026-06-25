@@ -29,9 +29,11 @@
 
 - 배포형태: **EC2 단일 / ECS·Fargate+ALB / Lambda+API GW** (App Runner 제외 — §4)
 - 프레임워크: **Fastify / Hono / Express**
-- Auth 전달: **Bearer access token vs httpOnly cookie**(+ refresh; certi-nav-fe는 쿠키+401 refresh 선례)
-- CORS 정책 (Amplify FE origin 허용)
-- 네트워크: IP allowlist(BE Elastic IP) / VPC / private link 필요성
+- **✅ Auth 전달: Bearer access token** (도메인 미확보 → cross-site 불가피; 쿠키는 `SameSite=None`이라 CSRF 취약·복잡 → Bearer가 단순+CSRF 무관). **XSS 완화**: 메모리 보관(localStorage 금지)·짧은 만료·Cognito refresh·FE CSP
+- **✅ CORS**: Origin 특정(와일드카드 금지) + `Authorization`·`Content-Type` 헤더 허용 (쿠키 미사용 → credentials 불필요)
+- **승격 경로**: 같은 상위 도메인 확보 시 httpOnly 쿠키로 전환 가능 — 인증 코어(Cognito 검증→profiles.id→withCurrentUser) 동일, **BE 토큰추출 미들웨어 1곳만 교체**
+- 네트워크: IP allowlist(BE IP) / VPC 필요성
+- **HTTPS (도메인 없이)**: EC2 앞에 CloudFront(`*.cloudfront.net`) 또는 API Gateway(`*.execute-api…`) → AWS 기본 도메인 + 무료 TLS (도메인 구매 불필요). Bearer 토큰 평문 노출 방지
 
 ---
 
