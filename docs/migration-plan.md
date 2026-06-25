@@ -198,7 +198,7 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 |---|---|---|
 | **P0. ✅ 재추출 hard gate** | (완료) 운영 DB 재추출 + stale CHECK(`tt`→`edu`) 정정 + `update_contract_teams` 가드·검증 | ✅ 완료 |
 | **P1. ✅ 결정 + 전수조사** | supabase-js **19파일**·rpc 7·임베디드/count/배열 + Auth 이관 인벤토리, RLS 62 / `auth.uid()` 16 → `current_user_id()` 치환 검증, 보안결함 목록. **결정: BE=Node+TS+pg · i18n 불필요 · Amplify FE호스팅만** | ✅ 완료 (`migration-p1-inventory.md`) |
-| **P2. ⛔ 세션주입 PoC** | **Node+`pg`**로 `BEGIN→SET LOCAL→current_setting→RLS·미설정 deny·tx단위 격리`. **(a) 로컬 PG 선행검증 → (b) ClickHouse-managed Postgres 최종 게이트**(비특권 롤 생성·FORCE RLS 허용·extension·풀러 transaction-mode) | **(b)까지 통과해야 게이트 통과**. 실패 시 §8 B안 |
+| **P2. ✅ 세션주입 PoC** | Node+`pg` `withCurrentUser` tx wrapper. (a) 로컬 선행 11항목 + (b) ClickHouse-managed 최종 게이트(비특권 롤·FORCE RLS·extension·PgBouncer 6432·격리) | ✅ **5/5 통과 — A안 RLS 확정** (migration-p2-plan.md §6) |
 | **P3. 인프라 PoC** | 네트워크 경로(VPC / public+NAT / private link)·BE 배포 후보(Lambda+API GW / ECS·Fargate+ALB / App Runner)·크로스도메인 CORS·Auth 전달(쿠키 vs Bearer) 검증 | BE 스택·배포·연결·Auth 방식 확정 |
 | **P4. BE 부트스트랩** | 스키마+RLS(FORCE)+트리거 이전, ClickHouse-managed Postgres 연결(비-owner 롤·풀러) | 스키마+RLS DB |
 | **P5. 인증** | Cognito, auth 엔드포인트, JWT 검증, `cognito_sub↔profiles.id` + UUID 검증 + `SET LOCAL` 미들웨어, 가입 DEFINER 함수 | 로그인+RLS 작동 |

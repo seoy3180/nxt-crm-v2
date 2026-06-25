@@ -4,7 +4,7 @@
 > 전제: P0(재추출)·P1(인벤토리+결정: BE=Node+TS+pg) 완료.
 > 게이트: ⛔ — 통과 못 하면 P7(도메인 API) 진입 금지. 실패 시 BE 스택 재선택 또는 §8 B안.
 >
-> **진행 상태**: (a) 로컬 선행검증 **✅ 통과 (2026-06-25)** / (b) ClickHouse-managed 최종 게이트 — **인스턴스 권한(403) 해소 후 대기** (결과 §6 하단)
+> **진행 상태**: ✅ **P2 게이트 전체 통과 (2026-06-25)** — (a) 로컬 11항목 + (b) ClickHouse-managed 5/5. A안(RLS 유지) 확정. (결과 §6)
 
 ---
 
@@ -133,7 +133,23 @@ async function withCurrentUser(pool, userId, fn) {
 | FORCE RLS / 비특권 롤 격리 적용 | ✅ |
 
 - **핵심 확인**: `SET LOCAL`이 트랜잭션 스코프라 **풀 재사용·ROLLBACK 후 신원 누수 0** → pooling 우려가 로컬 한정으로 해소. `withCurrentUser()`를 P4/P5 세션주입 미들웨어 원형으로 확정.
-- **남은 것**: (b) ClickHouse-managed Postgres 최종 게이트 — 인스턴스 권한(403) 해소 후 동일 `init.sql`+`poc.mjs` 재실행. **(b) 통과 전까지 P2 게이트는 미통과 상태.**
+- **(b) 통과로 P2 게이트 전체 통과** (아래 결과).
+
+### ✅ (b) ClickHouse-managed Postgres 최종 게이트 — 2026-06-25
+
+- 환경: ClickHouse-managed Postgres `nxt_crm`(PG18), 비특권 롤 `nxt_crm_app`, TLS(CA 검증 — MITM 방지), PgBouncer `6432`(transaction-mode)
+- 결과: **5/5 통과 → P2 게이트 전체 통과**
+
+| 검증 | 결과 |
+|---|---|
+| (b)-1 비특권 롤 `CREATE ROLE` | ✅ managed 허용 (`nxt_crm_app`) |
+| (b)-2 `FORCE ROW LEVEL SECURITY` 허용 | ✅ |
+| (b)-3 extension(`gen_random_uuid`) | ✅ |
+| (b)-4 PgBouncer transaction-mode | ✅ `SET LOCAL` 동작, prepared 충돌 없음 |
+| (b)-5 RLS 격리 (팀A→A행만, 팀B UPDATE 0) | ✅ |
+
+→ **A안(RLS 유지)이 ClickHouse-managed Postgres에서 성립 확정.** hard blocker #2(§0)·§3.5 `[확인필요]` 실증 해소.
+- TLS: `connectionString`의 `sslmode`(verify-full alias)와 ssl 옵션 충돌 → `DATABASE_URL`에서 `sslmode` 생략 + `pool.ts`의 `ssl.ca`(PG_CA_CERT_PATH)로 검증. PgBouncer는 포트 `6432`.
 
 ---
 
