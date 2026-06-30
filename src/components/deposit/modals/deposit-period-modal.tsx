@@ -12,33 +12,32 @@ import {
 import { Button } from '@/components/ui/button';
 import { DepositPeriodFields } from '../deposit-period-fields';
 import { validatePeriod } from '@/lib/deposit/period';
-import { useActivateDeposit } from '@/hooks/use-deposit-mutations';
+import { useUpdateDepositPeriod } from '@/hooks/use-deposit-mutations';
 
-export function DepositActivateModal({
-  open,
-  onOpenChange,
-  contractId,
-  onSuccess,
-}: {
+interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  accountId: string;
   contractId: string;
-  onSuccess?: () => void;
-}) {
-  const activate = useActivateDeposit();
-  const [start, setStart] = useState('');
-  const [end, setEnd] = useState('');
+  initialStart: string | null;
+  initialEnd: string | null;
+}
+
+export function DepositPeriodModal({ open, onOpenChange, accountId, contractId, initialStart, initialEnd }: Props) {
+  const [start, setStart] = useState(initialStart ?? '');
+  const [end, setEnd] = useState(initialEnd ?? '');
   const [error, setError] = useState<string | null>(null);
+  const update = useUpdateDepositPeriod();
 
   useEffect(() => {
     if (open) {
-      setStart('');
-      setEnd('');
+      setStart(initialStart ?? '');
+      setEnd(initialEnd ?? '');
       setError(null);
     }
-  }, [open]);
+  }, [open, initialStart, initialEnd]);
 
-  async function confirm() {
+  async function save() {
     const s = start || null;
     const e = end || null;
     const err = validatePeriod(s, e);
@@ -47,8 +46,14 @@ export function DepositActivateModal({
       return;
     }
     try {
-      await activate.mutateAsync({ contractId, start_date: s, end_date: e });
-      onSuccess?.();
+      await update.mutateAsync({
+        accountId,
+        contractId,
+        start_date: s,
+        end_date: e,
+        oldStart: initialStart,
+        oldEnd: initialEnd,
+      });
       onOpenChange(false);
     } catch (e2) {
       setError((e2 as Error).message);
@@ -59,10 +64,8 @@ export function DepositActivateModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>예치금 계좌 활성화</DialogTitle>
-          <DialogDescription className="leading-relaxed">
-            이 계약에 예치금 추적을 시작합니다. 잔액이 0이 아니면 계좌 비활성화가 제한됩니다.
-          </DialogDescription>
+          <DialogTitle>계약 기간 수정</DialogTitle>
+          <DialogDescription>예치금 계약의 시작일과 종료일을 설정합니다.</DialogDescription>
         </DialogHeader>
         <DepositPeriodFields
           startDate={start}
@@ -75,8 +78,8 @@ export function DepositActivateModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             취소
           </Button>
-          <Button onClick={confirm} disabled={activate.isPending}>
-            {activate.isPending ? '활성화 중...' : '활성화'}
+          <Button onClick={save} disabled={update.isPending}>
+            {update.isPending ? '저장 중...' : '저장'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -14,6 +14,8 @@ const account = (over: Partial<DepositAccount> = {}): DepositAccount => ({
   total_deposit: 0,
   total_usage: 0,
   last_recalc_at: null,
+  start_date: null,
+  end_date: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
   deleted_at: null,

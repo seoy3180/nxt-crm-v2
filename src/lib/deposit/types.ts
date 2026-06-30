@@ -24,6 +24,8 @@ export interface DepositAccount {
   total_deposit: number;
   total_usage: number;
   last_recalc_at: string | null;
+  start_date: string | null;
+  end_date: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

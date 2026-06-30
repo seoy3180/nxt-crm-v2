@@ -138,7 +138,7 @@ export const depositService = {
     const { data, error } = await supabase
       .from('deposit_accounts')
       .select(
-        'id, contract_id, balance, total_deposit, total_usage, last_recalc_at, created_at, updated_at, deleted_at, contract:contracts!inner(id, name, contract_id, currency, client_id, clients(name))',
+        'id, contract_id, balance, total_deposit, total_usage, last_recalc_at, start_date, end_date, created_at, updated_at, deleted_at, contract:contracts!inner(id, name, contract_id, currency, client_id, clients(name))',
       )
       .is('deleted_at', null);
     if (error) throw error;
@@ -161,6 +161,8 @@ export const depositService = {
       total_deposit: row.total_deposit,
       total_usage: row.total_usage,
       last_recalc_at: row.last_recalc_at,
+      start_date: row.start_date,
+      end_date: row.end_date,
       created_at: row.created_at,
       updated_at: row.updated_at,
       deleted_at: row.deleted_at,
@@ -202,11 +204,18 @@ export const depositService = {
   },
 
   /** 계약에 예치금 계좌 활성화 (1:1 UNIQUE). */
-  async activate(contractId: string): Promise<string> {
+  async activate(
+    contractId: string,
+    period?: { start_date: string | null; end_date: string | null },
+  ): Promise<string> {
     const supabase = createClient();
     const { data, error } = await supabase
       .from('deposit_accounts')
-      .insert({ contract_id: contractId })
+      .insert({
+        contract_id: contractId,
+        start_date: period?.start_date ?? null,
+        end_date: period?.end_date ?? null,
+      })
       .select('id')
       .single();
     if (error) throw error;
@@ -222,6 +231,18 @@ export const depositService = {
     const { error } = await supabase
       .from('deposit_accounts')
       .update({ deleted_at: new Date().toISOString() })
+      .eq('id', accountId);
+    if (error) throw error;
+  },
+
+  async updatePeriod(
+    accountId: string,
+    period: { start_date: string | null; end_date: string | null },
+  ): Promise<void> {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('deposit_accounts')
+      .update({ start_date: period.start_date, end_date: period.end_date })
       .eq('id', accountId);
     if (error) throw error;
   },

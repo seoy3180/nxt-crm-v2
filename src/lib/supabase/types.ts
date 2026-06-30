@@ -563,8 +563,10 @@ export type Database = {
           contract_id: string
           created_at: string
           deleted_at: string | null
+          end_date: string | null
           id: string
           last_recalc_at: string | null
+          start_date: string | null
           total_deposit: number
           total_usage: number
           updated_at: string
@@ -574,8 +576,10 @@ export type Database = {
           contract_id: string
           created_at?: string
           deleted_at?: string | null
+          end_date?: string | null
           id?: string
           last_recalc_at?: string | null
+          start_date?: string | null
           total_deposit?: number
           total_usage?: number
           updated_at?: string
@@ -585,8 +589,10 @@ export type Database = {
           contract_id?: string
           created_at?: string
           deleted_at?: string | null
+          end_date?: string | null
           id?: string
           last_recalc_at?: string | null
+          start_date?: string | null
           total_deposit?: number
           total_usage?: number
           updated_at?: string

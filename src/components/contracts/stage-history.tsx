@@ -33,20 +33,24 @@ function renderChange(h: { field_name: string | null; old_value: string | null; 
     const from = h.old_value ?? h.from_stage;
     const to = h.new_value ?? h.to_stage;
     return (
-      <span>
-        <span className="text-zinc-400">단계</span>{' '}
-        {from ? `${getStageLabel(from, contractType)} → ` : ''}
-        <span className="font-semibold">{getStageLabel(to, contractType)}</span>
-      </span>
+      <>
+        <p className="text-[13px] font-medium text-zinc-900">단계</p>
+        <p className="text-xs text-zinc-500">
+          {from ? `${getStageLabel(from, contractType)} → ` : ''}
+          <span className="font-semibold text-zinc-700">{getStageLabel(to, contractType)}</span>
+        </p>
+      </>
     );
   }
 
   return (
-    <span>
-      <span className="text-zinc-400">{h.field_name}</span>{' '}
-      {h.old_value ? `${h.old_value} → ` : ''}
-      <span className="font-semibold">{h.new_value || '(삭제)'}</span>
-    </span>
+    <>
+      <p className="text-[13px] font-medium text-zinc-900">{h.field_name}</p>
+      <p className="text-xs text-zinc-500">
+        {h.old_value ? `${h.old_value} → ` : ''}
+        <span className="font-semibold text-zinc-700">{h.new_value || '(삭제)'}</span>
+      </p>
+    </>
   );
 }
 
@@ -106,9 +110,7 @@ export function StageHistory({ contractId, contractType }: StageHistoryProps) {
               {history!.map((h, idx) => (
                 <div key={h.id} className={`flex items-center justify-between gap-2 py-3 ${idx < count - 1 ? 'border-b border-zinc-100' : ''}`}>
                   <div className="space-y-1 min-w-0">
-                    <p className="text-[13px] font-medium text-zinc-900">
-                      {renderChange(h, contractType)}
-                    </p>
+                    {renderChange(h, contractType)}
                     <p className="text-xs text-zinc-400">
                       {h.changed_by_name ?? '알 수 없음'} · {formatDate(h.created_at)}
                     </p>
