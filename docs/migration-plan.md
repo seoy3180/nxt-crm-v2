@@ -154,11 +154,11 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 - **구현 시점**: P7 도메인 API(응답 DTO에 권한 플래그 포함) → P8 FE(플래그로 표시 제어)
 
 ### 3.2 인증: Supabase Auth → AWS Cognito
-- `profiles.id`는 기존 GoTrue uuid **유지**, `cognito_sub`(uuid)는 **별도 컬럼** 추가. FK→`auth.users` 제거
+- `profiles.id`는 기존 GoTrue uuid **유지**, Cognito `sub`는 **별도 컬럼**(`cognito_sub`)으로 추가. P5 dev의 Cognito local user는 UUID로 충분하지만, SAML/OIDC federation을 바로 붙이면 `text` 또는 `provider+subject` 매핑 테이블로 조정한다. FK→`auth.users` 제거
 - **데이터 이관 시 매핑 백필**: 기존 사용자 Cognito 일괄 생성 → `cognito_sub ↔ profiles.id` 매핑 (안 하면 `changed_by`·`created_by` 이력 단절)
 - 요청 흐름: JWT 검증(JWKS 서명·`iss`·`exp`·`token_use`=access·`client_id` — `aud`는 resource binding 사용 시에만) → `cognito_sub`로 `profiles.id` 조회 → UUID 검증 → `SET LOCAL`. 조회 실패 시 401/403
 - ⚠️ **크로스 도메인(FE=Amplify ↔ BE=별도 도메인) CORS/Auth 전달 방식 결정 필요**: 쿠키 기반이면 `SameSite`/`domain`/`Secure` 설정, Bearer 토큰 기반이면 refresh 흐름(401 자동 갱신)을 명시. certi-nav-fe는 httpOnly 쿠키 + 401 refresh 패턴 → 차용 검토 (§5)
-- `handle_new_user` 트리거 제거 → 가입 전용 `SECURITY DEFINER` 함수로 `profiles` INSERT(가입 시점엔 본인 `profiles.id`가 없어 RLS를 못 거치므로)
+- `handle_new_user` 트리거 제거 → P5에서는 기존 `profiles`와 Cognito `sub` 매핑만 검증. 신규 가입/초대용 `profiles` 생성 함수는 P5b/P8 이전 별도 게이트로 분리(가입 시점엔 본인 `profiles.id`가 없어 RLS를 못 거치므로 별도 설계 필요)
 
 ### 3.3 `supabase-js` → REST API
 - 실측: `@supabase/*` 직접 import 4 + 래핑 client 경유 약 27 + `rpc()` 7. 페이지·훅이 `.from()` 직접 호출
@@ -203,7 +203,7 @@ BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
 | **P2. ✅ 세션주입 PoC** | Node+`pg` `withCurrentUser` tx wrapper. (a) 로컬 선행 11항목 + (b) ClickHouse-managed 최종 게이트(비특권 롤·FORCE RLS·extension·PgBouncer 6432·격리) | ✅ **5/5 통과 — A안 RLS 확정** (migration-p2-plan.md §6) |
 | **P3. ✅ 인프라 PoC** | Amplify Next.js 풀스택 SSR 배포. `/api/health`·`/api/db-ping`·`/api/widgets`로 DB 접속 + `withCurrentUser` + RLS 검증. **별도 EC2 BE는 fallback** | ✅ 완료 (`migration-p3-plan.md`) |
 | **P4. ✅ 실제 CRM 스키마+RLS 이전** | `nxt_crm_dev`에 `public` schema 변환 적용: `auth.uid()`→`current_user_id()`, `profiles->auth.users` FK 제거, `ENABLE RLS`, 앱 role grants, 실제 CRM 테이블 smoke API | ✅ 완료 — Amplify smoke 통과 (`migration-p4-plan.md`) |
-| **P5. 인증** | Cognito, auth 엔드포인트, JWT 검증, `cognito_sub↔profiles.id` + UUID 검증 + `SET LOCAL` 미들웨어, 가입 DEFINER 함수 | 로그인+RLS 작동 |
+| **P5. 인증** | Cognito, auth 엔드포인트, JWT 검증, `cognito_sub↔profiles.id` + UUID 검증 + `SET LOCAL` 미들웨어. 가입/초대 profile 생성은 P5b/P8 이전 별도 게이트 | 로그인+RLS 작동 (`migration-p5-plan.md`) |
 | **P6. ⛔ RLS 격리 검증** | `current_user_id()` 치환, 팀A 토큰으로 팀B **SELECT/UPDATE/DELETE 차단**, 미주입 시 deny, 비-owner 앱 롤·비특권 롤 자동검증 | **통과 전 P7 금지** |
 | **P7. 도메인 API 이관** | clients→contracts→deposit→education. RPC→BE 트랜잭션 + **can_access 가드 동등 재현 1:1**, 신원 BE 주입 | 도메인 API |
 | **P8. FE 레포** | Next FSD, 화면 이관, supabase-js→axios+React Query, 임베디드/count 대응, FE 기능권한 | 동작 FE |

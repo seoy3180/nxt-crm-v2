@@ -77,7 +77,7 @@ P4 변환 규칙:
 | `GRANT ... TO anon/authenticated/service_role` | 제거 |
 | `OWNER TO postgres` | 제거 또는 target admin 소유로 자연 생성 |
 | `auth` schema 객체 | 생성하지 않음 |
-| `handle_new_user()` | P4 migration에서 제외. P5에서 Cognito 가입/초대용 profile 생성 함수로 재설계 |
+| `handle_new_user()` | P4 migration에서 제외. P5에서는 기존 profile과 Cognito `sub` 매핑만 검증하고, 가입/초대용 profile 생성 함수는 P5b/P8 이전 별도 게이트로 재설계 |
 
 ### 4.2 세션 사용자 헬퍼
 
