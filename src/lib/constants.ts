@@ -92,7 +92,7 @@ export const SIDEBAR_SECTIONS = [
       { href: '/msp/clients', label: 'MSP 고객', icon: 'building' },
       { href: '/msp/contracts', label: 'MSP 계약', icon: 'cloud' },
       { href: '/msp/contacts', label: 'MSP 연락처', icon: 'contact' },
-      { href: '/deposit', label: '예치금', icon: 'wallet', showDepositBadge: true },
+      { href: '/msp/deposit', label: '예치금', icon: 'wallet', showDepositBadge: true },
     ],
   },
   {
