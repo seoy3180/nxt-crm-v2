@@ -278,7 +278,9 @@ CREATE TABLE deposit_accounts (
   last_recalc_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
+  deleted_at timestamptz,
+  start_date date,
+  end_date date
 );
 
 CREATE TABLE deposit_transactions (
@@ -342,6 +344,7 @@ ALTER TABLE user_preferences ADD CONSTRAINT user_preferences_user_id_key UNIQUE 
 
 ALTER TABLE contract_teams ADD CONSTRAINT contract_teams_percentage_check CHECK (((percentage > (0)::numeric) AND (percentage <= (100)::numeric)));
 ALTER TABLE contracts ADD CONSTRAINT contracts_stage_check CHECK (((stage IS NULL) OR ((type = 'msp'::contract_type) AND (stage = ANY (ARRAY['pre_contract'::text, 'billing_complete'::text, 'project_closed'::text, 'unpaid'::text]))) OR ((type = 'tt'::contract_type) AND (stage = ANY (ARRAY['proposal'::text, 'contracted'::text, 'operating'::text, 'op_completed'::text, 'settled'::text]))) OR (type = 'dev'::contract_type)));
+ALTER TABLE deposit_accounts ADD CONSTRAINT deposit_accounts_period_check CHECK (((start_date IS NULL) OR (end_date IS NULL) OR (end_date >= start_date)));
 ALTER TABLE deposit_transactions ADD CONSTRAINT amount_sign_check CHECK ((((txn_type = ANY (ARRAY['deposit'::deposit_txn_type, 'usage'::deposit_txn_type, 'refund'::deposit_txn_type])) AND (amount > 0)) OR ((txn_type = 'adjustment'::deposit_txn_type) AND (amount <> 0))));
 
 -- ============================================================

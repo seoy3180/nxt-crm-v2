@@ -28,7 +28,7 @@ export function DepositActivatableRow({
       {canManage && (
         <button
           type="button"
-          onClick={() => activate.mutate(contract.id)}
+          onClick={() => activate.mutate({ contractId: contract.id })}
           disabled={activate.isPending}
           className="shrink-0 rounded-md bg-blue-600 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >

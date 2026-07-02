@@ -8,6 +8,7 @@ import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { DepositTxnModal } from './modals/deposit-txn-modal';
 import type { DepositAccountWithMetrics } from '@/lib/services/deposit-service';
 import type { AlertLevel } from '@/lib/deposit/types';
+import { formatPeriod, isExpired } from '@/lib/deposit/period';
 
 const ALERT_STYLES: Record<AlertLevel, { border: string; badgeBg: string; badgeText: string; balBg: string; balText: string; bar: string }> = {
   critical: {
@@ -49,13 +50,22 @@ export function DepositCard({ account }: { account: DepositAccountWithMetrics })
   const fmtSigned = (n: number) => (n < 0 ? `−${fmt(n)}` : fmt(n));
 
   const recentTxns = txns.slice(0, 4);
+  const periodText = formatPeriod(account.start_date, account.end_date);
+  const periodExpired = isExpired(account.end_date);
 
   return (
     <div className={`flex flex-col rounded-xl border bg-white p-5 space-y-4 ${style.border}`}>
       {/* 헤더 */}
       <div className="flex items-start justify-between">
         <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold text-zinc-900">{account.contract.name}</h3>
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="truncate text-base font-semibold text-zinc-900">{account.contract.name}</h3>
+            {periodText && (
+              <span className={`shrink-0 text-xs ${periodExpired ? 'text-red-600' : 'text-zinc-400'}`}>
+                {periodExpired ? `${periodText} (만료)` : periodText}
+              </span>
+            )}
+          </div>
           <p className="truncate text-xs text-zinc-400">{account.contract.client_name ?? '—'}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

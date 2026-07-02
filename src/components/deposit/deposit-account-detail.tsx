@@ -15,6 +15,8 @@ import { DepositTxnModal } from './modals/deposit-txn-modal';
 import { DepositVoidModal } from './modals/deposit-void-modal';
 import { DepositActivateModal } from './modals/deposit-activate-modal';
 import { DepositDeactivateModal } from './modals/deposit-deactivate-modal';
+import { DepositPeriodModal } from './modals/deposit-period-modal';
+import { formatPeriod, isExpired } from '@/lib/deposit/period';
 import type { AlertLevel, DepositTxnType } from '@/lib/deposit/types';
 
 const ALERT_STYLES: Record<AlertLevel, { balBg: string; balText: string; bar: string; badge: string }> = {
@@ -45,6 +47,7 @@ export function DepositAccountDetail({ contractId, currency, canManage }: Props)
     | null
     | { kind: 'activate' }
     | { kind: 'deactivate' }
+    | { kind: 'period' }
     | { kind: 'txn'; type: DepositTxnType }
     | { kind: 'void'; id: string }
   >(null);
@@ -85,6 +88,13 @@ export function DepositAccountDetail({ contractId, currency, canManage }: Props)
   const pct = calcBalancePct(account);
   const level = calcAlertLevel(account, avgMonthly);
   const style = ALERT_STYLES[level];
+  const periodText = formatPeriod(account.start_date, account.end_date);
+  const periodExpired = isExpired(account.end_date);
+  const periodLabel = periodText
+    ? periodExpired
+      ? `계약 기간 ${periodText} (만료)`
+      : `계약 기간 ${periodText}`
+    : '계약 기간 미설정';
 
   const sym = currency === 'USD' ? '$' : '₩';
   const fmt = (n: number) => `${sym} ${new Intl.NumberFormat('ko-KR').format(Math.abs(n))}`;
@@ -95,7 +105,22 @@ export function DepositAccountDetail({ contractId, currency, canManage }: Props)
       {/* 풀폭 카드 */}
       <div className="rounded-xl border border-zinc-200 bg-white p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-zinc-900">예치금 계좌</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold leading-none text-zinc-900">예치금 계좌</h3>
+            {canManage ? (
+              <button
+                type="button"
+                onClick={() => setModal({ kind: 'period' })}
+                className={`cursor-pointer rounded px-1.5 py-1 text-xs leading-none hover:bg-zinc-50 ${periodExpired ? 'text-red-600' : 'text-zinc-600'}`}
+              >
+                {periodLabel}
+              </button>
+            ) : (
+              <span className={`text-xs leading-none ${periodExpired ? 'text-red-600' : 'text-zinc-600'}`}>
+                {periodLabel}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold ${style.badge}`}>
               {level !== 'ok' && <CircleAlert className="h-3 w-3" />}
@@ -218,6 +243,14 @@ export function DepositAccountDetail({ contractId, currency, canManage }: Props)
         onOpenChange={(o) => !o && setModal(null)}
         accountId={account.id}
         balanceNotZero={account.balance !== 0}
+      />
+      <DepositPeriodModal
+        open={modal?.kind === 'period'}
+        onOpenChange={(o) => !o && setModal(null)}
+        accountId={account.id}
+        contractId={contractId}
+        initialStart={account.start_date}
+        initialEnd={account.end_date}
       />
     </div>
   );
