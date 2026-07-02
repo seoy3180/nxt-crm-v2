@@ -45,7 +45,7 @@ function LoginFormInner() {
       return;
     }
 
-    const redirect = searchParams.get('redirect') ?? '/dashboard';
+    const redirect = searchParams.get('redirect') ?? '/';
     router.push(redirect);
   }
 
