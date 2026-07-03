@@ -42,6 +42,25 @@ export function getStageColor(stage: string | null): string {
   return STAGE_COLORS[stage] ?? 'bg-zinc-100 text-zinc-500';
 }
 
+/** 칸반 컬럼 배경 tint (STAGE_COLORS 색조의 -50) + 헤더 점 색(-500). */
+const STAGE_BOARD_COLORS: Record<string, { bg: string; dot: string }> = {
+  pre_contract: { bg: 'bg-slate-50', dot: 'bg-slate-400' },
+  billing_complete: { bg: 'bg-violet-50', dot: 'bg-violet-500' },
+  project_closed: { bg: 'bg-emerald-50', dot: 'bg-emerald-500' },
+  unpaid: { bg: 'bg-rose-50', dot: 'bg-rose-500' },
+  // 교육 단계
+  proposal: { bg: 'bg-slate-50', dot: 'bg-slate-400' },
+  contracted: { bg: 'bg-violet-50', dot: 'bg-violet-500' },
+  operating: { bg: 'bg-indigo-50', dot: 'bg-indigo-500' },
+  op_completed: { bg: 'bg-emerald-50', dot: 'bg-emerald-500' },
+  settled: { bg: 'bg-teal-50', dot: 'bg-teal-500' },
+};
+
+export function getStageBoardColor(stage: string | null): { bg: string; dot: string } {
+  if (!stage) return { bg: 'bg-zinc-50', dot: 'bg-zinc-400' };
+  return STAGE_BOARD_COLORS[stage] ?? { bg: 'bg-zinc-50', dot: 'bg-zinc-400' };
+}
+
 /** 문자열을 숫자로 안전하게 변환. NaN이면 null 반환. */
 export function safeNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;

@@ -40,6 +40,7 @@ function MspContractsInner() {
   const searchParams = useSearchParams();
   const initialView = (searchParams.get('view') ?? 'table') as 'stage' | 'table';
   const [viewMode, setViewMode] = useState<'stage' | 'table'>(initialView);
+  const [stageEditMode, setStageEditMode] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [stage, setStage] = useState<string | undefined>();
@@ -87,6 +88,7 @@ function MspContractsInner() {
 
   function handleViewChange(view: 'stage' | 'table') {
     setViewMode(view);
+    setStageEditMode(false);
     router.replace(`/msp/contracts?view=${view}`, { scroll: false });
   }
 
@@ -257,6 +259,16 @@ function MspContractsInner() {
             <InlineEditToggle inlineEdit={inlineEdit} />
           </>
         )}
+        {viewMode === 'stage' && (
+          <InlineEditToggle
+            inlineEdit={{
+              editMode: stageEditMode,
+              setEditMode: setStageEditMode,
+              changeCount: 0,
+              handleCancelEdit: () => setStageEditMode(false),
+            }}
+          />
+        )}
 
         <ContractStageFilter contractType="msp" stage={stage} onStageChange={(v) => { setStage(v); setPage(1); }} />
         <div className="flex-1" />
@@ -281,7 +293,7 @@ function MspContractsInner() {
       </div>
 
       {viewMode === 'stage' ? (
-        <ContractStageBoard contracts={stageData?.data ?? []} loading={stageLoading} contractType="msp" />
+        <ContractStageBoard contracts={stageData?.data ?? []} loading={stageLoading} contractType="msp" editMode={stageEditMode} />
       ) : (
         <>
           <InlineEditTable<ContractTableRow, ContractColumnDef>

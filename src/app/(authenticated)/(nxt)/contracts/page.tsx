@@ -54,6 +54,7 @@ function ContractsPageInner() {
   const initialView = (searchParams.get('view') ?? 'table') as 'stage' | 'table';
   const [contractType, setContractType] = useState<string>(initialType);
   const [viewMode, setViewMode] = useState<'stage' | 'table'>(initialView);
+  const [stageEditMode, setStageEditMode] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [stage, setStage] = useState<string | undefined>();
@@ -110,11 +111,13 @@ function ContractsPageInner() {
     setDebouncedSearch('');
     setPage(1);
     inlineEdit.handleCancelEdit();
+    setStageEditMode(false);
     updateUrl(tab, viewMode);
   }
 
   function handleViewChange(view: 'stage' | 'table') {
     setViewMode(view);
+    setStageEditMode(false);
     updateUrl(contractType, view);
   }
 
@@ -272,6 +275,16 @@ function ContractsPageInner() {
             <InlineEditToggle inlineEdit={inlineEdit} />
           </>
         )}
+        {viewMode === 'stage' && (
+          <InlineEditToggle
+            inlineEdit={{
+              editMode: stageEditMode,
+              setEditMode: setStageEditMode,
+              changeCount: 0,
+              handleCancelEdit: () => setStageEditMode(false),
+            }}
+          />
+        )}
 
         <ContractStageFilter contractType={contractType} stage={stage} onStageChange={(v) => { setStage(v); setPage(1); }} />
         <div className="flex-1" />
@@ -292,7 +305,7 @@ function ContractsPageInner() {
       </div>
 
       {viewMode === 'stage' ? (
-        <ContractStageBoard contracts={stageData?.data ?? []} loading={stageLoading} contractType={contractType} />
+        <ContractStageBoard contracts={stageData?.data ?? []} loading={stageLoading} contractType={contractType} editMode={stageEditMode} />
       ) : (
         <>
           <InlineEditTable<ContractTableRow, ContractColumnDef>

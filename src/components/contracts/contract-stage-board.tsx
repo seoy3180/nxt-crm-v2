@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatAmount } from '@/lib/utils';
+import { GripVertical } from 'lucide-react';
+import { formatAmount, getStageBoardColor } from '@/lib/utils';
 import {
   DndContext,
   DragOverlay,
@@ -27,6 +28,7 @@ interface ContractStageBoardProps {
   contracts: ContractRow[];
   loading?: boolean;
   contractType: string;
+  editMode: boolean;
 }
 
 
@@ -40,11 +42,12 @@ function CardContent({ contract }: { contract: ContractRow }) {
   );
 }
 
-function DraggableCard({ contract, basePath }: { contract: ContractRow; basePath: string }) {
+function DraggableCard({ contract, basePath, editMode }: { contract: ContractRow; basePath: string; editMode: boolean }) {
   const router = useRouter();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: contract.id,
     data: { contract },
+    disabled: !editMode,
   });
 
   return (
@@ -53,39 +56,43 @@ function DraggableCard({ contract, basePath }: { contract: ContractRow; basePath
       {...listeners}
       {...attributes}
       onClick={() => router.push(`${basePath}/${contract.id}`)}
-      className={`w-full cursor-grab rounded-lg border border-zinc-200 bg-white p-3.5 text-left transition-colors hover:border-zinc-300 active:cursor-grabbing ${isDragging ? 'opacity-30' : ''}`}
+      className={`flex w-full items-start gap-2 rounded-lg border bg-white p-3.5 text-left transition-colors ${editMode ? 'cursor-grab border-blue-300 shadow-sm active:cursor-grabbing hover:border-blue-400' : 'cursor-pointer border-zinc-200 hover:border-zinc-300'} ${isDragging ? 'opacity-30' : ''}`}
     >
-      <CardContent contract={contract} />
+      {editMode && <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />}
+      <div className="flex-1">
+        <CardContent contract={contract} />
+      </div>
     </div>
   );
 }
 
-function DroppableColumn({ stageValue, stageLabel, contracts, isOver, basePath }: {
+function DroppableColumn({ stageValue, stageLabel, contracts, isOver, basePath, editMode }: {
   stageValue: string;
   stageLabel: string;
   contracts: ContractRow[];
   isOver: boolean;
   basePath: string;
+  editMode: boolean;
 }) {
   const { setNodeRef } = useDroppable({ id: stageValue });
+  const board = getStageBoardColor(stageValue);
 
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-1 flex-col gap-3 rounded-xl p-3 transition-colors ${isOver ? 'bg-blue-50 ring-2 ring-blue-200' : 'bg-zinc-50'}`}
+      className={`flex flex-1 flex-col gap-3 rounded-xl p-3 transition-colors ${board.bg} ${isOver ? 'ring-2 ring-blue-300' : ''}`}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-1.5">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${board.dot}`} />
         <span className="text-[13px] font-semibold text-zinc-700">{stageLabel}</span>
-        <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
-          {contracts.length}
-        </span>
+        <span className="text-[13px] font-medium text-zinc-400">{contracts.length}</span>
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
         {contracts.length === 0 ? (
           <p className="py-8 text-center text-xs text-zinc-400">계약 없음</p>
         ) : (
           contracts.map((contract) => (
-            <DraggableCard key={contract.id} contract={contract} basePath={basePath} />
+            <DraggableCard key={contract.id} contract={contract} basePath={basePath} editMode={editMode} />
           ))
         )}
       </div>
@@ -93,7 +100,7 @@ function DroppableColumn({ stageValue, stageLabel, contracts, isOver, basePath }
   );
 }
 
-export function ContractStageBoard({ contracts, loading, contractType }: ContractStageBoardProps) {
+export function ContractStageBoard({ contracts, loading, contractType, editMode }: ContractStageBoardProps) {
   const sectionBase = useSectionBasePath();
   const basePath = `${sectionBase}/contracts`;
   const stages = contractType === 'msp' ? MSP_STAGES : contractType === 'edu' ? EDU_STAGES : MSP_STAGES;
@@ -205,6 +212,7 @@ export function ContractStageBoard({ contracts, loading, contractType }: Contrac
             contracts={grouped.get(stage.value) ?? []}
             isOver={overColumn === stage.value}
             basePath={basePath}
+            editMode={editMode}
           />
         ))}
       </div>
