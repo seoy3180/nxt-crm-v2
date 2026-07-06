@@ -1,8 +1,8 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 export function formatRevenue(amount: number) {
@@ -18,7 +18,8 @@ export const formatAmount = formatRevenue;
 /** 에러 객체에서 메시지를 추출. Supabase/Error/string 등 다양한 형태 대응. */
 export function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
-  if (typeof err === 'object' && err !== null && 'message' in err) return String((err as { message: unknown }).message);
+  if (typeof err === 'object' && err !== null && 'message' in err)
+    return String((err as { message: unknown }).message);
   if (typeof err === 'string') return err;
   return '알 수 없는 오류가 발생했습니다';
 }
@@ -40,6 +41,24 @@ const STAGE_COLORS: Record<string, string> = {
 export function getStageColor(stage: string | null): string {
   if (!stage) return 'bg-zinc-100 text-zinc-500';
   return STAGE_COLORS[stage] ?? 'bg-zinc-100 text-zinc-500';
+}
+
+const STAGE_BOARD_COLORS: Record<string, { bg: string; dot: string }> = {
+  pre_contract: { bg: 'bg-[#F0F1F2]/50', dot: 'bg-[#8C8F97]' },
+  billing_complete: { bg: 'bg-[#EED7FC]/50', dot: 'bg-[#C97CF4]' },
+  project_closed: { bg: 'bg-[#BAF3DB]/50', dot: 'bg-[#4BCE97]' },
+  unpaid: { bg: 'bg-[#FFD5D2]/50', dot: 'bg-[#F87168]' },
+  // 교육 단계
+  proposal: { bg: 'bg-slate-50', dot: 'bg-slate-400' },
+  contracted: { bg: 'bg-violet-50', dot: 'bg-violet-500' },
+  operating: { bg: 'bg-indigo-50', dot: 'bg-indigo-500' },
+  op_completed: { bg: 'bg-emerald-50', dot: 'bg-emerald-500' },
+  settled: { bg: 'bg-teal-50', dot: 'bg-teal-500' },
+};
+
+export function getStageBoardColor(stage: string | null): { bg: string; dot: string } {
+  if (!stage) return { bg: 'bg-zinc-50', dot: 'bg-zinc-400' };
+  return STAGE_BOARD_COLORS[stage] ?? { bg: 'bg-zinc-50', dot: 'bg-zinc-400' };
 }
 
 /** 문자열을 숫자로 안전하게 변환. NaN이면 null 반환. */
