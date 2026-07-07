@@ -9,8 +9,24 @@ import { DepositTxnModal } from './modals/deposit-txn-modal';
 import type { DepositAccountWithMetrics } from '@/lib/services/deposit-service';
 import type { AlertLevel } from '@/lib/deposit/types';
 import { formatPeriod, isExpired } from '@/lib/deposit/period';
+import { getStageColor } from '@/lib/utils';
+import { MSP_STAGES } from '@/lib/constants';
 
-const ALERT_STYLES: Record<AlertLevel, { border: string; badgeBg: string; badgeText: string; balBg: string; balText: string; bar: string }> = {
+function getStageLabel(stage: string) {
+  return MSP_STAGES.find((s) => s.value === stage)?.label ?? stage;
+}
+
+const ALERT_STYLES: Record<
+  AlertLevel,
+  {
+    border: string;
+    badgeBg: string;
+    badgeText: string;
+    balBg: string;
+    balText: string;
+    bar: string;
+  }
+> = {
   critical: {
     border: 'border-red-300',
     badgeBg: 'bg-red-50 text-red-700',
@@ -42,11 +58,17 @@ export function DepositCard({ account }: { account: DepositAccountWithMetrics })
   const basePath = useSectionBasePath();
   const [modalType, setModalType] = useState<null | 'deposit' | 'usage'>(null);
 
-  const { avgMonthlyUsage: avgMonthly, daysUntilDepleted: days, balancePct: pct, alertLevel: level } = account.metrics;
+  const {
+    avgMonthlyUsage: avgMonthly,
+    daysUntilDepleted: days,
+    balancePct: pct,
+    alertLevel: level,
+  } = account.metrics;
   const style = ALERT_STYLES[level];
 
   const currency = account.contract.currency;
-  const fmt = (n: number) => `${currency === 'USD' ? '$' : '₩'} ${new Intl.NumberFormat('ko-KR').format(Math.abs(n))}`;
+  const fmt = (n: number) =>
+    `${currency === 'USD' ? '$' : '₩'} ${new Intl.NumberFormat('ko-KR').format(Math.abs(n))}`;
   const fmtSigned = (n: number) => (n < 0 ? `−${fmt(n)}` : fmt(n));
 
   const recentTxns = txns.slice(0, 4);
@@ -55,31 +77,45 @@ export function DepositCard({ account }: { account: DepositAccountWithMetrics })
 
   return (
     <div className={`flex flex-col rounded-xl border bg-white p-5 space-y-4 ${style.border}`}>
-      {/* 헤더 */}
-      <div className="flex items-start justify-between">
-        <div className="min-w-0">
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <h3 className="truncate text-base font-semibold text-zinc-900">{account.contract.name}</h3>
-            {periodText && (
-              <span className={`shrink-0 text-xs ${periodExpired ? 'text-red-600' : 'text-zinc-400'}`}>
-                {periodExpired ? `${periodText} (만료)` : periodText}
+            <h3 className="truncate text-base font-semibold text-zinc-900">
+              {account.contract.name}
+            </h3>
+            {account.contract.stage && (
+              <span
+                className={`inline-flex shrink-0 items-center rounded px-2 py-0.5 text-[10px] font-semibold ${getStageColor(account.contract.stage)}`}
+              >
+                {getStageLabel(account.contract.stage)}
               </span>
             )}
           </div>
-          <p className="truncate text-xs text-zinc-400">{account.contract.client_name ?? '—'}</p>
+          <div className="flex shrink-0 items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold ${style.badgeBg}`}
+            >
+              {level !== 'ok' && <CircleAlert className="h-3 w-3" />}
+              {style.badgeText}
+            </span>
+            <Link
+              href={`${basePath}/contracts/${account.contract.id}`}
+              className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-50 hover:text-zinc-600"
+              title="계약 상세로 이동"
+            >
+              상세 <ExternalLink className="h-3 w-3" />
+            </Link>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold ${style.badgeBg}`}>
-            {level !== 'ok' && <CircleAlert className="h-3 w-3" />}
-            {style.badgeText}
-          </span>
-          <Link
-            href={`${basePath}/contracts/${account.contract.id}`}
-            className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-50 hover:text-zinc-600"
-            title="계약 상세로 이동"
-          >
-            상세 <ExternalLink className="h-3 w-3" />
-          </Link>
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-xs text-zinc-400">{account.contract.client_name ?? '—'}</p>
+          {periodText && (
+            <span
+              className={`shrink-0 text-xs ${periodExpired ? 'text-red-600' : 'text-zinc-400'}`}
+            >
+              {periodExpired ? `${periodText} (만료)` : periodText}
+            </span>
+          )}
         </div>
       </div>
 
@@ -115,13 +151,16 @@ export function DepositCard({ account }: { account: DepositAccountWithMetrics })
       <div className="rounded-lg border border-zinc-100 p-3 space-y-1.5">
         <div className="flex items-center justify-between text-xs">
           <span className="flex items-center gap-1 text-zinc-500">
-            <TrendingDown className="h-3 w-3" />월평균 소진
+            <TrendingDown className="h-3 w-3" />
+            월평균 소진
           </span>
           <span className="font-semibold text-zinc-700">{fmt(avgMonthly)} / 월</span>
         </div>
         <div className="flex items-center justify-between text-xs">
           <span className="text-zinc-500">소진 예상</span>
-          <span className={`font-semibold ${level === 'critical' ? 'text-red-600' : level === 'warning' ? 'text-amber-600' : 'text-zinc-700'}`}>
+          <span
+            className={`font-semibold ${level === 'critical' ? 'text-red-600' : level === 'warning' ? 'text-amber-600' : 'text-zinc-700'}`}
+          >
             {Number.isFinite(days) ? `${(days / 30).toFixed(1)}개월 (~${days}일)` : '—'}
           </span>
         </div>
@@ -134,7 +173,8 @@ export function DepositCard({ account }: { account: DepositAccountWithMetrics })
           <div className="space-y-1">
             {recentTxns.map((t) => {
               const isVoided = !!t.voided_at;
-              const isPlus = t.txn_type === 'deposit' || (t.txn_type === 'adjustment' && t.amount > 0);
+              const isPlus =
+                t.txn_type === 'deposit' || (t.txn_type === 'adjustment' && t.amount > 0);
               return (
                 <div
                   key={t.id}
@@ -142,7 +182,8 @@ export function DepositCard({ account }: { account: DepositAccountWithMetrics })
                 >
                   <span className="text-zinc-400">{t.txn_date}</span>
                   <span className={isPlus ? 'text-emerald-600' : 'text-rose-600'}>
-                    {isPlus ? '+ ' : '− '}{fmt(t.amount)}
+                    {isPlus ? '+ ' : '− '}
+                    {fmt(t.amount)}
                   </span>
                   <span className="truncate max-w-[120px] text-zinc-400">{t.memo ?? '-'}</span>
                 </div>
@@ -183,4 +224,3 @@ export function DepositCard({ account }: { account: DepositAccountWithMetrics })
     </div>
   );
 }
-
