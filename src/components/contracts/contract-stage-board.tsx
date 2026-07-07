@@ -23,6 +23,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { invalidateContractStageQueries } from '@/hooks/use-deposit-accounts';
 
 interface ContractStageBoardProps {
   contracts: ContractRow[];
@@ -31,18 +32,27 @@ interface ContractStageBoardProps {
   editMode: boolean;
 }
 
-
 function CardContent({ contract }: { contract: ContractRow }) {
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium text-zinc-900">{contract.name}</p>
       <p className="text-xs text-zinc-500">{contract.client_name ?? '-'}</p>
-      <span className="text-[13px] font-semibold text-blue-600">{formatAmount(contract.total_amount)}</span>
+      <span className="text-[13px] font-semibold text-blue-600">
+        {formatAmount(contract.total_amount)}
+      </span>
     </div>
   );
 }
 
-function DraggableCard({ contract, basePath, editMode }: { contract: ContractRow; basePath: string; editMode: boolean }) {
+function DraggableCard({
+  contract,
+  basePath,
+  editMode,
+}: {
+  contract: ContractRow;
+  basePath: string;
+  editMode: boolean;
+}) {
   const router = useRouter();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: contract.id,
@@ -66,7 +76,14 @@ function DraggableCard({ contract, basePath, editMode }: { contract: ContractRow
   );
 }
 
-function DroppableColumn({ stageValue, stageLabel, contracts, isOver, basePath, editMode }: {
+function DroppableColumn({
+  stageValue,
+  stageLabel,
+  contracts,
+  isOver,
+  basePath,
+  editMode,
+}: {
   stageValue: string;
   stageLabel: string;
   contracts: ContractRow[];
@@ -92,7 +109,12 @@ function DroppableColumn({ stageValue, stageLabel, contracts, isOver, basePath, 
           <p className="py-8 text-center text-xs text-zinc-400">계약 없음</p>
         ) : (
           contracts.map((contract) => (
-            <DraggableCard key={contract.id} contract={contract} basePath={basePath} editMode={editMode} />
+            <DraggableCard
+              key={contract.id}
+              contract={contract}
+              basePath={basePath}
+              editMode={editMode}
+            />
           ))
         )}
       </div>
@@ -100,10 +122,16 @@ function DroppableColumn({ stageValue, stageLabel, contracts, isOver, basePath, 
   );
 }
 
-export function ContractStageBoard({ contracts, loading, contractType, editMode }: ContractStageBoardProps) {
+export function ContractStageBoard({
+  contracts,
+  loading,
+  contractType,
+  editMode,
+}: ContractStageBoardProps) {
   const sectionBase = useSectionBasePath();
   const basePath = `${sectionBase}/contracts`;
-  const stages = contractType === 'msp' ? MSP_STAGES : contractType === 'edu' ? EDU_STAGES : MSP_STAGES;
+  const stages =
+    contractType === 'msp' ? MSP_STAGES : contractType === 'edu' ? EDU_STAGES : MSP_STAGES;
   const { data: currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
   const [activeContract, setActiveContract] = useState<ContractRow | null>(null);
@@ -120,9 +148,7 @@ export function ContractStageBoard({ contracts, loading, contractType, editMode 
     }
   }, [contracts]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   if (loading) {
     return (
@@ -175,7 +201,7 @@ export function ContractStageBoard({ contracts, loading, contractType, editMode 
 
     // Optimistic: 로컬 상태 즉시 업데이트
     setLocalContracts((prev) =>
-      prev.map((c) => c.id === contract.id ? { ...c, stage: newStage } : c),
+      prev.map((c) => (c.id === contract.id ? { ...c, stage: newStage } : c)),
     );
 
     try {
@@ -184,12 +210,12 @@ export function ContractStageBoard({ contracts, loading, contractType, editMode 
         { toStage: newStage, note: null },
         currentUser.id,
       );
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      invalidateContractStageQueries(queryClient);
       toast.success(`"${contract.name}" → ${stageLabel}`);
     } catch (err) {
       // 실패 시 롤백
       setLocalContracts((prev) =>
-        prev.map((c) => c.id === contract.id ? { ...c, stage: oldStage } : c),
+        prev.map((c) => (c.id === contract.id ? { ...c, stage: oldStage } : c)),
       );
       const { getErrorMessage } = await import('@/lib/utils');
       toast.error(`단계 변경 실패: ${getErrorMessage(err)}`);

@@ -2,9 +2,15 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { contractService } from '@/lib/services/contract-service';
-import type { ContractCreateInput, ContractUpdateInput, MspDetailInput, StageChangeInput } from '@/lib/validators/contract';
+import type {
+  ContractCreateInput,
+  ContractUpdateInput,
+  MspDetailInput,
+  StageChangeInput,
+} from '@/lib/validators/contract';
 import { getErrorMessage } from '@/lib/utils';
 import { toast } from 'sonner';
+import { invalidateContractStageQueries } from '@/hooks/use-deposit-accounts';
 
 export function useCreateContract() {
   const queryClient = useQueryClient();
@@ -61,7 +67,7 @@ export function useChangeStage(contractId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract', contractId] });
       queryClient.invalidateQueries({ queryKey: ['contract-history', contractId] });
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      invalidateContractStageQueries(queryClient);
       toast.success('단계가 변경되었습니다');
     },
     onError: (err) => {

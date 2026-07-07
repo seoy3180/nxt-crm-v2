@@ -19,6 +19,7 @@ import { useInlineEdit } from '@/hooks/use-inline-edit';
 import { useColumnPreference } from '@/hooks/use-user-preferences';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { createClient } from '@/lib/supabase/client';
+import { invalidateContractStageQueries } from '@/hooks/use-deposit-accounts';
 import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import {
   type ContractTableRow,
@@ -64,8 +65,7 @@ function MspContractsInner() {
         contracts: tableContracts?.data ?? [],
         dynamicOptions,
       });
-      queryClient.invalidateQueries({ queryKey: ['msp-contracts-table'] });
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      invalidateContractStageQueries(queryClient);
     },
   });
 
@@ -73,8 +73,14 @@ function MspContractsInner() {
 
   const configurableKeys = useMemo(() => new Set(MSP_COLUMNS.map((c) => c.key)), []);
   const defaultCols = useMemo(() => MSP_COLUMNS.map((c) => c.key), []);
-  const { columns: rawVisibleColumns, saveColumns } = useColumnPreference('mspContractsColumns', defaultCols);
-  const visibleColumns = useMemo(() => rawVisibleColumns.filter((k) => configurableKeys.has(k)), [rawVisibleColumns, configurableKeys]);
+  const { columns: rawVisibleColumns, saveColumns } = useColumnPreference(
+    'mspContractsColumns',
+    defaultCols,
+  );
+  const visibleColumns = useMemo(
+    () => rawVisibleColumns.filter((k) => configurableKeys.has(k)),
+    [rawVisibleColumns, configurableKeys],
+  );
   const [showColumnSettings, setShowColumnSettings] = useState(false);
 
   const handleSearchChange = useCallback((value: string) => {
@@ -109,7 +115,11 @@ function MspContractsInner() {
     queryKey: ['employees-options'],
     queryFn: async () => {
       const supabase = createClient();
-      const { data } = await supabase.from('employees').select('id, name').eq('is_active', true).order('name');
+      const { data } = await supabase
+        .from('employees')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
       return (data ?? []).map((e) => ({ value: e.id, label: e.name }));
     },
     staleTime: 5 * 60 * 1000,
@@ -122,17 +132,28 @@ function MspContractsInner() {
     queryFn: async () => {
       const supabase = createClient();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase as any).from('employees').select('id, name').eq('is_active', true).eq('is_sales_rep', true).order('name');
-      return (data ?? []).map((e: { id: string; name: string }) => ({ value: e.id, label: e.name }));
+      const { data } = await (supabase as any)
+        .from('employees')
+        .select('id, name')
+        .eq('is_active', true)
+        .eq('is_sales_rep', true)
+        .order('name');
+      return (data ?? []).map((e: { id: string; name: string }) => ({
+        value: e.id,
+        label: e.name,
+      }));
     },
     staleTime: 5 * 60 * 1000,
     enabled: viewMode === 'table',
   });
 
-  const dynamicOptions = useMemo<Record<string, { value: string; label: string }[]>>(() => ({
-    employees: employeeOptions ?? [],
-    salesReps: salesRepOptions ?? [],
-  }), [employeeOptions, salesRepOptions]);
+  const dynamicOptions = useMemo<Record<string, { value: string; label: string }[]>>(
+    () => ({
+      employees: employeeOptions ?? [],
+      salesReps: salesRepOptions ?? [],
+    }),
+    [employeeOptions, salesRepOptions],
+  );
 
   // 테이블용 전용 쿼리 (msp_details JOIN)
   const { data: tableContracts, isLoading: tableLoading } = useQuery({
@@ -146,7 +167,10 @@ function MspContractsInner() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let q = (supabase as any)
         .from('contracts')
-        .select('*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)), contract_tech_leads(employees(name))', { count: 'exact' })
+        .select(
+          '*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)), contract_tech_leads(employees(name))',
+          { count: 'exact' },
+        )
         .eq('type', 'msp')
         .is('deleted_at', null)
         .order(sortKey, { ascending: sortOrder === 'asc' });
@@ -158,11 +182,21 @@ function MspContractsInner() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const sb = supabase as any;
         const [nameRes, clientHitsRes, accountRes] = await Promise.all([
-          sb.from('contracts').select('id').eq('type', 'msp').is('deleted_at', null)
+          sb
+            .from('contracts')
+            .select('id')
+            .eq('type', 'msp')
+            .is('deleted_at', null)
             .ilike('name', `%${debouncedSearch}%`),
-          sb.from('clients').select('id').is('deleted_at', null)
+          sb
+            .from('clients')
+            .select('id')
+            .is('deleted_at', null)
             .ilike('name', `%${debouncedSearch}%`),
-          sb.from('contract_msp_details').select('contract_id').is('deleted_at', null)
+          sb
+            .from('contract_msp_details')
+            .select('contract_id')
+            .is('deleted_at', null)
             .ilike('aws_account_search', `%${debouncedSearch}%`),
         ]);
 
@@ -172,8 +206,12 @@ function MspContractsInner() {
 
         const clientHitIds: string[] = (clientHitsRes.data ?? []).map((r: { id: string }) => r.id);
         if (clientHitIds.length > 0) {
-          const { data: byClient } = await sb.from('contracts').select('id')
-            .eq('type', 'msp').is('deleted_at', null).in('client_id', clientHitIds);
+          const { data: byClient } = await sb
+            .from('contracts')
+            .select('id')
+            .eq('type', 'msp')
+            .is('deleted_at', null)
+            .in('client_id', clientHitIds);
           (byClient ?? []).forEach((r: { id: string }) => ids.add(r.id));
         }
 
@@ -218,20 +256,31 @@ function MspContractsInner() {
           billingOnAlias: (mspRaw?.billing_on_alias as string) ?? null,
           rootAccountEmail: (mspRaw?.root_account_email as string) ?? null,
           awsAccountIds: (mspRaw?.aws_account_ids as string[] | null) ?? [],
-          techLeadNames: ((row.contract_tech_leads as { employees: { name: string } | null }[] | null) ?? [])
-            .map((tl) => tl.employees?.name).filter(Boolean) as string[],
+          techLeadNames: (
+            (row.contract_tech_leads as { employees: { name: string } | null }[] | null) ?? []
+          )
+            .map((tl) => tl.employees?.name)
+            .filter(Boolean) as string[],
           tags: (mspRaw?.tags as string[] | null) ?? [],
         };
       });
 
-      return { data: mapped, total: count ?? 0, page, pageSize, totalPages: Math.ceil((count ?? 0) / pageSize) };
+      return {
+        data: mapped,
+        total: count ?? 0,
+        page,
+        pageSize,
+        totalPages: Math.ceil((count ?? 0) / pageSize),
+      };
     },
     enabled: viewMode === 'table',
   });
 
   const columns = useMemo(() => {
     const colMap = new Map(MSP_COLUMNS.map((c) => [c.key, c]));
-    const cols = visibleColumns.map((key) => colMap.get(key)).filter(Boolean) as ContractColumnDef[];
+    const cols = visibleColumns
+      .map((key) => colMap.get(key))
+      .filter(Boolean) as ContractColumnDef[];
     cols.push(ACTIONS_COLUMN);
     return cols;
   }, [visibleColumns]);
@@ -242,8 +291,30 @@ function MspContractsInner() {
 
       <div className="flex items-center gap-2">
         <div className="flex overflow-hidden rounded-lg border border-zinc-200">
-          <button type="button" onClick={() => handleViewChange('table')} className={cn('h-8 px-3.5 text-[13px] font-medium transition-colors', viewMode === 'table' ? 'bg-blue-600 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50')}>테이블</button>
-          <button type="button" onClick={() => handleViewChange('stage')} className={cn('h-8 px-3.5 text-[13px] font-medium transition-colors', viewMode === 'stage' ? 'bg-blue-600 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50')}>스테이지</button>
+          <button
+            type="button"
+            onClick={() => handleViewChange('table')}
+            className={cn(
+              'h-8 px-3.5 text-[13px] font-medium transition-colors',
+              viewMode === 'table'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-zinc-500 hover:bg-zinc-50',
+            )}
+          >
+            테이블
+          </button>
+          <button
+            type="button"
+            onClick={() => handleViewChange('stage')}
+            className={cn(
+              'h-8 px-3.5 text-[13px] font-medium transition-colors',
+              viewMode === 'stage'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-zinc-500 hover:bg-zinc-50',
+            )}
+          >
+            스테이지
+          </button>
         </div>
 
         {viewMode === 'table' && (
@@ -270,7 +341,14 @@ function MspContractsInner() {
           />
         )}
 
-        <ContractStageFilter contractType="msp" stage={stage} onStageChange={(v) => { setStage(v); setPage(1); }} />
+        <ContractStageFilter
+          contractType="msp"
+          stage={stage}
+          onStageChange={(v) => {
+            setStage(v);
+            setPage(1);
+          }}
+        />
         <div className="flex-1" />
         <ContractSearch
           search={search}
@@ -280,7 +358,10 @@ function MspContractsInner() {
         {viewMode === 'table' && <InlineEditActions inlineEdit={inlineEdit} />}
 
         {editMode ? (
-          <button disabled className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium text-white opacity-40 cursor-not-allowed">
+          <button
+            disabled
+            className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium text-white opacity-40 cursor-not-allowed"
+          >
             <Plus className="h-4 w-4" /> 새 계약
           </button>
         ) : (
@@ -293,7 +374,12 @@ function MspContractsInner() {
       </div>
 
       {viewMode === 'stage' ? (
-        <ContractStageBoard contracts={stageData?.data ?? []} loading={stageLoading} contractType="msp" editMode={stageEditMode} />
+        <ContractStageBoard
+          contracts={stageData?.data ?? []}
+          loading={stageLoading}
+          contractType="msp"
+          editMode={stageEditMode}
+        />
       ) : (
         <>
           <InlineEditTable<ContractTableRow, ContractColumnDef>
@@ -304,21 +390,52 @@ function MspContractsInner() {
             isLoading={tableLoading}
             skeletonRows={5}
             emptyText="등록된 MSP 계약이 없습니다"
-            renderCell={(row, col, val) => sharedRenderCell(row, col, val, { basePath, contractType: 'msp', dynamicOptions })}
-            renderEditingCell={(row, col) => sharedRenderEditingCell(row, col, { tempValue, setTempValue, saveCellEdit, setEditingCell, dynamicOptions })}
+            renderCell={(row, col, val) =>
+              sharedRenderCell(row, col, val, { basePath, contractType: 'msp', dynamicOptions })
+            }
+            renderEditingCell={(row, col) =>
+              sharedRenderEditingCell(row, col, {
+                tempValue,
+                setTempValue,
+                saveCellEdit,
+                setEditingCell,
+                dynamicOptions,
+              })
+            }
             sortKey={sortKey}
             sortOrder={sortOrder}
             onSortChange={(key, order) => {
-              if (!key) { setSortKey('created_at'); setSortOrder('desc'); }
-              else { setSortKey(key); setSortOrder(order); }
+              if (!key) {
+                setSortKey('created_at');
+                setSortOrder('desc');
+              } else {
+                setSortKey(key);
+                setSortOrder(order);
+              }
               setPage(1);
             }}
           />
           {tableContracts && tableContracts.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 py-4">
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={page <= 1}><ChevronLeft className="h-4 w-4" /></Button>
-              <span className="text-sm text-zinc-500">{page} / {tableContracts.totalPages}</span>
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page >= tableContracts.totalPages}><ChevronRight className="h-4 w-4" /></Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page <= 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-zinc-500">
+                {page} / {tableContracts.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= tableContracts.totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           )}
         </>
@@ -329,7 +446,15 @@ function MspContractsInner() {
 
 export default function MspContractsPage() {
   return (
-    <Suspense fallback={<div className="flex h-full flex-col gap-5"><Skeleton className="h-8 w-32" /><Skeleton className="h-10 w-full" /><Skeleton className="h-64 w-full" /></div>}>
+    <Suspense
+      fallback={
+        <div className="flex h-full flex-col gap-5">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      }
+    >
       <MspContractsInner />
     </Suspense>
   );

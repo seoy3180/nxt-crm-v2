@@ -18,6 +18,7 @@ import { useInlineEdit } from '@/hooks/use-inline-edit';
 import { useColumnPreference } from '@/hooks/use-user-preferences';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { createClient } from '@/lib/supabase/client';
+import { invalidateContractStageQueries } from '@/hooks/use-deposit-accounts';
 import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import {
   type ContractTableRow,
@@ -77,8 +78,7 @@ function ContractsPageInner() {
         contracts: tableData?.data ?? [],
         dynamicOptions,
       });
-      queryClient.invalidateQueries({ queryKey: ['nxt-contracts-table'] });
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      invalidateContractStageQueries(queryClient);
     },
   });
 
@@ -88,7 +88,10 @@ function ContractsPageInner() {
   const defaultCols = useMemo(() => allColumns.map((c) => c.key), [allColumns]);
   const prefKey = PREF_KEYS[contractType] ?? 'nxtContractsMspColumns';
   const { columns: rawVisibleColumns, saveColumns } = useColumnPreference(prefKey, defaultCols);
-  const visibleColumns = useMemo(() => rawVisibleColumns.filter((k) => configurableKeys.has(k)), [rawVisibleColumns, configurableKeys]);
+  const visibleColumns = useMemo(
+    () => rawVisibleColumns.filter((k) => configurableKeys.has(k)),
+    [rawVisibleColumns, configurableKeys],
+  );
   const [showColumnSettings, setShowColumnSettings] = useState(false);
 
   const handleSearchChange = useCallback((value: string) => {
@@ -138,7 +141,11 @@ function ContractsPageInner() {
     queryKey: ['employees-options'],
     queryFn: async () => {
       const supabase = createClient();
-      const { data } = await supabase.from('employees').select('id, name').eq('is_active', true).order('name');
+      const { data } = await supabase
+        .from('employees')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
       return (data ?? []).map((e) => ({ value: e.id, label: e.name }));
     },
     staleTime: 5 * 60 * 1000,
@@ -151,17 +158,28 @@ function ContractsPageInner() {
     queryFn: async () => {
       const supabase = createClient();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase as any).from('employees').select('id, name').eq('is_active', true).eq('is_sales_rep', true).order('name');
-      return (data ?? []).map((e: { id: string; name: string }) => ({ value: e.id, label: e.name }));
+      const { data } = await (supabase as any)
+        .from('employees')
+        .select('id, name')
+        .eq('is_active', true)
+        .eq('is_sales_rep', true)
+        .order('name');
+      return (data ?? []).map((e: { id: string; name: string }) => ({
+        value: e.id,
+        label: e.name,
+      }));
     },
     staleTime: 5 * 60 * 1000,
     enabled: viewMode === 'table',
   });
 
-  const dynamicOptions = useMemo<Record<string, { value: string; label: string }[]>>(() => ({
-    employees: employeeOptions ?? [],
-    salesReps: salesRepOptions ?? [],
-  }), [employeeOptions, salesRepOptions]);
+  const dynamicOptions = useMemo<Record<string, { value: string; label: string }[]>>(
+    () => ({
+      employees: employeeOptions ?? [],
+      salesReps: salesRepOptions ?? [],
+    }),
+    [employeeOptions, salesRepOptions],
+  );
 
   // 테이블용 쿼리
   const { data: tableData, isLoading: tableLoading } = useQuery({
@@ -172,8 +190,10 @@ function ContractsPageInner() {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
-      const mspSelect = '*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)), contract_tech_leads(employees(name))';
-      const basicSelect = '*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name)';
+      const mspSelect =
+        '*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)), contract_tech_leads(employees(name))';
+      const basicSelect =
+        '*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name)';
       const selectClause = contractType === 'msp' ? mspSelect : basicSelect;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -192,11 +212,12 @@ function ContractsPageInner() {
       if (error) throw error;
 
       const mapped = (data ?? []).map((row: Record<string, unknown>): ContractTableRow => {
-        const mspRaw = contractType === 'msp'
-          ? (Array.isArray(row.contract_msp_details)
-            ? (row.contract_msp_details as Record<string, unknown>[])[0]
-            : (row.contract_msp_details as Record<string, unknown> | null))
-          : null;
+        const mspRaw =
+          contractType === 'msp'
+            ? Array.isArray(row.contract_msp_details)
+              ? (row.contract_msp_details as Record<string, unknown>[])[0]
+              : (row.contract_msp_details as Record<string, unknown> | null)
+            : null;
         const emp = mspRaw?.employees as { name: string } | null;
 
         return {
@@ -224,22 +245,34 @@ function ContractsPageInner() {
           billingOnAlias: (mspRaw?.billing_on_alias as string) ?? null,
           rootAccountEmail: (mspRaw?.root_account_email as string) ?? null,
           awsAccountIds: (mspRaw?.aws_account_ids as string[] | null) ?? [],
-          techLeadNames: contractType === 'msp'
-            ? ((row.contract_tech_leads as { employees: { name: string } | null }[] | null) ?? [])
-              .map((tl) => tl.employees?.name).filter(Boolean) as string[]
-            : [],
+          techLeadNames:
+            contractType === 'msp'
+              ? ((
+                  (row.contract_tech_leads as { employees: { name: string } | null }[] | null) ?? []
+                )
+                  .map((tl) => tl.employees?.name)
+                  .filter(Boolean) as string[])
+              : [],
           tags: (mspRaw?.tags as string[] | null) ?? [],
         };
       });
 
-      return { data: mapped, total: count ?? 0, page, pageSize, totalPages: Math.ceil((count ?? 0) / pageSize) };
+      return {
+        data: mapped,
+        total: count ?? 0,
+        page,
+        pageSize,
+        totalPages: Math.ceil((count ?? 0) / pageSize),
+      };
     },
     enabled: viewMode === 'table',
   });
 
   const columns = useMemo(() => {
     const colMap = new Map(allColumns.map((c) => [c.key, c]));
-    const cols = visibleColumns.map((key) => colMap.get(key)).filter(Boolean) as ContractColumnDef[];
+    const cols = visibleColumns
+      .map((key) => colMap.get(key))
+      .filter(Boolean) as ContractColumnDef[];
     cols.push(ACTIONS_COLUMN);
     return cols;
   }, [visibleColumns, allColumns]);
@@ -251,15 +284,47 @@ function ContractsPageInner() {
       <div className="flex items-center gap-3">
         <div className="flex border-b border-zinc-200">
           {BIZ_TABS.map((tab) => (
-            <button key={tab.value} type="button" onClick={() => handleBizTabChange(tab.value)}
-              className={cn('h-8 px-3.5 text-[13px] font-medium transition-colors', contractType === tab.value ? 'border-b-2 border-blue-600 text-blue-600' : 'text-zinc-500 hover:text-zinc-700')}
-            >{tab.label}</button>
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => handleBizTabChange(tab.value)}
+              className={cn(
+                'h-8 px-3.5 text-[13px] font-medium transition-colors',
+                contractType === tab.value
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-zinc-500 hover:text-zinc-700',
+              )}
+            >
+              {tab.label}
+            </button>
           ))}
         </div>
 
         <div className="flex overflow-hidden rounded-lg border border-zinc-200">
-          <button type="button" onClick={() => handleViewChange('table')} className={cn('h-8 px-3.5 text-[13px] font-medium transition-colors', viewMode === 'table' ? 'bg-blue-600 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50')}>테이블</button>
-          <button type="button" onClick={() => handleViewChange('stage')} className={cn('h-8 px-3.5 text-[13px] font-medium transition-colors', viewMode === 'stage' ? 'bg-blue-600 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50')}>스테이지</button>
+          <button
+            type="button"
+            onClick={() => handleViewChange('table')}
+            className={cn(
+              'h-8 px-3.5 text-[13px] font-medium transition-colors',
+              viewMode === 'table'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-zinc-500 hover:bg-zinc-50',
+            )}
+          >
+            테이블
+          </button>
+          <button
+            type="button"
+            onClick={() => handleViewChange('stage')}
+            className={cn(
+              'h-8 px-3.5 text-[13px] font-medium transition-colors',
+              viewMode === 'stage'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-zinc-500 hover:bg-zinc-50',
+            )}
+          >
+            스테이지
+          </button>
         </div>
 
         {viewMode === 'table' && (
@@ -286,13 +351,23 @@ function ContractsPageInner() {
           />
         )}
 
-        <ContractStageFilter contractType={contractType} stage={stage} onStageChange={(v) => { setStage(v); setPage(1); }} />
+        <ContractStageFilter
+          contractType={contractType}
+          stage={stage}
+          onStageChange={(v) => {
+            setStage(v);
+            setPage(1);
+          }}
+        />
         <div className="flex-1" />
         <ContractSearch search={search} onSearchChange={handleSearchChange} />
         {viewMode === 'table' && <InlineEditActions inlineEdit={inlineEdit} />}
 
         {editMode ? (
-          <button disabled className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium text-white opacity-40 cursor-not-allowed">
+          <button
+            disabled
+            className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium text-white opacity-40 cursor-not-allowed"
+          >
             <Plus className="h-4 w-4" /> 새 계약
           </button>
         ) : (
@@ -305,7 +380,12 @@ function ContractsPageInner() {
       </div>
 
       {viewMode === 'stage' ? (
-        <ContractStageBoard contracts={stageData?.data ?? []} loading={stageLoading} contractType={contractType} editMode={stageEditMode} />
+        <ContractStageBoard
+          contracts={stageData?.data ?? []}
+          loading={stageLoading}
+          contractType={contractType}
+          editMode={stageEditMode}
+        />
       ) : (
         <>
           <InlineEditTable<ContractTableRow, ContractColumnDef>
@@ -316,14 +396,40 @@ function ContractsPageInner() {
             isLoading={tableLoading}
             skeletonRows={5}
             emptyText="등록된 계약이 없습니다"
-            renderCell={(row, col, val) => sharedRenderCell(row, col, val, { basePath: '', contractType, dynamicOptions })}
-            renderEditingCell={(row, col) => sharedRenderEditingCell(row, col, { tempValue, setTempValue, saveCellEdit, setEditingCell, dynamicOptions })}
+            renderCell={(row, col, val) =>
+              sharedRenderCell(row, col, val, { basePath: '', contractType, dynamicOptions })
+            }
+            renderEditingCell={(row, col) =>
+              sharedRenderEditingCell(row, col, {
+                tempValue,
+                setTempValue,
+                saveCellEdit,
+                setEditingCell,
+                dynamicOptions,
+              })
+            }
           />
           {tableData && tableData.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 py-4">
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={page <= 1}><ChevronLeft className="h-4 w-4" /></Button>
-              <span className="text-sm text-zinc-500">{page} / {tableData.totalPages}</span>
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page >= tableData.totalPages}><ChevronRight className="h-4 w-4" /></Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page <= 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-zinc-500">
+                {page} / {tableData.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= tableData.totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           )}
         </>
@@ -334,7 +440,15 @@ function ContractsPageInner() {
 
 export default function ContractsPage() {
   return (
-    <Suspense fallback={<div className="flex h-full flex-col gap-5"><Skeleton className="h-8 w-32" /><Skeleton className="h-10 w-full" /><Skeleton className="h-64 w-full" /></div>}>
+    <Suspense
+      fallback={
+        <div className="flex h-full flex-col gap-5">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      }
+    >
       <ContractsPageInner />
     </Suspense>
   );
