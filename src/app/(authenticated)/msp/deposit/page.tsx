@@ -10,6 +10,7 @@ import { DepositFilterBar, type DepositFilter } from '@/components/deposit/depos
 import { DepositCard } from '@/components/deposit/deposit-card';
 import { DepositActivatableRow } from '@/components/deposit/deposit-activatable-row';
 import { DepositEmptyState } from '@/components/deposit/deposit-empty-state';
+import { isEndedStage } from '@/lib/deposit/stage';
 import type { AlertLevel } from '@/lib/deposit/types';
 
 const ORDER: Record<AlertLevel, number> = { critical: 0, warning: 1, ok: 2 };
@@ -28,18 +29,31 @@ export default function DepositDashboardPage() {
 
   const q = search.trim().toLowerCase();
 
+  // 진행 중 / 종료(프로젝트 종료·미납/해지) 분리 — KPI·알림·홈 목록은 진행 중만
+  const ongoing = useMemo(
+    () => accounts.filter((a) => !isEndedStage(a.contract.stage)),
+    [accounts],
+  );
+  const ended = useMemo(() => accounts.filter((a) => isEndedStage(a.contract.stage)), [accounts]);
+
   // 활성 계좌: 정렬(긴급→주의→정상→잔액%) → 알림레벨 필터 → 검색
   const sorted = useMemo(
     () =>
-      [...accounts].sort((a, b) => {
+      [...ongoing].sort((a, b) => {
         const d = ORDER[a.metrics.alertLevel] - ORDER[b.metrics.alertLevel];
         return d !== 0 ? d : a.metrics.balancePct - b.metrics.balancePct;
       }),
-    [accounts],
+    [ongoing],
+  );
+
+  // 종료/해지 탭: 잔액 절대액 내림차순 — 회수 우선순위 (잔액 0원 정산 완료는 아래로)
+  const sortedEnded = useMemo(
+    () => [...ended].sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance)),
+    [ended],
   );
 
   const cards = useMemo(() => {
-    let list = sorted;
+    let list = filter === 'ended' ? sortedEnded : sorted;
     if (filter === 'critical' || filter === 'warning') {
       list = list.filter((a) => a.metrics.alertLevel === filter);
     }
@@ -51,7 +65,7 @@ export default function DepositDashboardPage() {
       );
     }
     return list;
-  }, [sorted, filter, q]);
+  }, [sorted, sortedEnded, filter, q]);
 
   // 미설정 탭: 활성화 대상 계약 + 검색 (탭 종속)
   const inactiveList = useMemo(() => {
@@ -72,13 +86,14 @@ export default function DepositDashboardPage() {
         <p className="mt-1 text-sm text-zinc-500">MSP 계약 선결제 예치금 운영 현황</p>
       </header>
 
-      <DepositKpiRow accounts={accounts} />
+      <DepositKpiRow accounts={ongoing} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <DepositFilterBar
           value={filter}
           onChange={setFilter}
-          accounts={accounts}
+          accounts={ongoing}
+          endedCount={ended.length}
           activatableCount={activatable.length}
         />
         <div className="relative w-64">
@@ -110,7 +125,11 @@ export default function DepositDashboardPage() {
             ? '검색 결과가 없습니다'
             : filter === 'critical'
               ? '긴급 알림 계좌가 없습니다 ✓'
-              : '주의 계좌가 없습니다'}
+              : filter === 'ended'
+                ? '종료/해지된 예치금 계약이 없습니다'
+                : filter === 'all'
+                  ? '진행 중인 예치금 계좌가 없습니다'
+                  : '주의 계좌가 없습니다'}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
