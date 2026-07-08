@@ -46,9 +46,13 @@ export default function DepositDashboardPage() {
     [ongoing],
   );
 
-  // 종료/해지 탭: 잔액 절대액 내림차순 — 회수 우선순위 (잔액 0원 정산 완료는 아래로)
+  // 종료/해지 탭: 잔액 절대액 내림차순(회수 우선순위) → 동률 시 최근 정산순
   const sortedEnded = useMemo(
-    () => [...ended].sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance)),
+    () =>
+      [...ended].sort((a, b) => {
+        const d = Math.abs(b.balance) - Math.abs(a.balance);
+        return d !== 0 ? d : b.updated_at.localeCompare(a.updated_at);
+      }),
     [ended],
   );
 
