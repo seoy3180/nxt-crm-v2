@@ -3,13 +3,20 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useEmployees } from '@/hooks/use-employees';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { contractService, type ContractRow } from '@/lib/services/contract-service';
 import { CONTRACT_FIELDS_BY_KEY, type FieldChangeContext } from '@/lib/contracts/field-definitions';
 import { getErrorMessage } from '@/lib/utils';
+import { useMoneyInput } from '@/components/common/money-input';
 import { Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -31,8 +38,13 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
   const [saving, setSaving] = useState(false);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
 
-  const val = (field: string, fallback: string) => editing ? (editValues[field] ?? fallback) : fallback;
-  const handleFieldChange = (field: string, value: string) => setEditValues((prev) => ({ ...prev, [field]: value }));
+  const val = (field: string, fallback: string) =>
+    editing ? (editValues[field] ?? fallback) : fallback;
+  const handleFieldChange = (field: string, value: string) =>
+    setEditValues((prev) => ({ ...prev, [field]: value }));
+  const totalAmountInput = useMoneyInput(val('totalAmount', String(contract.total_amount)), (raw) =>
+    handleFieldChange('totalAmount', raw),
+  );
 
   function handleCancel() {
     setEditValues({});
@@ -40,7 +52,10 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
   }
 
   async function handleSave() {
-    if (Object.keys(editValues).length === 0) { setEditing(false); return; }
+    if (Object.keys(editValues).length === 0) {
+      setEditing(false);
+      return;
+    }
     setSaving(true);
     try {
       const contractUpdate: Record<string, unknown> = {};
@@ -50,7 +65,10 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
         contractUpdate[def.serviceKey] = def.parse(raw);
       }
       if (Object.keys(contractUpdate).length > 0) {
-        await contractService.update(contract.id, contractUpdate as Parameters<typeof contractService.update>[1]);
+        await contractService.update(
+          contract.id,
+          contractUpdate as Parameters<typeof contractService.update>[1],
+        );
       }
       // 변경이력
       if (currentUser) {
@@ -67,7 +85,8 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
             newValue: def.formatDisplay ? def.formatDisplay(newRaw || null, ctx) : newRaw || null,
           });
         }
-        if (changes.length > 0) await contractService.logChanges(contract.id, currentUser.id, changes).catch(() => {});
+        if (changes.length > 0)
+          await contractService.logChanges(contract.id, currentUser.id, changes).catch(() => {});
       }
       queryClient.invalidateQueries({ queryKey: ['contract', contract.id] });
       queryClient.invalidateQueries({ queryKey: ['contract-history', contract.id] });
@@ -90,11 +109,28 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
         <h3 className="text-lg font-semibold text-zinc-900">계약 정보</h3>
         {editing ? (
           <div className="flex gap-1.5">
-            <button type="button" onClick={handleCancel} className="h-[30px] rounded-md border border-zinc-200 px-3 text-[12px] text-zinc-500 hover:bg-zinc-50">취소</button>
-            <button type="button" onClick={handleSave} disabled={saving} className="h-[30px] rounded-md bg-blue-600 px-3 text-[12px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{saving ? '저장 중...' : '저장'}</button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="h-[30px] rounded-md border border-zinc-200 px-3 text-[12px] text-zinc-500 hover:bg-zinc-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="h-[30px] rounded-md bg-blue-600 px-3 text-[12px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? '저장 중...' : '저장'}
+            </button>
           </div>
         ) : (
-          <button type="button" onClick={() => setEditing(true)} className="flex h-[30px] items-center gap-1 rounded-md border border-zinc-200 px-2.5 text-[12px] text-zinc-400 hover:bg-zinc-50">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="flex h-[30px] items-center gap-1 rounded-md border border-zinc-200 px-2.5 text-[12px] text-zinc-400 hover:bg-zinc-50"
+          >
             <Pencil className="h-3 w-3" /> 수정
           </button>
         )}
@@ -114,8 +150,7 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
                 <option value="USD">$ 달러</option>
               </select>
               <input
-                value={val('totalAmount', String(contract.total_amount))}
-                onChange={(e) => handleFieldChange('totalAmount', e.target.value)}
+                {...totalAmountInput}
                 inputMode="numeric"
                 className="h-full flex-1 px-3 text-base outline-none"
                 placeholder="금액 입력"
@@ -123,7 +158,9 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
             </div>
           ) : (
             <div className="flex items-baseline gap-1.5">
-              <p className="text-base font-semibold text-zinc-900">{formatFullAmount(contract.total_amount, contract.currency)}</p>
+              <p className="text-base font-semibold text-zinc-900">
+                {formatFullAmount(contract.total_amount, contract.currency)}
+              </p>
               <span className="text-xs text-zinc-400">{contract.currency ?? 'KRW'}</span>
             </div>
           )}
@@ -131,7 +168,10 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
         <div className="space-y-1">
           <p className="text-xs font-medium text-zinc-400">고객</p>
           {contract.client_id ? (
-            <Link href={`${basePath}/clients/${contract.client_id}`} className="text-base font-medium text-blue-600 hover:underline">
+            <Link
+              href={`${basePath}/clients/${contract.client_id}`}
+              className="text-base font-medium text-blue-600 hover:underline"
+            >
               {contract.client_name ?? '-'}
             </Link>
           ) : (
@@ -150,15 +190,21 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
               value={val('assignedTo', contract.assigned_to ?? '')}
               onValueChange={(v) => handleFieldChange('assignedTo', v)}
             >
-              <SelectTrigger className="h-9"><SelectValue placeholder="선택" /></SelectTrigger>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="선택" />
+              </SelectTrigger>
               <SelectContent>
                 {employees?.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           ) : (
-            <p className="text-base font-medium text-zinc-900">{contract.assigned_to_name ?? '-'}</p>
+            <p className="text-base font-medium text-zinc-900">
+              {contract.assigned_to_name ?? '-'}
+            </p>
           )}
         </div>
         <div className="space-y-1">
