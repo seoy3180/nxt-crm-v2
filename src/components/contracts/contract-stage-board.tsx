@@ -23,7 +23,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { invalidateContractStageQueries } from '@/hooks/use-deposit-accounts';
+import { invalidateContractStageQueries } from '@/lib/query-keys';
 
 interface ContractStageBoardProps {
   contracts: ContractRow[];

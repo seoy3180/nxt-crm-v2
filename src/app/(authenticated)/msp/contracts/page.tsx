@@ -19,7 +19,7 @@ import { useInlineEdit } from '@/hooks/use-inline-edit';
 import { useColumnPreference } from '@/hooks/use-user-preferences';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { createClient } from '@/lib/supabase/client';
-import { invalidateContractStageQueries } from '@/hooks/use-deposit-accounts';
+import { invalidateContractStageQueries } from '@/lib/query-keys';
 import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import {
   type ContractTableRow,

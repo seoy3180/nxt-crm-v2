@@ -10,7 +10,7 @@ import type {
 } from '@/lib/validators/contract';
 import { getErrorMessage } from '@/lib/utils';
 import { toast } from 'sonner';
-import { invalidateContractStageQueries } from '@/hooks/use-deposit-accounts';
+import { invalidateContractStageQueries } from '@/lib/query-keys';
 
 export function useCreateContract() {
   const queryClient = useQueryClient();
@@ -34,7 +34,8 @@ export function useUpdateContract(id: string) {
     mutationFn: (input: ContractUpdateInput) => contractService.update(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract', id] });
-      queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      // 계약 수정으로도 stage가 바뀔 수 있음(contractUpdateSchema.stage) → 예치금·테이블 쿼리 함께 invalidate
+      invalidateContractStageQueries(queryClient);
       toast.success('계약 정보가 업데이트되었습니다');
     },
     onError: (err) => {

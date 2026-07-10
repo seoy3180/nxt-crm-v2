@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { depositService, type AddTransactionInput } from '@/lib/services/deposit-service';
 import { contractService } from '@/lib/services/contract-service';
 import { createClient } from '@/lib/supabase/client';
-import { depositKeys } from './use-deposit-accounts';
+import { depositKeys } from '@/lib/query-keys';
 import { TXN_TYPE_LABELS } from '@/lib/deposit/constants';
 
 /**
