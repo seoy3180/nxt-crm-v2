@@ -85,7 +85,7 @@ export function formatThousands(
 /** 쉼표 등 숫자 이외 문자를 제거해 raw 숫자 문자열 반환. 저장/파싱 직전 값 정규화용. */
 export function stripThousands(value: string, opts?: { allowNegative?: boolean }): string {
   const neg = !!opts?.allowNegative && value.trimStart().startsWith('-');
-  const digits = value.replace(/\D/g, '');
+  const digits = value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
   return (neg ? '-' : '') + digits;
 }
 
