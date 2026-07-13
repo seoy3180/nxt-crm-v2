@@ -2,19 +2,23 @@
 
 import type { DepositAccountWithMetrics } from '@/lib/services/deposit-service';
 
-export type DepositFilter = 'all' | 'critical' | 'warning' | 'inactive';
+export type DepositFilter = 'all' | 'critical' | 'warning' | 'inactive' | 'ended';
 
 export function DepositFilterBar({
   value,
   onChange,
   accounts,
   activatableCount = 0,
+  endedCount = 0,
 }: {
   value: DepositFilter;
   onChange: (v: DepositFilter) => void;
+  /** 진행 중 계정 목록(전체/긴급/주의 카운트 기준) */
   accounts: DepositAccountWithMetrics[];
   /** 예치금 미설정 MSP 계약 수 (미설정 탭 배지) */
   activatableCount?: number;
+  /** 종료/해지(project_closed·unpaid) 계정 수 (종료/해지 탭 배지) */
+  endedCount?: number;
 }) {
   // metrics.alertLevel — 카드/KPI/사이드바 배지와 동일 source.
   const critical = accounts.filter((a) => a.metrics.alertLevel === 'critical').length;
@@ -51,6 +55,13 @@ export function DepositFilterBar({
         className={`${base} ${value === 'inactive' ? 'bg-blue-600 text-white' : 'border border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300'}`}
       >
         미설정 ({activatableCount})
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('ended')}
+        className={`${base} ${value === 'ended' ? 'bg-zinc-600 text-white' : 'border border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300'}`}
+      >
+        종료/해지 ({endedCount})
       </button>
     </div>
   );

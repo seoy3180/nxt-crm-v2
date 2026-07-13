@@ -5,12 +5,14 @@ import {
   calcBalancePct,
   calcDaysUntilDepleted,
 } from '@/lib/deposit/calc-balance';
+import { isEndedStage } from '@/lib/deposit/stage';
 import type {
   AlertLevel,
   DepositAccount,
   DepositTransaction,
   DepositTxnType,
 } from '@/lib/deposit/types';
+import type { MspStage } from '@/lib/constants';
 
 /**
  * 대시보드 카드/KPI 표시용. 계약 + 고객 정보까지 같이 가져온다.
@@ -23,6 +25,7 @@ export interface DepositAccountWithContract extends DepositAccount {
     currency: 'KRW' | 'USD';
     client_id: string;
     client_name: string | null;
+    stage: MspStage | null;
   };
 }
 
@@ -105,7 +108,9 @@ export const depositService = {
     const supabase = createClient();
     const { data, error } = await supabase
       .from('contracts')
-      .select('id, name, contract_id, currency, clients(name), deposit_accounts(id, deleted_at)')
+      .select(
+        'id, name, contract_id, currency, stage, clients(name), deposit_accounts(id, deleted_at)',
+      )
       .eq('type', 'msp')
       .is('deleted_at', null)
       .order('name');
@@ -116,12 +121,16 @@ export const depositService = {
       name: string;
       contract_id: string;
       currency: 'KRW' | 'USD';
+      stage: string | null;
       clients: { name: string } | null;
       deposit_accounts: { id: string; deleted_at: string | null }[] | null;
     };
 
     return ((data ?? []) as unknown as Row[])
-      .filter((r) => !(r.deposit_accounts ?? []).some((a) => a.deleted_at === null))
+      .filter(
+        (r) =>
+          !isEndedStage(r.stage) && !(r.deposit_accounts ?? []).some((a) => a.deleted_at === null),
+      )
       .map((r) => ({
         id: r.id,
         name: r.name,
@@ -138,7 +147,7 @@ export const depositService = {
     const { data, error } = await supabase
       .from('deposit_accounts')
       .select(
-        'id, contract_id, balance, total_deposit, total_usage, last_recalc_at, start_date, end_date, created_at, updated_at, deleted_at, contract:contracts!inner(id, name, contract_id, currency, client_id, clients(name))',
+        'id, contract_id, balance, total_deposit, total_usage, last_recalc_at, start_date, end_date, created_at, updated_at, deleted_at, contract:contracts!inner(id, name, contract_id, currency, client_id, stage, clients(name))',
       )
       .is('deleted_at', null);
     if (error) throw error;
@@ -150,6 +159,7 @@ export const depositService = {
         contract_id: string;
         currency: 'KRW' | 'USD';
         client_id: string;
+        stage: MspStage | null;
         clients: { name: string } | null;
       };
     };
@@ -173,6 +183,7 @@ export const depositService = {
         currency: row.contract.currency,
         client_id: row.contract.client_id,
         client_name: row.contract.clients?.name ?? null,
+        stage: row.contract.stage,
       },
     }));
   },
