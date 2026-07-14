@@ -127,6 +127,14 @@ describe('formatThousands', () => {
   it('allowNegative가 없으면 음수 부호를 제거한다', () => {
     expect(formatThousands('-1234')).toBe('1,234');
   });
+
+  it('소수부는 자릿수 병합 대신 버린다', () => {
+    expect(formatThousands('1234.56')).toBe('1,234');
+    expect(formatThousands(1234.56)).toBe('1,234');
+    expect(formatThousands('0.99')).toBe('0');
+    expect(formatThousands('.5')).toBe('');
+    expect(formatThousands('-1234.56', { allowNegative: true })).toBe('-1,234');
+  });
 });
 
 describe('stripThousands', () => {
@@ -152,5 +160,10 @@ describe('stripThousands', () => {
 
   it('allowNegative가 없으면 음수 부호를 제거한다', () => {
     expect(stripThousands('-1,234')).toBe('1234');
+  });
+
+  it('소수부는 자릿수 병합 대신 버린다', () => {
+    expect(stripThousands('1,234.56')).toBe('1234');
+    expect(stripThousands('-1,234.56', { allowNegative: true })).toBe('-1234');
   });
 });

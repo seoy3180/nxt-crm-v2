@@ -74,7 +74,7 @@ export function formatThousands(
   opts?: { allowNegative?: boolean },
 ): string {
   if (value === null || value === undefined) return '';
-  const s = String(value);
+  const s = String(value).split('.')[0]!; // 소수부는 자릿수 병합(1234.56 → 123456) 대신 버림
   const neg = !!opts?.allowNegative && s.trimStart().startsWith('-');
   const digits = s.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
   if (!digits) return neg ? '-' : '';
@@ -84,8 +84,9 @@ export function formatThousands(
 
 /** 쉼표 등 숫자 이외 문자를 제거해 raw 숫자 문자열 반환. 저장/파싱 직전 값 정규화용. */
 export function stripThousands(value: string, opts?: { allowNegative?: boolean }): string {
-  const neg = !!opts?.allowNegative && value.trimStart().startsWith('-');
-  const digits = value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  const s = value.split('.')[0]!; // 소수부는 자릿수 병합 대신 버림 (formatThousands와 동일 규칙)
+  const neg = !!opts?.allowNegative && s.trimStart().startsWith('-');
+  const digits = s.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
   return (neg ? '-' : '') + digits;
 }
 
