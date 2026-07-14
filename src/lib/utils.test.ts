@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn, formatRevenue, formatTimeAgo } from './utils';
+import { cn, formatRevenue, formatTimeAgo, formatThousands, stripThousands } from './utils';
 
 describe('cn', () => {
   it('여러 클래스를 병합한다', () => {
@@ -92,5 +92,65 @@ describe('formatTimeAgo', () => {
     const now = new Date();
     const oneDayAgo = new Date(now.getTime() - 86400000).toISOString();
     expect(formatTimeAgo(oneDayAgo)).toBe('1일 전');
+  });
+});
+
+describe('formatThousands', () => {
+  it('천단위 쉼표를 삽입한다', () => {
+    expect(formatThousands('1234567')).toBe('1,234,567');
+    expect(formatThousands(1000)).toBe('1,000');
+    expect(formatThousands('999')).toBe('999');
+  });
+
+  it('숫자 이외 문자를 제거한 뒤 포맷한다', () => {
+    expect(formatThousands('1,234,567')).toBe('1,234,567');
+    expect(formatThousands('abc12ab34')).toBe('1,234');
+  });
+
+  it('앞자리 0을 제거한다', () => {
+    expect(formatThousands('007')).toBe('7');
+    expect(formatThousands('0')).toBe('0');
+    expect(formatThousands('00')).toBe('0');
+  });
+
+  it('빈 값은 빈 문자열을 반환한다', () => {
+    expect(formatThousands('')).toBe('');
+    expect(formatThousands(null)).toBe('');
+    expect(formatThousands(undefined)).toBe('');
+  });
+
+  it('allowNegative가 있으면 음수 부호를 보존한다', () => {
+    expect(formatThousands('-1234', { allowNegative: true })).toBe('-1,234');
+    expect(formatThousands('-', { allowNegative: true })).toBe('-');
+  });
+
+  it('allowNegative가 없으면 음수 부호를 제거한다', () => {
+    expect(formatThousands('-1234')).toBe('1,234');
+  });
+});
+
+describe('stripThousands', () => {
+  it('쉼표를 제거해 raw 숫자 문자열을 반환한다', () => {
+    expect(stripThousands('1,234,567')).toBe('1234567');
+    expect(stripThousands('999')).toBe('999');
+  });
+
+  it('앞자리 0을 제거한다', () => {
+    expect(stripThousands('007')).toBe('7');
+    expect(stripThousands('0')).toBe('0');
+    expect(stripThousands('00')).toBe('0');
+  });
+
+  it('빈 값은 빈 문자열을 반환한다', () => {
+    expect(stripThousands('')).toBe('');
+  });
+
+  it('allowNegative가 있으면 음수 부호를 보존한다', () => {
+    expect(stripThousands('-1,234', { allowNegative: true })).toBe('-1234');
+    expect(stripThousands('-', { allowNegative: true })).toBe('-');
+  });
+
+  it('allowNegative가 없으면 음수 부호를 제거한다', () => {
+    expect(stripThousands('-1,234')).toBe('1234');
   });
 });
