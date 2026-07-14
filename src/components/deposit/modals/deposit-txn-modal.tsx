@@ -14,9 +14,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAddDepositTransaction } from '@/hooks/use-deposit-mutations';
+import { useMoneyInput } from '@/components/common/money-input';
 import type { DepositTxnType } from '@/lib/deposit/types';
 
-const LABELS: Record<DepositTxnType, { title: string; amountLabel: string; memoRequired: boolean }> = {
+const LABELS: Record<
+  DepositTxnType,
+  { title: string; amountLabel: string; memoRequired: boolean }
+> = {
   deposit: { title: '예치 등록', amountLabel: '예치액', memoRequired: false },
   usage: { title: '사용 차감', amountLabel: '차감액', memoRequired: false },
   adjustment: { title: '잔액 보정', amountLabel: '보정 금액', memoRequired: true },
@@ -38,13 +42,21 @@ interface Props {
  * - adjustment: amount != 0 (음수 허용, 옵션 E)
  * - usage/refund: 차감 후 잔액 음수면 2차 확인 (BIZ-1)
  */
-export function DepositTxnModal({ open, onOpenChange, accountId, txnType, currency, currentBalance }: Props) {
+export function DepositTxnModal({
+  open,
+  onOpenChange,
+  accountId,
+  txnType,
+  currency,
+  currentBalance,
+}: Props) {
   const label = LABELS[txnType];
   const isAdjustment = txnType === 'adjustment';
   const isDeduct = txnType === 'usage' || txnType === 'refund';
 
   const [txnDate, setTxnDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState('');
+  const amountInput = useMoneyInput(amount, setAmount, { allowNegative: isAdjustment });
   const [memo, setMemo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showNegativeConfirm, setShowNegativeConfirm] = useState(false);
@@ -105,15 +117,21 @@ export function DepositTxnModal({ open, onOpenChange, accountId, txnType, curren
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="txn-date">일자</Label>
-            <Input id="txn-date" type="date" value={txnDate} onChange={(e) => setTxnDate(e.target.value)} />
+            <Input
+              id="txn-date"
+              type="date"
+              value={txnDate}
+              onChange={(e) => setTxnDate(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="txn-amount">{label.amountLabel} ({currency})</Label>
+            <Label htmlFor="txn-amount">
+              {label.amountLabel} ({currency})
+            </Label>
             <Input
               id="txn-amount"
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              type="text"
+              {...amountInput}
               placeholder={isAdjustment ? '+ 또는 -' : '양수만'}
               inputMode="numeric"
             />
@@ -136,7 +154,9 @@ export function DepositTxnModal({ open, onOpenChange, accountId, txnType, curren
             <p className="text-[11px] text-zinc-400">{memo.length}/200</p>
           </div>
           {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div>
+            <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+              {error}
+            </div>
           )}
           {showNegativeConfirm && (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">

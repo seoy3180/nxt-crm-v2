@@ -15,11 +15,23 @@ import {
 } from '@/components/ui/select';
 import { BUSINESS_TYPES } from '@/lib/constants';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { ChevronsUpDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { contractCreateSchema, mspDetailSchema, type EduOperationInput } from '@/lib/validators/contract';
+import {
+  contractCreateSchema,
+  mspDetailSchema,
+  type EduOperationInput,
+} from '@/lib/validators/contract';
 import { safeNumber } from '@/lib/utils';
+import { handleMoneyInputChange } from '@/components/common/money-input';
 import { Plus } from 'lucide-react';
 import { useCreateContract } from '@/hooks/use-contract-mutations';
 import { useClients } from '@/hooks/use-clients';
@@ -39,10 +51,19 @@ interface ContractFormProps {
   basePath?: string;
 }
 
-export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath = '/contracts' }: ContractFormProps) {
+export function ContractForm({
+  defaultType = 'msp',
+  hideTypeSelector,
+  basePath = '/contracts',
+}: ContractFormProps) {
   const router = useRouter();
   const createContract = useCreateContract();
-  const { data: clientsData } = useClients({ page: 1, pageSize: 200, sortBy: 'name', sortOrder: 'asc' });
+  const { data: clientsData } = useClients({
+    page: 1,
+    pageSize: 200,
+    sortBy: 'name',
+    sortOrder: 'asc',
+  });
   const allClients = clientsData?.data ?? [];
   const { data: employees } = useEmployees();
   const [contractType, setContractType] = useState<string>(defaultType);
@@ -56,7 +77,17 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath =
   const [selectedContactId, setSelectedContactId] = useState<string>('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [operations, setOperations] = useState<EduOperationInput[]>([
-    { operationName: '1차', location: null, targetOrg: null, dates: [{ date: '', hours: 0 }], contractedCount: null, recruitedCount: null, actualCount: null, providesLunch: false, providesSnack: false },
+    {
+      operationName: '1차',
+      location: null,
+      targetOrg: null,
+      dates: [{ date: '', hours: 0 }],
+      contractedCount: null,
+      recruitedCount: null,
+      actualCount: null,
+      providesLunch: false,
+      providesSnack: false,
+    },
   ]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -70,9 +101,9 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath =
       type: contractType,
       totalAmount: safeNumber(formData.get('totalAmount')) ?? 0,
       currency: 'KRW',
-      memo: formData.get('memo') as string || null,
-      assignedTo: formData.get('assignedTo') as string || null,
-      contactId: formData.get('contactId') as string || null,
+      memo: (formData.get('memo') as string) || null,
+      assignedTo: (formData.get('assignedTo') as string) || null,
+      contactId: (formData.get('contactId') as string) || null,
     };
 
     const result = contractCreateSchema.safeParse(raw);
@@ -91,22 +122,31 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath =
       if (contractType === 'msp') {
         const awsAccountIdsRaw = (formData.get('awsAccountIds') as string) ?? '';
         const techLeadIdsRaw = (formData.get('techLeadIds') as string) ?? '';
-        const techLeadIds = techLeadIdsRaw.split(',').map((s) => s.trim()).filter(Boolean);
+        const techLeadIds = techLeadIdsRaw
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
         const tagsRaw = (formData.get('tags') as string) ?? '';
-        const tags = tagsRaw.split(',').map((s) => s.trim()).filter(Boolean);
+        const tags = tagsRaw
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
         const mspRaw = {
-          creditShare: formData.get('creditShare') as string || null,
+          creditShare: (formData.get('creditShare') as string) || null,
           expectedMrr: safeNumber(formData.get('expectedMrr')),
-          payer: formData.get('payer') as string || null,
-          salesRepId: formData.get('salesRepId') as string || null,
+          payer: (formData.get('payer') as string) || null,
+          salesRepId: (formData.get('salesRepId') as string) || null,
           awsAmount: safeNumber(formData.get('awsAmount')),
           hasManagementFee: formData.get('hasManagementFee') === 'true',
-          billingMethod: formData.get('billingMethod') as string || null,
-          mspGrade: formData.get('mspGrade') as string || null,
-          awsAm: formData.get('awsAm') as string || null,
-          awsAccountIds: awsAccountIdsRaw.split(',').map((s) => s.trim()).filter(Boolean),
+          billingMethod: (formData.get('billingMethod') as string) || null,
+          mspGrade: (formData.get('mspGrade') as string) || null,
+          awsAm: (formData.get('awsAm') as string) || null,
+          awsAccountIds: awsAccountIdsRaw
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
           billingOn: formData.get('billingOn') === 'true',
-          billingOnAlias: formData.get('billingOnAlias') as string || null,
+          billingOnAlias: (formData.get('billingOnAlias') as string) || null,
           tags,
           techLeadIds,
         };
@@ -150,184 +190,219 @@ export function ContractForm({ defaultType = 'msp', hideTypeSelector, basePath =
 
   return (
     <>
-    <form onSubmit={handleSubmit} className="w-[640px] space-y-6">
-      {/* 비즈니스 유형 선택 */}
-      {!hideTypeSelector && <div className="space-y-2">
-        <Label className="text-[13px]">비즈니스 유형</Label>
-        <div className="flex gap-2">
-          {Object.entries(BUSINESS_TYPES).map(([key, label]) => (
-            <button
-              key={key}
+      <form onSubmit={handleSubmit} className="w-[640px] space-y-6">
+        {/* 비즈니스 유형 선택 */}
+        {!hideTypeSelector && (
+          <div className="space-y-2">
+            <Label className="text-[13px]">비즈니스 유형</Label>
+            <div className="flex gap-2">
+              {Object.entries(BUSINESS_TYPES).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setContractType(key)}
+                  className={`h-9 rounded-lg px-4 text-[13px] font-medium transition-colors ${
+                    contractType === key
+                      ? 'bg-blue-600 text-white'
+                      : 'border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!hideTypeSelector && <div className="h-px bg-zinc-200" />}
+
+        {/* 기본 정보 */}
+        <h3 className="text-base font-semibold text-zinc-900">기본 정보</h3>
+
+        <div className="space-y-1.5">
+          <Label>계약명 *</Label>
+          <Input name="name" placeholder="계약명을 입력하세요" autoFocus />
+          {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>고객 *</Label>
+          <input type="hidden" name="clientId" value={selectedClientId} />
+          <div className="flex gap-2">
+            <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
+              <PopoverTrigger className="flex h-10 flex-1 items-center justify-between rounded-md border border-zinc-200 bg-white px-3 text-sm transition-colors hover:bg-zinc-50">
+                <span className={selectedClientId ? 'text-zinc-900' : 'text-zinc-400'}>
+                  {selectedClientId
+                    ? (allClients.find((c) => c.id === selectedClientId)?.name ??
+                      selectedClientName ??
+                      '선택됨')
+                    : '고객 검색...'}
+                </span>
+                <ChevronsUpDown className="h-4 w-4 text-zinc-400" />
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--anchor-width)] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="고객명 검색..." />
+                  <CommandList>
+                    <CommandEmpty>검색 결과가 없습니다</CommandEmpty>
+                    <CommandGroup>
+                      {allClients.map((c) => (
+                        <CommandItem
+                          key={c.id}
+                          value={c.name}
+                          onSelect={() => {
+                            setSelectedClientId(c.id);
+                            setSelectedClientName(c.name);
+                            setSelectedContactId('');
+                            setClientPopoverOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4',
+                              selectedClientId === c.id ? 'opacity-100' : 'opacity-0',
+                            )}
+                          />
+                          {c.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <Button
               type="button"
-              onClick={() => setContractType(key)}
-              className={`h-9 rounded-lg px-4 text-[13px] font-medium transition-colors ${
-                contractType === key
-                  ? 'bg-blue-600 text-white'
-                  : 'border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
-              }`}
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              onClick={() => setClientDialogOpen(true)}
+              title="새 고객 추가"
             >
-              {label}
-            </button>
-          ))}
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          {errors.clientId && <p className="text-sm text-red-500">{errors.clientId}</p>}
         </div>
-      </div>}
 
-      {!hideTypeSelector && <div className="h-px bg-zinc-200" />}
-
-      {/* 기본 정보 */}
-      <h3 className="text-base font-semibold text-zinc-900">기본 정보</h3>
-
-      <div className="space-y-1.5">
-        <Label>계약명 *</Label>
-        <Input name="name" placeholder="계약명을 입력하세요" autoFocus />
-        {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
-      </div>
-
-      <div className="space-y-1.5">
-        <Label>고객 *</Label>
-        <input type="hidden" name="clientId" value={selectedClientId} />
-        <div className="flex gap-2">
-          <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
-            <PopoverTrigger
-              className="flex h-10 flex-1 items-center justify-between rounded-md border border-zinc-200 bg-white px-3 text-sm transition-colors hover:bg-zinc-50"
+        <div className="space-y-1.5">
+          <Label>고객사 담당자</Label>
+          <div className="flex gap-2">
+            <Select
+              name="contactId"
+              value={selectedContactId}
+              onValueChange={setSelectedContactId}
+              disabled={!selectedClientId}
             >
-              <span className={selectedClientId ? 'text-zinc-900' : 'text-zinc-400'}>
-                {selectedClientId
-                  ? allClients.find((c) => c.id === selectedClientId)?.name ?? selectedClientName ?? '선택됨'
-                  : '고객 검색...'}
-              </span>
-              <ChevronsUpDown className="h-4 w-4 text-zinc-400" />
-            </PopoverTrigger>
-            <PopoverContent className="w-[var(--anchor-width)] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="고객명 검색..." />
-                <CommandList>
-                  <CommandEmpty>검색 결과가 없습니다</CommandEmpty>
-                  <CommandGroup>
-                    {allClients.map((c) => (
-                      <CommandItem
-                        key={c.id}
-                        value={c.name}
-                        onSelect={() => { setSelectedClientId(c.id); setSelectedClientName(c.name); setSelectedContactId(''); setClientPopoverOpen(false); }}
-                      >
-                        <Check className={cn('mr-2 h-4 w-4', selectedClientId === c.id ? 'opacity-100' : 'opacity-0')} />
-                        {c.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+              <SelectTrigger className="flex-1">
+                <SelectValue
+                  placeholder={selectedClientId ? '담당자 선택' : '고객을 먼저 선택하세요'}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {contacts?.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                    {c.position ? ` (${c.position})` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              disabled={!selectedClientId}
+              onClick={() => setContactDialogOpen(true)}
+              title="새 연락처 추가"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="flex-1 space-y-1.5">
+            <Label>총 금액 (원)</Label>
+            <Input
+              name="totalAmount"
+              inputMode="numeric"
+              placeholder="0"
+              onChange={handleMoneyInputChange}
+            />
+          </div>
+          <div className="flex-1 space-y-1.5">
+            <Label>사내 담당자</Label>
+            <Select name="assignedTo">
+              <SelectTrigger>
+                <SelectValue placeholder="담당자 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {employees?.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>메모</Label>
+          <Textarea name="memo" placeholder="계약 관련 메모" rows={2} />
+        </div>
+
+        {/* MSP 확장 */}
+        {contractType === 'msp' && (
+          <>
+            <div className="h-px bg-zinc-200" />
+            <h3 className="text-base font-semibold text-zinc-900">MSP 정보</h3>
+            <MspFields />
+          </>
+        )}
+
+        {/* 교육 확장 */}
+        {contractType === 'edu' && (
+          <>
+            <div className="h-px bg-zinc-200" />
+            <EduFields operations={operations} onOperationsChange={setOperations} />
+          </>
+        )}
+
+        {/* 버튼 */}
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="outline" onClick={() => router.back()}>
+            취소
+          </Button>
           <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-10 w-10 shrink-0"
-            onClick={() => setClientDialogOpen(true)}
-            title="새 고객 추가"
+            type="submit"
+            disabled={createContract.isPending}
+            className="bg-blue-600 hover:bg-blue-700"
           >
-            <Plus className="h-4 w-4" />
+            {createContract.isPending ? '저장 중...' : '저장'}
           </Button>
         </div>
-        {errors.clientId && <p className="text-sm text-red-500">{errors.clientId}</p>}
-      </div>
+      </form>
 
-      <div className="space-y-1.5">
-        <Label>고객사 담당자</Label>
-        <div className="flex gap-2">
-          <Select name="contactId" value={selectedContactId} onValueChange={setSelectedContactId} disabled={!selectedClientId}>
-            <SelectTrigger className="flex-1"><SelectValue placeholder={selectedClientId ? '담당자 선택' : '고객을 먼저 선택하세요'} /></SelectTrigger>
-            <SelectContent>
-              {contacts?.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}{c.position ? ` (${c.position})` : ''}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-10 w-10 shrink-0"
-            disabled={!selectedClientId}
-            onClick={() => setContactDialogOpen(true)}
-            title="새 연락처 추가"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <ContactFormDialog
+        open={contactDialogOpen}
+        onOpenChange={setContactDialogOpen}
+        onSubmit={handleCreateContact}
+        loading={createContact.isPending}
+      />
 
-      <div className="flex gap-4">
-        <div className="flex-1 space-y-1.5">
-          <Label>총 금액 (원)</Label>
-          <Input name="totalAmount" inputMode="numeric" placeholder="0" />
-        </div>
-        <div className="flex-1 space-y-1.5">
-          <Label>사내 담당자</Label>
-          <Select name="assignedTo">
-            <SelectTrigger><SelectValue placeholder="담당자 선택" /></SelectTrigger>
-            <SelectContent>
-              {employees?.map((e) => (
-                <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label>메모</Label>
-        <Textarea name="memo" placeholder="계약 관련 메모" rows={2} />
-      </div>
-
-      {/* MSP 확장 */}
-      {contractType === 'msp' && (
-        <>
-          <div className="h-px bg-zinc-200" />
-          <h3 className="text-base font-semibold text-zinc-900">MSP 정보</h3>
-          <MspFields />
-        </>
-      )}
-
-      {/* 교육 확장 */}
-      {contractType === 'edu' && (
-        <>
-          <div className="h-px bg-zinc-200" />
-          <EduFields operations={operations} onOperationsChange={setOperations} />
-        </>
-      )}
-
-      {/* 버튼 */}
-      <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" onClick={() => router.back()}>취소</Button>
-        <Button
-          type="submit"
-          disabled={createContract.isPending}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          {createContract.isPending ? '저장 중...' : '저장'}
-        </Button>
-      </div>
-    </form>
-
-    <ContactFormDialog
-      open={contactDialogOpen}
-      onOpenChange={setContactDialogOpen}
-      onSubmit={handleCreateContact}
-      loading={createContact.isPending}
-    />
-
-    <ClientFormDialog
-      open={clientDialogOpen}
-      onOpenChange={setClientDialogOpen}
-      defaultBusinessTypes={[contractType]}
-      onCreated={(client) => {
-        setSelectedClientId(client.id);
-        setSelectedClientName(client.name);
-        setSelectedContactId('');
-      }}
-    />
+      <ClientFormDialog
+        open={clientDialogOpen}
+        onOpenChange={setClientDialogOpen}
+        defaultBusinessTypes={[contractType]}
+        onCreated={(client) => {
+          setSelectedClientId(client.id);
+          setSelectedClientName(client.name);
+          setSelectedContactId('');
+        }}
+      />
     </>
   );
 }

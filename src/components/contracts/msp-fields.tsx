@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { handleMoneyInputChange } from '@/components/common/money-input';
 import {
   Select,
   SelectContent,
@@ -10,7 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CREDIT_SHARE_OPTIONS, PAYER_OPTIONS, BILLING_METHOD_OPTIONS, MSP_GRADES } from '@/lib/constants';
+import {
+  CREDIT_SHARE_OPTIONS,
+  PAYER_OPTIONS,
+  BILLING_METHOD_OPTIONS,
+  MSP_GRADES,
+} from '@/lib/constants';
 import { useEmployees } from '@/hooks/use-employees';
 import { EmployeeMultiSelect } from '@/components/common/employee-multi-select';
 
@@ -26,10 +32,14 @@ export function MspFields() {
         <div className="flex-1 space-y-1.5">
           <Label>MSP 등급</Label>
           <Select name="mspGrade">
-            <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="선택" />
+            </SelectTrigger>
             <SelectContent>
               {MSP_GRADES.map((g) => (
-                <SelectItem key={g} value={g}>{g}</SelectItem>
+                <SelectItem key={g} value={g}>
+                  {g}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -37,24 +47,38 @@ export function MspFields() {
         <div className="flex-1 space-y-1.5">
           <Label>크레딧 쉐어</Label>
           <Select name="creditShare">
-            <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="선택" />
+            </SelectTrigger>
             <SelectContent>
               {CREDIT_SHARE_OPTIONS.map((opt) => (
-                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="flex-1 space-y-1.5">
           <Label>예상 MRR (원)</Label>
-          <Input name="expectedMrr" inputMode="numeric" placeholder="0" />
+          <Input
+            name="expectedMrr"
+            inputMode="numeric"
+            placeholder="0"
+            onChange={handleMoneyInputChange}
+          />
         </div>
       </div>
 
       <div className="flex gap-4">
         <div className="flex-1 space-y-1.5">
           <Label>AWS 금액 (원)</Label>
-          <Input name="awsAmount" inputMode="numeric" placeholder="0" />
+          <Input
+            name="awsAmount"
+            inputMode="numeric"
+            placeholder="0"
+            onChange={handleMoneyInputChange}
+          />
         </div>
         <div className="flex-1 space-y-1.5">
           <Label>AWS AM</Label>
@@ -70,10 +94,14 @@ export function MspFields() {
         <div className="flex-1 space-y-1.5">
           <Label>Payer</Label>
           <Select name="payer">
-            <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="선택" />
+            </SelectTrigger>
             <SelectContent>
               {PAYER_OPTIONS.map((opt) => (
-                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -81,10 +109,14 @@ export function MspFields() {
         <div className="flex-1 space-y-1.5">
           <Label>청구 방식</Label>
           <Select name="billingMethod">
-            <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="선택" />
+            </SelectTrigger>
             <SelectContent>
               {BILLING_METHOD_OPTIONS.map((opt) => (
-                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -92,10 +124,14 @@ export function MspFields() {
         <div className="flex-1 space-y-1.5">
           <Label>담당 영업</Label>
           <Select name="salesRepId">
-            <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="선택" />
+            </SelectTrigger>
             <SelectContent>
               {employees?.map((e) => (
-                <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                <SelectItem key={e.id} value={e.id}>
+                  {e.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -131,9 +167,7 @@ export function MspFields() {
               type="button"
               onClick={() => setHasFee(true)}
               className={`flex-1 rounded text-[13px] font-medium transition-colors ${
-                hasFee
-                  ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
-                  : 'text-zinc-400'
+                hasFee ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200' : 'text-zinc-400'
               }`}
             >
               있음
