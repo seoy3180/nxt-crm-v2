@@ -989,11 +989,11 @@ CREATE OR REPLACE VIEW "public"."contracts_with_details" WITH ("security_invoker
     "msp"."billing_on",
     "cl"."name" AS "client_name",
     "cl"."client_id" AS "client_display_id",
-    "p"."name" AS "assigned_to_name"
+    "e"."name" AS "assigned_to_name"
    FROM ((("public"."contracts" "c"
      LEFT JOIN "public"."contract_msp_details" "msp" ON (("msp"."contract_id" = "c"."id")))
      LEFT JOIN "public"."clients" "cl" ON (("cl"."id" = "c"."client_id")))
-     LEFT JOIN "public"."profiles" "p" ON (("p"."id" = "c"."assigned_to")))
+     LEFT JOIN "public"."employees" "e" ON (("e"."id" = "c"."assigned_to")))
   WHERE ("c"."deleted_at" IS NULL);
 
 
@@ -1539,7 +1539,7 @@ ALTER TABLE ONLY "public"."contract_tech_leads"
 
 
 ALTER TABLE ONLY "public"."contracts"
-    ADD CONSTRAINT "contracts_assigned_to_fkey" FOREIGN KEY ("assigned_to") REFERENCES "public"."profiles"("id");
+    ADD CONSTRAINT "contracts_assigned_to_fkey" FOREIGN KEY ("assigned_to") REFERENCES "public"."employees"("id");
 
 
 
@@ -2247,7 +2247,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
-
 
 
 

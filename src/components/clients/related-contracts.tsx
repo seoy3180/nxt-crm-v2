@@ -34,7 +34,7 @@ export function RelatedContracts({ clientId, childClientIds }: RelatedContractsP
       const supabase = createClient();
       const { data, error } = await supabase
         .from('contracts')
-        .select('*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name)')
+        .select('*, clients!contracts_client_id_fkey(name), employees!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name)')
         .in('client_id', targetIds)
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
@@ -42,7 +42,7 @@ export function RelatedContracts({ clientId, childClientIds }: RelatedContractsP
       return (data ?? []).map((row: Record<string, unknown>) => ({
         ...row,
         client_name: (row.clients as { name: string } | null)?.name ?? null,
-        assigned_to_name: (row.profiles as { name: string } | null)?.name ?? null,
+        assigned_to_name: (row.employees as { name: string } | null)?.name ?? null,
         client_contact_name: (row.contacts as { name: string } | null)?.name ?? null,
       })) as unknown as ContractRow[];
     },

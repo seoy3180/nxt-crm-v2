@@ -531,7 +531,7 @@ export type Database = {
             foreignKeyName: "contracts_assigned_to_fkey"
             columns: ["assigned_to"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
@@ -1148,7 +1148,7 @@ export type Database = {
             foreignKeyName: "contracts_assigned_to_fkey"
             columns: ["assigned_to"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
@@ -1201,8 +1201,6 @@ export type Database = {
         Args: { p_contract_id: string; p_employee_ids: string[] }
         Returns: undefined
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       soft_delete_client: { Args: { p_client_id: string }; Returns: undefined }
       soft_delete_contract: {
         Args: { p_contract_id: string }

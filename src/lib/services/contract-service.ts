@@ -109,7 +109,7 @@ export const contractService = {
       .select(`
         *,
         clients!contracts_client_id_fkey(name, client_id),
-        profiles!contracts_assigned_to_fkey(name),
+        employees!contracts_assigned_to_fkey(name),
         contacts!contracts_contact_id_fkey(name)
       `, { count: 'exact' })
       .is('deleted_at', null)
@@ -168,7 +168,7 @@ export const contractService = {
       ...row,
       client_name: (row.clients as { name: string } | null)?.name ?? null,
       client_display_id: (row.clients as { client_id: string } | null)?.client_id ?? null,
-      assigned_to_name: (row.profiles as { name: string } | null)?.name ?? null,
+      assigned_to_name: (row.employees as { name: string } | null)?.name ?? null,
       client_contact_name: (row.contacts as { name: string } | null)?.name ?? null,
     }));
 
@@ -187,7 +187,7 @@ export const contractService = {
       .select(`
         *,
         clients!contracts_client_id_fkey(name, client_id),
-        profiles!contracts_assigned_to_fkey(name),
+        employees!contracts_assigned_to_fkey(name),
         contacts!contracts_contact_id_fkey(name),
         contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)),
         contract_tech_leads(employee_id, employees!contract_tech_leads_employee_id_fkey(name))
@@ -207,7 +207,7 @@ export const contractService = {
       ...row,
       client_name: (row.clients as { name: string } | null)?.name ?? null,
       client_display_id: (row.clients as { client_id: string } | null)?.client_id ?? null,
-      assigned_to_name: (row.profiles as { name: string } | null)?.name ?? null,
+      assigned_to_name: (row.employees as { name: string } | null)?.name ?? null,
       contact_name: (row.contacts as { name: string } | null)?.name ?? null,
       msp_details: (() => {
         const raw = Array.isArray(row.contract_msp_details)
