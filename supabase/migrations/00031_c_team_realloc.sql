@@ -43,5 +43,9 @@ UPDATE profiles SET team_id = (SELECT id FROM teams WHERE type = 'ops'::team_typ
 
 -- tt(교육팀)·dev(개발팀) 잔류 인원은 기존 team_id 그대로 — UPDATE 불필요
 
--- 4) 백종훈 profiles 삭제 (auth.users는 Dashboard에서 별도 삭제)
+-- 4) 백종훈 삭제 — employees FK(staff_profile_id_fkey) 먼저 해제 후 profiles 삭제
+--    (tech_leads / sales_rep 참조 0건 확인됨, auth.users는 Dashboard에서 별도 삭제)
+DELETE FROM employees WHERE profile_id = (
+  SELECT id FROM profiles WHERE email = 'sancho.baek@nxtcloud.kr'
+);
 DELETE FROM profiles WHERE email = 'sancho.baek@nxtcloud.kr';
