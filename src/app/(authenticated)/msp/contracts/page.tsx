@@ -168,7 +168,7 @@ function MspContractsInner() {
       let q = (supabase as any)
         .from('contracts')
         .select(
-          '*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)), contract_tech_leads(employees(name))',
+          '*, clients!contracts_client_id_fkey(name), employees!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)), contract_tech_leads(employees(name))',
           { count: 'exact' },
         )
         .eq('type', 'msp')
@@ -240,7 +240,7 @@ function MspContractsInner() {
           stage: row.stage as string | null,
           totalAmount: (row.total_amount as number) ?? 0,
           assignedTo: (row.assigned_to as string) ?? null,
-          assignedToName: (row.profiles as { name: string } | null)?.name ?? null,
+          assignedToName: (row.employees as { name: string } | null)?.name ?? null,
           contactName: (row.contacts as { name: string } | null)?.name ?? null,
           mspDetailId: (mspRaw?.id as string) ?? null,
           expectedMrr: (mspRaw?.expected_mrr as number) ?? null,

@@ -191,9 +191,9 @@ function ContractsPageInner() {
       const to = from + pageSize - 1;
 
       const mspSelect =
-        '*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)), contract_tech_leads(employees(name))';
+        '*, clients!contracts_client_id_fkey(name), employees!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name), contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)), contract_tech_leads(employees(name))';
       const basicSelect =
-        '*, clients!contracts_client_id_fkey(name), profiles!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name)';
+        '*, clients!contracts_client_id_fkey(name), employees!contracts_assigned_to_fkey(name), contacts!contracts_contact_id_fkey(name)';
       const selectClause = contractType === 'msp' ? mspSelect : basicSelect;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -229,7 +229,7 @@ function ContractsPageInner() {
           stage: row.stage as string | null,
           totalAmount: (row.total_amount as number) ?? 0,
           assignedTo: (row.assigned_to as string) ?? null,
-          assignedToName: (row.profiles as { name: string } | null)?.name ?? null,
+          assignedToName: (row.employees as { name: string } | null)?.name ?? null,
           contactName: (row.contacts as { name: string } | null)?.name ?? null,
           mspDetailId: (mspRaw?.id as string) ?? null,
           expectedMrr: (mspRaw?.expected_mrr as number) ?? null,

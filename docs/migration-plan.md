@@ -1,0 +1,269 @@
+# CRM 마이그레이션 계획 — Supabase 탈피 + Next.js 풀스택 우선 + Cognito
+
+> **인프라 전환**: (현재) Vercel + Supabase → (목표) **AWS Amplify + ClickHouse-managed Postgres**
+> 운영 원장 DB: **ClickHouse-managed Postgres** (PostgreSQL-호환 OLTP). 분석: ClickHouse(OLAP)로 CDC.
+> **방식**: 현 레포는 컷오버까지 운영 유지, 새 레포에서 병렬 구축(parallel build) → §0.5.
+> **P3 이후 구현 경로**: `~/nxt-crm/apps/web`의 **Next.js 풀스택 on Amplify SSR**을 1차 경로로 채택. 별도 EC2/Express BE는 fallback.
+> 참조 표준: `nxtcloud-org/certi-nav-be-v2`, `certi-nav-fe`, `ai-admission-counselor-chatbot-*`
+
+## 0. 이 문서의 정체성 (먼저 읽을 것)
+
+**이건 "ClickHouse(OLAP DBMS)로 전환"이 아니다.** 운영 원장 DB는 **ClickHouse-managed Postgres = 표준 PostgreSQL**(ClickHouse사가 호스팅하는 Postgres, OLAP 엔진 아님)이다. 즉 실제 정체성은:
+
+> **Vercel+Supabase 풀스택 → AWS Amplify(Next.js SSR) + Cognito 인증 + 운영 Postgres 유지(ClickHouse-managed Postgres) + 분석은 ClickHouse로 CDC**
+
+인프라도 **Vercel → AWS Amplify**, **Supabase → ClickHouse-managed Postgres**로 전환한다. **호스팅·인증·서버 런타임은 AWS Amplify/Next.js 중심**으로 가되, **운영 DB는 AWS 네이티브가 아니라 ClickHouse측 managed Postgres**다.
+
+"ClickHouse 마이그레이션"이라는 착시는 제품명에 'ClickHouse'가 들어가서 생긴 것이다. 운영 DB가 PostgreSQL 호환이므로 **원칙적으로 RLS·트랜잭션·트리거·ORM 전략을 유지할 수 있고**, 그래서 아래 RLS 유지 전략이 성립한다. 단 ClickHouse-managed Postgres는 preview라 실동작 검증이 필요하다(§3.5 운영 DB).
+
+### 확정된 결정
+
+| 결정 항목 | 확정 | 근거 |
+|---|---|---|
+| 운영 원장 DB | **ClickHouse-managed Postgres** (PG-호환, Data API 없는 pg TCP) | 회사 ClickHouse 생태계 + OLTP는 Postgres 필수 |
+| ClickHouse OLAP를 운영 DB로? | **아니오** | OLTP 트랜잭션·RLS·빈번한 행 단위 UPDATE에 부적합 |
+| 호스팅 | (현) Vercel → **AWS Amplify** | 호스팅·인증·BE는 AWS 중심 (운영 DB는 ClickHouse측) |
+| 권한 전략 | **A안: RLS 유지** (§8 권한 전략 의사결정 표) | CRM은 팀별 행 격리가 핵심 → RLS가 안전·저비용 |
+| 인증 | AWS Cognito | Supabase Auth 탈피 |
+| 분석 | ClickHouse OLAP, CDC로 복제 | 운영과 분리 |
+| 레포 구조 | **모노레포(turborepo)** — `apps/web`(Next.js 풀스택)+`apps/be` fallback+`packages/shared` | P3에서 Amplify SSR DB API 검증 통과 |
+| **이행 방식** | **parallel build** — 현 레포 운영 유지, 새 레포 병렬 구축 | 운영 중단 불가 (§0.5) |
+| 서버/API 스택 | **Next.js route handler/server code + Node + TypeScript + pg**. 별도 BE 필요 시 **Express/Fastify + pg** fallback | P3 Amplify SSR에서 DB 접속·RLS 검증 통과 |
+| 다국어(i18n) | **불필요** (한국어 전용 유지) | 사내 CRM · 현재 i18n 인프라 0 (P1 결정) |
+| 서버 배포 | **Amplify Hosting SSR** 1차. 실패/제약 발생 시 **EC2 단일 MVP → 승격** fallback | P3 게이트 통과. EC2는 fallback으로 유지 |
+
+### 검증으로 드러난 hard blocker (착수 전 해소 필수)
+
+1. **`schema.sql`이 stale** — `contracts_stage_check`가 `'tt'` 참조 / enum엔 `'edu'`만(`00031_a`에서 rename). 그대로 새 DB 적용 시 **실패**. → 단계별 실행 계획(§4)의 **P0**에서 **운영 DB 재추출·적용 검증 없이는 어떤 마이그레이션도 시작 금지**.
+2. **세션주입(`SET LOCAL`)이 선택 드라이버에서 작동하는지 미검증** — 전체 RLS 보안의 단일 의존점. → P2 세션주입 PoC 게이트.
+3. **SECURITY DEFINER RPC는 RLS 우회** — `update_contract_teams`는 권한 가드·`search_path` 둘 다 없음(취약). → §7 보안 선수정.
+
+---
+
+## 0.5. 이행 방식 — Parallel Build (현 레포 운영 유지)
+
+현 `nxt_crm_v2`(Vercel + Supabase)는 **컷오버 전까지 운영을 멈출 수 없다.** 따라서 현 레포를 뜯어고치지 않고, **새 레포에서 새 구조를 독립적으로 완성한 뒤 통째로 전환**한다(strangler/parallel build).
+
+- **현 레포** = 컷오버까지 운영 + 참조 소스. **마이그레이션 관련 구조 변경 금지.** 단 운영 필수 기능·보안 수정(예: `update_contract_teams` 가드)·schema 재추출은 **승인 후 예외 반영**
+- **"복사 후 분리" 안 함** — 복사본은 supabase 결합·비-FSD 부채를 들고 와 중간 상태가 어정쩡해진다. 새로 짓고 **자산만 이식**한다.
+
+| 무엇 | 방법 | 가져올 자산 |
+|---|---|---|
+| **서버/API** | 새 `apps/web` route handler/service layer (필요 시 `apps/be` fallback) | `schema.sql`(RLS·트리거, 정본) + 서비스 레이어 비즈니스 로직 포팅 |
+| **FE** | 새 모노레포 `apps/web`(Next.js App Router/FSD) + 이식 | UI 컴포넌트·화면·스타일·React Query 훅 (데이터 계층만 `supabase-js`→route handler 호출로 교체) |
+| **현 레포** | 컷오버까지 운영, 이후 아카이브 | — |
+
+**레포 구조 확정 — 모노레포(turborepo):**
+```
+crm/                  (새 레포 1개)
+├── apps/
+│   ├── web/          (Next.js App Router 풀스택 → AWS Amplify Hosting SSR)
+│   └── be/           (fallback BE 또는 P2/P3 DB 자산 보관)
+├── packages/
+│   └── shared/       (API 계약 타입 공유 — supabase 자동생성 타입 대체)
+└── turbo.json
+```
+- **타입 공유**가 핵심 이점: 현재 `lib/supabase/types.ts`로 FE가 받던 DB 타입을 `packages/shared`의 API 계약 타입으로 대체
+- P3 이후 1차 배포 타겟은 `apps/web` → Amplify SSR. 별도 BE가 필요해지면 `apps/be`를 Express/Fastify 런타임으로 승격한다
+- **Amplify monorepo 빌드 체크리스트**: `appRoot` ↔ `AMPLIFY_MONOREPO_APP_ROOT` 일치, `amplify.yml`의 `buildPath`·`baseDirectory`, pnpm/turborepo면 필요 시 `.npmrc`의 `node-linker=hoisted` 검증
+
+> P3 결과는 `docs/migration-p3-plan.md` 참조. P4는 `apps/web` 중심으로 진행한다.
+
+---
+
+## 1. 현재 → 목표 매핑
+
+| 영역 | 현재 | 목표 |
+|---|---|---|
+| 호스팅/배포 | **Vercel** | **AWS Amplify Hosting SSR** (`apps/web`) |
+| 레포 구조 | 단일 Next.js 풀스택 (현 레포 운영 유지) | **새 모노레포**(turborepo): `apps/web` + `apps/be` fallback + `packages/shared`, 병렬 구축 |
+| DB 접근 | 클라이언트 `supabase-js`가 Supabase Postgres 직접 | Next.js 서버 코드(route handler/server action)가 `pg`로 ClickHouse-managed Postgres 접근. 브라우저 직접 DB 접근 금지 |
+| 운영 DB 엔진 | Supabase Postgres | **ClickHouse-managed Postgres** (PG-호환, pg TCP) |
+| 권한 | RLS 62정책 + `auth.uid()` 16곳 | **RLS 유지** + 세션주입 미들웨어(신규) + FE 기능권한 |
+| 인증 | Supabase Auth (`auth.users`, `profiles.id=uid`) | AWS Cognito (`cognito_sub` ↔ `profiles.id` 매핑) |
+| API | PostgREST (자동, 임베디드 리소스) | Next.js route handler/service layer + DTO 계약 |
+| 분석 | (없음) | ClickHouse OLAP, 운영 PG에서 CDC |
+
+---
+
+## 2. 참조 레포 + 서버/API 스택
+
+| 레포 | 스택 | 참고 가치 |
+|---|---|---|
+| `certi-nav-be-v2` | Node + SAM Lambda + Drizzle(**RDS Data API**) + Cognito | Cognito·라우터·Zod만 차용. **DB 계층은 못 씀**(Data API는 Aurora 전용 — 우리 DB는 pg TCP). RLS 선례 없음 |
+| `ai-admission-chatbot-be` | Python + FastAPI + SQLModel + **pg TCP** + Cognito | pg TCP라 세션주입 자연스러움. 단 boilerplate |
+| `certi-nav-fe` | Next 16 App Router + FSD + React Query + axios(401 refresh) | **FE 표준 기준점** |
+| `chatbot-admin-fe` | Next 16 + permission + group + 다계층 가드 | **FE 기능권한 패턴** |
+
+### 서버/API 스택 — Data API 분기 폐기, pg TCP 확정
+
+운영 DB가 ClickHouse-managed Postgres(**RDS Data API 미제공, 표준 pg TCP**)로 확정됐으므로:
+- ❌ certi-nav식 RDS Data API 경로는 **선택지에서 제외** (Data API는 Aurora 전용)
+- ✅ **P1 결정: 언어 = Node + TypeScript**(FE와 monorepo 타입 공유가 근거)
+- ✅ **P2 결정: `pg` TCP + `SET LOCAL` + RLS 유지 가능**
+- ✅ **P3 결정: Next.js route handler/server code on Amplify SSR이 ClickHouse-managed Postgres에 직접 연결 가능**
+- fallback 후보:
+  - **EC2 단일 + Express/Fastify + `pg`**: Amplify SSR 제약이 운영 기준을 만족하지 못할 때 승격
+  - **ECS/Fargate+ALB**: EC2 단일 안정화 후 고가용성 필요 시 승격
+  - **Lambda/API Gateway**: connection/cold start/풀링 부담으로 현재 우선순위 낮음
+
+### Amplify의 BE 함의
+- **Amplify Hosting SSR**을 Vercel 대체 런타임으로 사용한다.
+- **Next.js route handler/server action에서만 DB 접근**한다. 브라우저는 DB URL/secret을 절대 알면 안 된다.
+- **Amplify Gen2 data(AppSync+DynamoDB)는 미채택**한다. 우리 데이터 모델은 외부 PostgreSQL + RLS이므로 Gen2 data layer와 결이 다르다.
+- P3에서 `/api/db-ping`, `/api/widgets`가 배포 환경에서 통과했으므로 별도 BE는 1차 경로가 아니라 fallback이다.
+- 장시간 batch, migration, CDC 운영 작업은 Next.js route handler에 넣지 않는다. 별도 운영 스크립트/job으로 분리한다.
+
+---
+
+## 3. 핵심 마이그레이션 작업
+
+### 3.1 권한 — RLS 유지(A안) + FE 기능권한 (2층)
+
+#### (A) BE 데이터 권한 = RLS
+
+**세션 식별자 주입** — `auth.uid()`/`"auth"."uid"()`(16곳)를 **단일 헬퍼 함수**로 치환:
+```sql
+CREATE OR REPLACE FUNCTION current_user_id() RETURNS uuid
+  LANGUAGE sql STABLE AS $$
+  SELECT NULLIF(current_setting('app.current_user_id', true), '')::uuid;  -- 2-arg 필수
+$$;
+-- 모든 정책/함수에서 auth.uid() / "auth"."uid"() → current_user_id()
+```
+치환 규칙: `auth.uid() IS NOT NULL`/`"auth"."uid"() IS NOT NULL` → `current_user_id() IS NOT NULL`(NULL→deny) / `id = auth.uid()`/`id = "auth"."uid"()` → `id = current_user_id()`(NULL→false→deny).
+
+**BE는 트랜잭션 단위 주입** (`SET LOCAL`, 풀 오염 방지):
+```sql
+BEGIN; SET LOCAL app.current_user_id = '<profiles.id>'; ... COMMIT;
+```
+- ⚠️ **BE는 주입 전 UUID를 검증**한다. `profiles.id`(이미 uuid)를 주입하므로 정상 경로엔 문제없지만, 잘못된 UUID 문자열은 `::uuid` cast error를 낸다 → **BE에서 UUID 형식 검증 후 `SET`, 검증 실패/미인증 시 주입하지 않고 401/403** (헬퍼는 미설정→NULL→deny로 fail-closed)
+- `SET`(LOCAL 없이)·빈문자·더미 id 절대 금지
+
+**롤 격리**: DDL/admin 롤 ≠ 런타임 앱 롤. 앱은 비-owner·`NOSUPERUSER`·`NOBYPASSRLS` 롤만 사용하고, 모든 public 테이블은 `ENABLE ROW LEVEL SECURITY` 상태로 둔다. P2에서 `FORCE ROW LEVEL SECURITY` 자체는 검증했지만, 실제 CRM 스키마는 `can_access_contract()` 같은 SECURITY DEFINER 가드 함수가 RLS 보호 테이블을 다시 조회하므로 전역 `FORCE RLS` 적용 시 재귀가 발생한다. 따라서 P4 기준은 **`ENABLE RLS` + 비-owner 앱 롤**이며, CDC용 롤과 앱 롤은 분리한다.
+
+**⚠️ SECURITY DEFINER RPC는 RLS 우회**: `create_contract_with_details`·`change_contract_stage`·`soft_delete_*`·`replace_contract_tech_leads`·`update_contract_teams`는 DEFINER라 호출자 RLS를 안 받는다. 방어선은 함수 내부 `can_access_*` 가드 → BE 이관 시 동등 재현 (§7 체크리스트).
+
+#### (B) FE 권한 — role 화면 게이팅만 (UX 보조)
+
+> **원칙**: FE는 role 기반 화면 게이팅만 담당한다. 행 단위 권한 판단은 BE/DB가 단일 출처이며, BE는 도메인 API 응답에 `canEdit`/`canManage` 플래그를 포함한다. FE는 해당 플래그를 표시 제어에만 사용하고 권한 로직을 재구현하지 않는다.
+
+- **role 게이팅(FE 허용)**: `user_role`(staff/team_lead/admin/c_level) 기반 메뉴·라우트·페이지 숨김 (`RoleGuard`·`permissions.ts`, `usePermission`/`hasPagePermission`). role 소스는 **항상 `profiles` DB 조회**(JWT 클레임 신뢰 금지). 어디까지나 UX용 — 최종 권한은 (A) RLS + RPC 가드가 다시 본다
+- **행 단위 권한(FE 재구현 금지)**: `can_access_contract`처럼 "이 사용자가 이 계약을 수정 가능한가"를 FE가 팀·계약·도메인 매핑으로 조합 판단 금지. BE가 `canEdit`/`canManage`/`canDelete`/`canManageRevenueSplit` 등 플래그로 내려주고 FE는 버튼·인라인편집·카드 표시만 제어
+  - ⚠️ 현 `permissions.ts`는 `can_access_client`과 "동일 로직"을 **수동 복제** 중 = drift 위험. 새 구조에선 행 단위 판단을 FE에서 제거하고 BE 플래그로 단일화
+- **이식·보강 대상**: 이식(P8) = `RoleGuard`·`permissions.ts`의 role 게이팅 → 새 FE로 / 보강(P8) = `RevenueSplitCard`·`EditableContractName` 등 현재 **항상 노출되는 편집 UI** → BE 플래그 기반 숨김·`disabled` 처리
+- **구현 시점**: P7 도메인 API(응답 DTO에 권한 플래그 포함) → P8 FE(플래그로 표시 제어)
+
+### 3.2 인증: Supabase Auth → AWS Cognito
+- `profiles.id`는 기존 GoTrue uuid **유지**, Cognito `sub`는 **별도 컬럼**(`cognito_sub`)으로 추가. P5 dev의 Cognito local user는 UUID로 충분하지만, SAML/OIDC federation을 바로 붙이면 `text` 또는 `provider+subject` 매핑 테이블로 조정한다. FK→`auth.users` 제거
+- **데이터 이관 시 매핑 백필**: 기존 사용자 Cognito 일괄 생성 → `cognito_sub ↔ profiles.id` 매핑 (안 하면 `changed_by`·`created_by` 이력 단절)
+- 요청 흐름: JWT 검증(JWKS 서명·`iss`·`exp`·`token_use`=access·`client_id` — `aud`는 resource binding 사용 시에만) → `cognito_sub`로 `profiles.id` 조회 → UUID 검증 → `SET LOCAL`. 조회 실패 시 401/403
+- ⚠️ **크로스 도메인(FE=Amplify ↔ BE=별도 도메인) CORS/Auth 전달 방식 결정 필요**: 쿠키 기반이면 `SameSite`/`domain`/`Secure` 설정, Bearer 토큰 기반이면 refresh 흐름(401 자동 갱신)을 명시. certi-nav-fe는 httpOnly 쿠키 + 401 refresh 패턴 → 차용 검토 (§5)
+- `handle_new_user` 트리거 제거 → P5에서는 기존 `profiles`와 Cognito `sub` 매핑만 검증. 신규 가입/초대용 `profiles` 생성 함수는 P5b/P8 이전 별도 게이트로 분리(가입 시점엔 본인 `profiles.id`가 없어 RLS를 못 거치므로 별도 설계 필요)
+
+### 3.3 `supabase-js` → REST API
+- 실측: `@supabase/*` 직접 import 4 + 래핑 client 경유 약 27 + `rpc()` 7. 페이지·훅이 `.from()` 직접 호출
+- **PostgREST 의존 패턴 = 전용 엔드포인트 재설계**(단순 치환 불가): 임베디드 리소스(중첩 select), `count: exact, head: true`, 배열 연산자(`.contains()`), `.or()` 검색, 조건부 UPDATE+rowCount 낙관적 락(`voidTransaction`)
+- **신원값은 BE가 JWT에서만 주입**: `change_contract_stage`의 `p_user_id` 제거, `created_by`/`voided_by`/`changed_by`는 세션에서 (FE 입력 신뢰 금지 — 위조 방지)
+- 비-RPC 직접 변이(`.from().update().eq('id')`)는 RLS가 유일 방어 → P6에서 UPDATE/DELETE 격리까지 검증
+
+### 3.4 DB 스키마 → BE ORM 〔재추출 선행〕
+- **선행: 운영 DB `pg_dump` 재추출** + 적용 migrations 정합성 대조. `schema.sql` stale(`'tt'`→`'edu'` 정정). 이 정정본을 ORM raw SQL 입력으로
+- 객체: 테이블 20 · enum 16 · 뷰 2(`client_list_view.contract_count` read 의존 — raw SQL + 파생컬럼 API 응답 보존) · public 트리거 18 · 함수 23(**P4 적용 22, `handle_new_user` 제외**) · **RLS 정책 62**
+- generated column·부분 unique·CHECK·RLS·트리거는 ORM 자동생성 불가 → **raw SQL 마이그레이션**
+- **발번 함수 동시성**: `generate_*_id`는 `MAX+1`(시퀀스 아님) → 멀티인스턴스 동시성 UNIQUE 위반 → advisory lock 또는 SEQUENCE 리팩터. 이관 시 시작값=기존 MAX+1
+
+### 3.5 운영 DB: ClickHouse-managed Postgres 〔pg TCP · preview〕
+- **표준 PostgreSQL**(Ubicloud 기반, **private preview**). **RDS Data API 없음** → 표준 `pg` TCP 연결
+- **앱 연결**: Lambda 사용 시 **PgBouncer류 풀러 필수**. transaction-mode 풀러 + prepared statement 충돌 주의(`?pgbouncer=true`/simple query). `SET LOCAL`은 트랜잭션 단위라 transaction mode와 호환
+- ⚠️ **CDC 연결은 풀러 경유 금지**: ClickPipes CDC(분석 복제)는 PgBouncer/RDS Proxy/Supabase Pooler 같은 proxy를 거치면 안 된다. **replication slot/publication 접근 가능한 실제 Postgres 엔드포인트에 직접 연결**해야 한다 (앱 연결과 별개 경로)
+- **[확인필요]**(preview): RLS 실동작, 비특권 롤 분리, 풀러 모드(session/transaction), GA 일정·SLA. `FORCE RLS`는 P2에서 지원 여부만 확인했고 실제 CRM 적용 기준에서는 제외. 안 되면 §8 B안 fallback
+
+### 3.6 운영 이관 vs 분석 복제 — 분리 (혼동 금지)
+| 경로 | 목적 | 도구 |
+|---|---|---|
+| Supabase Postgres → **ClickHouse-managed Postgres** | 운영 원장 이관 | **`pg_dump`/restore + logical replication**(초기 스냅샷 + CDC 따라잡기). managed Postgres의 external-Postgres 마이그레이션 워크플로 활용 가능 |
+| ClickHouse-managed Postgres → **ClickHouse OLAP** | 분석 복제 | **Postgres CDC ClickPipe** — managed Postgres의 publication/replication slot을 사용해 ClickHouse OLAP로 복제 (풀러 경유 금지 — 실제 PG 엔드포인트 직결) |
+
+> ⚠️ 구분:
+> - **운영 이관(→ ClickHouse-managed Postgres)**: pg_dump/restore, logical replication, 또는 managed Postgres가 제공하는 external-Postgres 마이그레이션 워크플로
+> - **분석 복제(→ ClickHouse OLAP)**: Postgres CDC ClickPipe (UPDATE/DELETE는 ClickHouse의 ReplacingMergeTree로 반영)
+>
+> 즉 **"Postgres CDC ClickPipe"를 운영 DB 이관과 혼동하지 말 것.**
+
+---
+
+## 4. 단계별 실행 계획
+
+> 아래 **단계 번호(P0~P10)는 문서 섹션 번호(§)와 별개**다. `⛔`는 통과 못 하면 다음 단계로 못 가는 차단 게이트.
+
+| 단계 | 작업 | 게이트 |
+|---|---|---|
+| **P0. ✅ 재추출 hard gate** | (완료) 운영 DB 재추출 + stale CHECK(`tt`→`edu`) 정정 + `update_contract_teams` 가드·검증 | ✅ 완료 |
+| **P1. ✅ 결정 + 전수조사** | supabase-js **19파일**·rpc 7·임베디드/count/배열 + Auth 이관 인벤토리, RLS 62 / `auth.uid()` 16 → `current_user_id()` 치환 검증, 보안결함 목록. **결정: Node+TS+pg · i18n 불필요** | ✅ 완료 (`migration-p1-inventory.md`) |
+| **P2. ✅ 세션주입 PoC** | Node+`pg` `withCurrentUser` tx wrapper. (a) 로컬 선행 11항목 + (b) ClickHouse-managed 최종 게이트(비특권 롤·FORCE RLS·extension·PgBouncer 6432·격리) | ✅ **5/5 통과 — A안 RLS 확정** (migration-p2-plan.md §6) |
+| **P3. ✅ 인프라 PoC** | Amplify Next.js 풀스택 SSR 배포. `/api/health`·`/api/db-ping`·`/api/widgets`로 DB 접속 + `withCurrentUser` + RLS 검증. **별도 EC2 BE는 fallback** | ✅ 완료 (`migration-p3-plan.md`) |
+| **P4. ✅ 실제 CRM 스키마+RLS 이전** | `nxt_crm_dev`에 `public` schema 변환 적용: `auth.uid()`→`current_user_id()`, `profiles->auth.users` FK 제거, `ENABLE RLS`, 앱 role grants, 실제 CRM 테이블 smoke API | ✅ 완료 — Amplify smoke 통과 (`migration-p4-plan.md`) |
+| **P5. 인증** | Cognito, auth 엔드포인트, JWT 검증, `cognito_sub↔profiles.id` + UUID 검증 + `SET LOCAL` 미들웨어. 가입/초대 profile 생성은 P5b/P8 이전 별도 게이트 | 로그인+RLS 작동 (`migration-p5-plan.md`) |
+| **P6. ⛔ RLS 격리 검증** | `current_user_id()` 치환, 팀A 토큰으로 팀B **SELECT/UPDATE/DELETE 차단**, 미주입 시 deny, 비-owner 앱 롤·비특권 롤 자동검증 | **통과 전 P7 금지** |
+| **P7. 도메인 API 이관** | clients→contracts→deposit→education. RPC→BE 트랜잭션 + **can_access 가드 동등 재현 1:1**, 신원 BE 주입 | 도메인 API |
+| **P8. FE 레포** | Next FSD, 화면 이관, supabase-js→axios+React Query, 임베디드/count 대응, FE 기능권한 | 동작 FE |
+| **P9. 운영 이관 + 컷오버** | Cognito 사용자 일괄생성 + sub↔id 매핑 백필, 발번 시퀀스 셋업, **pg_dump/logical replication으로 운영 이관**, 쓰기 전환 | 운영 전환 |
+| **P10. (후속) 분석 파이프라인** | ClickHouse-managed Postgres → ClickHouse OLAP **Postgres CDC ClickPipe**(PG 엔드포인트 직결, 풀러 경유 금지), 분석 모델 | 분석 가동 |
+
+---
+
+## 5. 미결정 · 확인 사항
+
+1. **서버/API 스택 + Amplify 범위** — **✅ P3 결정: Next.js route handler/server code + `pg` on Amplify SSR**. Amplify Gen2 data layer는 미채택. 별도 Node BE(Express/Fastify)는 fallback (§2)
+2. **ClickHouse-managed Postgres** — ✅ **P2 범위 검증 완료 (2026-06-25)**: RLS·비특권 롤 생성·PgBouncer(6432) transaction-mode 전부 확인. `FORCE RLS`는 지원 여부를 확인했지만 실제 CRM에는 SECURITY DEFINER 가드 함수 재귀 때문에 미적용. **남은 확인: GA 일정·SLA·운영 정책**(기본 `postgres` DB 사용 금지, admin/app 롤 분리 등)
+3. 운영 이관 다운타임 허용 범위(logical replication 컷오버)
+4. **서버 배포 형태** — **✅ P3 결정: Amplify Hosting SSR 1차 채택**. EC2 단일 인스턴스 MVP는 Amplify SSR 제약이 운영 기준을 만족하지 못할 때 fallback
+5. **Auth 전달** — P3는 dev header/mock user로 검증. P5에서 Cognito JWT 검증 방식 확정. 같은 Next.js origin이면 route handler에서 Bearer/session 처리 단순화 가능, 별도 BE fallback 시 CORS + Authorization 헤더 정책 재검토
+6. **managed Postgres 네트워크 경로**: public endpoint+TLS/IP allowlist vs private link/peering → BE 연결 방식·VPC 필요 여부 결정
+7. i18n 필요 여부 — **✅ P1 결정: 불필요** (한국어 전용 유지; 필요시 P8 FE에서 next-intl 등 도입)
+8. 분석(P10): CDC로 보낼 테이블, 비정규화 모델
+
+---
+
+## 6. 영향 범위 (실측)
+
+| 항목 | 수치 |
+|---|---|
+| `@supabase/*` 직접 import | 4 |
+| 래핑 client 경유 | 약 27 |
+| `rpc()` 호출 | 7 |
+| RLS 정책 | 62 (유지 + `current_user_id()` 치환 + 정합성 검증) |
+| `auth.uid()` | 16곳 |
+| 트리거 / 함수 | 19 / 23 |
+| 뷰 / 테이블 / enum | 2 / 20 / 16 |
+| 비대상(미사용 확인) | Realtime·Storage·Edge Functions **0건** |
+
+---
+
+## 7. 보안 선수정 + RPC 가드 체크리스트
+
+이관 전 수정: `update_contract_teams`에 `SET search_path = public` + `can_access_contract` 가드 / RLS 62 컬럼참조 정합성 검증 / `contracts_stage_check` `'tt'`→`'edu'`.
+
+BE 이관 시 RPC 가드 동등 재현(1:1): `create_contract_with_details`(can_access_client) · `change_contract_stage`(can_access_contract + p_user_id 제거→세션) · `soft_delete_*`(can_access_*) · `replace_contract_tech_leads`(can_access_contract) · `update_contract_teams`(**추가**).
+
+---
+
+## 8. 의사결정 표 — 권한 전략
+
+| | A안: RLS 유지 〔채택〕 | B안: 앱레이어 권한 (fallback) |
+|---|---|---|
+| 격리 | DB 강제 (쿼리 빠뜨려도 막힘) | BE 코드가 매 쿼리 필터 (누수 위험) |
+| 작업량 | 적음 (정책 재사용 + `current_user_id` 치환) | 많음 (62정책 전부 코드로) |
+| 전제 | 세션주입 PoC(P2) 통과 | — |
+| 선택 조건 | 기본 | **P2 실패** 또는 회사 정책 강제 시에만 |
+
+**A안 채택.** CRM은 팀별 행 격리가 핵심이라 RLS가 안전·저비용. B안은 PoC 실패 시 비상 경로로만.
+
+---
+
+## 9. 핵심 판단
+
+- **이 문서는 "ClickHouse 전환"이 아니라 "Supabase 탈피 + Amplify/Next.js 서버 런타임 + Cognito"다.** 운영 DB는 PostgreSQL 호환(ClickHouse-managed Postgres)이라 RLS·트랜잭션 전략을 원칙적으로 유지할 수 있다.
+- **1순위는 프레임워크 논쟁이 아니라 (P0) schema 재추출과 (P2) 세션주입 PoC다.** 전자는 stale 때문에 hard blocker, 후자는 RLS 보안 모델의 단일 의존점이었다. 둘 다 완료됐고, P3에서 Amplify SSR 경로까지 검증됐다.
+- 운영 이관(pg_dump/logical replication)과 분석 복제(ClickPipes→ClickHouse OLAP)는 **다른 경로**다. 섞지 말 것.
+- 보안 3중: RLS + RPC 내장 가드 + FE 기능권한. RPC는 RLS 우회하므로 RLS만 믿으면 안 됨.
