@@ -41,12 +41,16 @@ function ChildClientsTable({ children: childClients }: { children: ClientRow['ch
             {items.map((child) => (
               <tr key={child.id} className="border-t border-zinc-100">
                 <td className="h-10 px-3">
-                  <Link href={`${basePath}/clients/${child.id}`} className="font-medium text-blue-600 hover:underline">
+                  <Link
+                    href={`${basePath}/clients/${child.id}`}
+                    className="font-medium text-blue-600 hover:underline break-words"
+                  >
                     {child.name}
                   </Link>
                 </td>
                 <td className="h-10 px-3 text-zinc-500">
-                  {CLIENT_TYPES[child.client_type as keyof typeof CLIENT_TYPES] ?? child.client_type}
+                  {CLIENT_TYPES[child.client_type as keyof typeof CLIENT_TYPES] ??
+                    child.client_type}
                 </td>
                 <td className="h-10 px-3 text-zinc-500">{child.grade ?? '-'}</td>
               </tr>
@@ -74,13 +78,13 @@ export function ClientTabs({ client }: ClientTabsProps) {
       <button
         type="button"
         onClick={() => router.back()}
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-colors hover:bg-zinc-50"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-colors hover:bg-zinc-50"
       >
         <ArrowLeft className="h-4 w-4" />
       </button>
-      <h1 className="text-2xl font-semibold text-zinc-900">{client.name}</h1>
+      <h1 className="min-w-0 truncate text-2xl font-semibold text-zinc-900">{client.name}</h1>
       {isParent && (
-        <span className="rounded bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
+        <span className="shrink-0 rounded bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
           상위 고객
         </span>
       )}

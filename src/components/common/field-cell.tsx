@@ -42,7 +42,7 @@ export function FieldReadText({
   const isEmpty =
     children == null || children === '' || (Array.isArray(children) && children.length === 0);
   return (
-    <p className={cn('text-[15px] font-medium text-zinc-900', className)}>
+    <p className={cn('text-[15px] font-medium text-zinc-900 break-words', className)}>
       {isEmpty ? '-' : children}
     </p>
   );
@@ -102,7 +102,9 @@ export function FieldNumber({
     );
   }
   return (
-    <FieldReadText>{readValue != null ? (format ? format(readValue) : String(readValue)) : null}</FieldReadText>
+    <FieldReadText>
+      {readValue != null ? (format ? format(readValue) : String(readValue)) : null}
+    </FieldReadText>
   );
 }
 
@@ -135,7 +137,12 @@ export function FieldSelect({
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="h-9">
           {colors && value ? (
-            <span className={cn('rounded px-2 py-0.5 text-[12px] font-semibold', colors[value] ?? 'bg-zinc-100 text-zinc-600')}>
+            <span
+              className={cn(
+                'rounded px-2 py-0.5 text-[12px] font-semibold',
+                colors[value] ?? 'bg-zinc-100 text-zinc-600',
+              )}
+            >
               {value}
             </span>
           ) : (
@@ -149,7 +156,12 @@ export function FieldSelect({
             return (
               <SelectItem key={v} value={v}>
                 {colors ? (
-                  <span className={cn('rounded px-2 py-0.5 text-[12px] font-semibold', colors[v] ?? 'bg-zinc-100 text-zinc-600')}>
+                  <span
+                    className={cn(
+                      'rounded px-2 py-0.5 text-[12px] font-semibold',
+                      colors[v] ?? 'bg-zinc-100 text-zinc-600',
+                    )}
+                  >
                     {label}
                   </span>
                 ) : (
@@ -164,7 +176,12 @@ export function FieldSelect({
   }
   if (colors && readValue) {
     return (
-      <span className={cn('inline-block rounded px-2.5 py-0.5 text-[13px] font-semibold', colors[readValue] ?? 'bg-zinc-100 text-zinc-600')}>
+      <span
+        className={cn(
+          'inline-block rounded px-2.5 py-0.5 text-[13px] font-semibold',
+          colors[readValue] ?? 'bg-zinc-100 text-zinc-600',
+        )}
+      >
         {readValue}
       </span>
     );
@@ -192,12 +209,13 @@ export function FieldMultiSelect({
   chipClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const selected = value.split(',').map((s) => s.trim()).filter(Boolean);
+  const selected = value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   function toggle(tag: string) {
-    const next = selected.includes(tag)
-      ? selected.filter((t) => t !== tag)
-      : [...selected, tag];
+    const next = selected.includes(tag) ? selected.filter((t) => t !== tag) : [...selected, tag];
     onChange(next.join(', '));
   }
 
@@ -206,7 +224,10 @@ export function FieldMultiSelect({
     return (
       <div className="flex flex-wrap gap-1.5">
         {readValues.map((v) => (
-          <span key={v} className={cn('rounded-md px-2 py-0.5 text-[13px] font-medium', chipClassName)}>
+          <span
+            key={v}
+            className={cn('rounded-md px-2 py-0.5 text-[13px] font-medium', chipClassName)}
+          >
             {v}
           </span>
         ))}
@@ -226,14 +247,25 @@ export function FieldMultiSelect({
             <span className="text-zinc-400">{placeholder}</span>
           ) : (
             selected.map((tag) => (
-              <span key={tag} className={cn('rounded px-2 py-0.5 text-[11px] font-semibold', chipClassName)}>
+              <span
+                key={tag}
+                className={cn('rounded px-2 py-0.5 text-[11px] font-semibold', chipClassName)}
+              >
                 {tag}
               </span>
             ))
           )}
         </span>
-        <svg className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+        <svg
+          className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+            clipRule="evenodd"
+          />
         </svg>
       </button>
       {open && (
@@ -249,9 +281,17 @@ export function FieldMultiSelect({
                   active ? 'bg-blue-50' : 'hover:bg-zinc-50'
                 }`}
               >
-                <div className={`flex h-4 w-4 items-center justify-center rounded border ${active ? 'border-blue-600 bg-blue-600' : 'border-zinc-300'}`}>
+                <div
+                  className={`flex h-4 w-4 items-center justify-center rounded border ${active ? 'border-blue-600 bg-blue-600' : 'border-zinc-300'}`}
+                >
                   {active && (
-                    <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      className="h-3 w-3 text-white"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <path d="M2.5 6l2.5 2.5 4.5-4.5" />
                     </svg>
                   )}
@@ -352,7 +392,10 @@ function HybridChipInput({
   chipClassName?: string;
   validate?: (v: string) => string | undefined;
 }) {
-  const chips = value.split(',').map((s) => s.trim()).filter(Boolean);
+  const chips = value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   const [mode, setMode] = useState<'chip' | 'text'>('chip');
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -362,8 +405,18 @@ function HybridChipInput({
   function addChip(raw: string) {
     const trimmed = raw.trim();
     if (!trimmed) return;
-    if (chips.includes(trimmed)) { setInputValue(''); setError('이미 추가된 값입니다'); return; }
-    if (validate) { const err = validate(trimmed); if (err) { setError(err); return; } }
+    if (chips.includes(trimmed)) {
+      setInputValue('');
+      setError('이미 추가된 값입니다');
+      return;
+    }
+    if (validate) {
+      const err = validate(trimmed);
+      if (err) {
+        setError(err);
+        return;
+      }
+    }
     setError(null);
     onChange([...chips, trimmed].join(', '));
     setInputValue('');
@@ -388,7 +441,10 @@ function HybridChipInput({
     const text = e.clipboardData.getData('text');
     if (text.includes(',') || text.includes('\n')) {
       e.preventDefault();
-      const items = text.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+      const items = text
+        .split(/[,\n]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
       const valid: string[] = [];
       for (const item of items) {
         if (chips.includes(item) || valid.includes(item)) continue;
@@ -406,7 +462,10 @@ function HybridChipInput({
   }
 
   function switchToChip() {
-    const ids = textValue.split('\n').map((s) => s.trim()).filter(Boolean);
+    const ids = textValue
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const valid = [...new Set(validate ? ids.filter((id) => !validate(id)) : ids)];
     onChange(valid.join(', '));
     setMode('chip');
@@ -420,7 +479,11 @@ function HybridChipInput({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-xs text-zinc-500">한 줄에 하나씩 입력</p>
-          <button type="button" onClick={switchToChip} className="text-[11px] text-blue-600 hover:underline">
+          <button
+            type="button"
+            onClick={switchToChip}
+            className="text-[11px] text-blue-600 hover:underline"
+          >
             칩으로 편집
           </button>
         </div>
@@ -433,7 +496,9 @@ function HybridChipInput({
         />
         <p className="text-[11px] text-zinc-400">
           {lines.length}개 입력
-          {invalidLines.length > 0 && <span className="text-red-500"> · {invalidLines.length}개 유효하지 않음</span>}
+          {invalidLines.length > 0 && (
+            <span className="text-red-500"> · {invalidLines.length}개 유효하지 않음</span>
+          )}
         </p>
       </div>
     );
@@ -443,7 +508,11 @@ function HybridChipInput({
   return (
     <div className="space-y-1.5">
       <div className="flex justify-end">
-        <button type="button" onClick={switchToText} className="text-[11px] text-blue-600 hover:underline">
+        <button
+          type="button"
+          onClick={switchToText}
+          className="text-[11px] text-blue-600 hover:underline"
+        >
           텍스트로 편집
         </button>
       </div>
@@ -451,7 +520,10 @@ function HybridChipInput({
         {chips.map((chip, i) => (
           <span
             key={`${chip}-${i}`}
-            className={cn('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[13px] font-medium', chipClassName)}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[13px] font-medium',
+              chipClassName,
+            )}
           >
             {chip}
             <button
@@ -459,7 +531,13 @@ function HybridChipInput({
               onClick={() => removeChip(i)}
               className="ml-0.5 rounded-full p-0.5 hover:bg-black/10 transition-colors"
             >
-              <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                className="h-3 w-3"
+                viewBox="0 0 12 12"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M3 3l6 6M9 3l-6 6" />
               </svg>
             </button>
@@ -470,14 +548,18 @@ function HybridChipInput({
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          onBlur={() => { if (inputValue.trim()) addChip(inputValue); }}
+          onBlur={() => {
+            if (inputValue.trim()) addChip(inputValue);
+          }}
           placeholder={chips.length === 0 ? placeholder : ''}
           className="min-w-[120px] flex-1 border-none bg-transparent py-0.5 text-sm outline-none placeholder:text-zinc-400"
         />
       </div>
       {error && <p className="text-[11px] text-red-500">{error}</p>}
       {chips.length > 0 && (
-        <p className="text-[11px] text-zinc-400">{chips.length}개 · Enter로 추가, Backspace로 삭제</p>
+        <p className="text-[11px] text-zinc-400">
+          {chips.length}개 · Enter로 추가, Backspace로 삭제
+        </p>
       )}
     </div>
   );

@@ -32,7 +32,9 @@ export function ContractMemoCard({ contractId, memo }: ContractMemoCardProps) {
   async function handleSave() {
     setSaving(true);
     try {
-      await contractService.update(contractId, { memo: draft || null } as Parameters<typeof contractService.update>[1]);
+      await contractService.update(contractId, { memo: draft || null } as Parameters<
+        typeof contractService.update
+      >[1]);
       queryClient.invalidateQueries({ queryKey: ['contract', contractId] });
       toast.success('메모가 저장되었습니다');
       setEditing(false);
@@ -57,13 +59,28 @@ export function ContractMemoCard({ contractId, memo }: ContractMemoCardProps) {
         <h3 className="text-lg font-semibold text-zinc-900">메모</h3>
         {editing ? (
           <div className="flex gap-1.5">
-            <button type="button" onClick={handleCancel} className="h-[30px] rounded-md border border-zinc-200 px-3 text-[12px] text-zinc-500 hover:bg-zinc-50">취소</button>
-            <button type="button" onClick={handleSave} disabled={saving} className="h-[30px] rounded-md bg-blue-600 px-3 text-[12px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="h-[30px] rounded-md border border-zinc-200 px-3 text-[12px] text-zinc-500 hover:bg-zinc-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="h-[30px] rounded-md bg-blue-600 px-3 text-[12px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            >
               {saving ? '저장 중...' : '저장'}
             </button>
           </div>
         ) : (
-          <button type="button" onClick={startEdit} className="flex h-[30px] items-center gap-1 rounded-md border border-zinc-200 px-2.5 text-[12px] text-zinc-400 hover:bg-zinc-50">
+          <button
+            type="button"
+            onClick={startEdit}
+            className="flex h-[30px] items-center gap-1 rounded-md border border-zinc-200 px-2.5 text-[12px] text-zinc-400 hover:bg-zinc-50"
+          >
             <Pencil className="h-3 w-3" /> 수정
           </button>
         )}
@@ -84,7 +101,9 @@ export function ContractMemoCard({ contractId, memo }: ContractMemoCardProps) {
         ) : (
           <div className="max-h-48 overflow-y-auto">
             {memo ? (
-              <p className="text-sm leading-relaxed text-zinc-700 whitespace-pre-wrap">{memo}</p>
+              <p className="text-sm leading-relaxed text-zinc-700 whitespace-pre-wrap break-words">
+                {memo}
+              </p>
             ) : (
               <p className="text-sm text-zinc-400">메모가 없습니다</p>
             )}
