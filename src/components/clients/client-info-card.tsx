@@ -13,7 +13,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Pencil } from 'lucide-react';
-import { CLIENT_TYPES, CLIENT_GRADES, BUSINESS_TYPES, CLIENT_STATUS_OPTIONS } from '@/lib/constants';
+import {
+  CLIENT_TYPES,
+  CLIENT_GRADES,
+  BUSINESS_TYPES,
+  CLIENT_STATUS_OPTIONS,
+} from '@/lib/constants';
 import { clientUpdateSchema } from '@/lib/validators/client';
 import { useUpdateClient } from '@/hooks/use-client-mutations';
 import type { ClientRow } from '@/lib/services/client-service';
@@ -62,8 +67,25 @@ export function ClientInfoCard({ client, canManage }: ClientInfoCardProps) {
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-zinc-900">고객 정보</h3>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => { setEditing(false); setEditBusinessTypes(client.business_types ?? []); }}>취소</Button>
-            <Button type="submit" size="sm" disabled={updateClient.isPending} className="bg-blue-600 hover:bg-blue-700">저장</Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditing(false);
+                setEditBusinessTypes(client.business_types ?? []);
+              }}
+            >
+              취소
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={updateClient.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              저장
+            </Button>
           </div>
         </div>
         <div className="grid grid-cols-5 gap-4">
@@ -74,10 +96,14 @@ export function ClientInfoCard({ client, canManage }: ClientInfoCardProps) {
           <div className="space-y-1.5">
             <Label>유형</Label>
             <Select name="clientType" defaultValue={client.client_type}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {Object.entries(CLIENT_TYPES).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                  <SelectItem key={k} value={k}>
+                    {v}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -85,10 +111,14 @@ export function ClientInfoCard({ client, canManage }: ClientInfoCardProps) {
           <div className="space-y-1.5">
             <Label>등급</Label>
             <Select name="grade" defaultValue={client.grade ?? ''}>
-              <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="-" />
+              </SelectTrigger>
               <SelectContent>
                 {CLIENT_GRADES.map((g) => (
-                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                  <SelectItem key={g} value={g}>
+                    {g}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -96,10 +126,14 @@ export function ClientInfoCard({ client, canManage }: ClientInfoCardProps) {
           <div className="space-y-1.5">
             <Label>상태</Label>
             <Select name="status" defaultValue={client.status ?? '상태없음'}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {CLIENT_STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -114,7 +148,11 @@ export function ClientInfoCard({ client, canManage }: ClientInfoCardProps) {
                   onClick={() => toggleEditBizType(key)}
                   className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-colors ${
                     editBusinessTypes.includes(key)
-                      ? ({ msp: 'bg-blue-100 text-blue-600', tt: 'bg-amber-100 text-amber-700', dev: 'bg-zinc-200 text-zinc-700' }[key] ?? 'bg-blue-100 text-blue-600')
+                      ? ({
+                          msp: 'bg-blue-100 text-blue-600',
+                          tt: 'bg-amber-100 text-amber-700',
+                          dev: 'bg-zinc-200 text-zinc-700',
+                        }[key] ?? 'bg-blue-100 text-blue-600')
                       : 'bg-zinc-100 text-zinc-400'
                   }`}
                 >
@@ -155,9 +193,9 @@ export function ClientInfoCard({ client, canManage }: ClientInfoCardProps) {
       </div>
 
       <div className="grid grid-cols-5 gap-8">
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <p className="text-xs font-medium text-zinc-400">고객사명</p>
-          <p className="text-[15px] font-medium text-zinc-900">{client.name}</p>
+          <p className="text-[15px] font-medium text-zinc-900 break-words">{client.name}</p>
         </div>
         <div className="space-y-1">
           <p className="text-xs font-medium text-zinc-400">고객 유형</p>
@@ -179,16 +217,18 @@ export function ClientInfoCard({ client, canManage }: ClientInfoCardProps) {
           <p className="text-xs font-medium text-zinc-400">상태</p>
           {(() => {
             const STATUS_COLORS: Record<string, string> = {
-              '신규': 'bg-violet-100 text-violet-600',
-              '진행중': 'bg-indigo-100 text-indigo-600',
-              '활성': 'bg-emerald-100 text-emerald-600',
-              '휴면': 'bg-zinc-100 text-zinc-500',
-              '종료': 'bg-rose-100 text-rose-600',
-              '상태없음': 'bg-zinc-100 text-zinc-400',
+              신규: 'bg-violet-100 text-violet-600',
+              진행중: 'bg-indigo-100 text-indigo-600',
+              활성: 'bg-emerald-100 text-emerald-600',
+              휴면: 'bg-zinc-100 text-zinc-500',
+              종료: 'bg-rose-100 text-rose-600',
+              상태없음: 'bg-zinc-100 text-zinc-400',
             };
             const status = client.status ?? '상태없음';
             return (
-              <span className={`inline-block rounded px-2.5 py-0.5 text-[13px] font-semibold ${STATUS_COLORS[status] ?? 'bg-zinc-100 text-zinc-500'}`}>
+              <span
+                className={`inline-block rounded px-2.5 py-0.5 text-[13px] font-semibold ${STATUS_COLORS[status] ?? 'bg-zinc-100 text-zinc-500'}`}
+              >
                 {status}
               </span>
             );
@@ -217,7 +257,7 @@ export function ClientInfoCard({ client, canManage }: ClientInfoCardProps) {
 
       <div className="space-y-2">
         <p className="text-xs font-medium text-zinc-400">메모</p>
-        <p className="text-sm leading-relaxed text-zinc-900">
+        <p className="text-sm leading-relaxed text-zinc-900 whitespace-pre-wrap break-words">
           {client.memo || '-'}
         </p>
       </div>

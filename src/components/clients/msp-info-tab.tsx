@@ -3,7 +3,13 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Pencil } from 'lucide-react';
 import { INDUSTRY_OPTIONS, COMPANY_SIZE_OPTIONS } from '@/lib/constants';
@@ -137,7 +143,9 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
           </div>
           <div className="rounded-lg bg-zinc-50 p-4 space-y-1">
             <p className="text-xs font-medium text-zinc-400">총 금액</p>
-            <p className="text-xl font-bold text-zinc-900">{formatAmount(contractSummary?.totalAmount ?? 0)}</p>
+            <p className="text-xl font-bold text-zinc-900">
+              {formatAmount(contractSummary?.totalAmount ?? 0)}
+            </p>
           </div>
           <div className="rounded-lg bg-zinc-50 p-4 space-y-1">
             <p className="text-xs font-medium text-zinc-400">활성 계약</p>
@@ -148,7 +156,9 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
             <p className="text-xl font-bold text-rose-600">{contractSummary?.unpaid ?? 0}건</p>
           </div>
         </div>
-        <p className="text-xs text-zinc-400">상세 계약 정보는 &apos;관련 계약&apos; 탭 또는 계약 상세 페이지에서 확인하세요.</p>
+        <p className="text-xs text-zinc-400">
+          상세 계약 정보는 &apos;관련 계약&apos; 탭 또는 계약 상세 페이지에서 확인하세요.
+        </p>
       </div>
 
       {/* MSP 정보 카드 */}
@@ -190,10 +200,19 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
           <div className="space-y-1">
             <p className="text-xs font-medium text-zinc-400">산업 분야</p>
             {editing ? (
-              <Select value={(val('industry') as string) ?? ''} onValueChange={(v) => setField('industry', v)}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="선택" /></SelectTrigger>
+              <Select
+                value={(val('industry') as string) ?? ''}
+                onValueChange={(v) => setField('industry', v)}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="선택" />
+                </SelectTrigger>
                 <SelectContent>
-                  {INDUSTRY_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  {INDUSTRY_OPTIONS.map((o) => (
+                    <SelectItem key={o} value={o}>
+                      {o}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             ) : (
@@ -203,10 +222,19 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
           <div className="space-y-1">
             <p className="text-xs font-medium text-zinc-400">기업 규모</p>
             {editing ? (
-              <Select value={(val('company_size') as string) ?? ''} onValueChange={(v) => setField('company_size', v)}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="선택" /></SelectTrigger>
+              <Select
+                value={(val('company_size') as string) ?? ''}
+                onValueChange={(v) => setField('company_size', v)}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="선택" />
+                </SelectTrigger>
                 <SelectContent>
-                  {COMPANY_SIZE_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  {COMPANY_SIZE_OPTIONS.map((o) => (
+                    <SelectItem key={o} value={o}>
+                      {o}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             ) : (
@@ -230,7 +258,9 @@ export function MspInfoTab({ clientId }: MspInfoTabProps) {
               placeholder="메모를 입력하세요"
             />
           ) : (
-            <p className="text-sm leading-relaxed text-zinc-900">{detail?.memo || '-'}</p>
+            <p className="text-sm leading-relaxed text-zinc-900 whitespace-pre-wrap break-words">
+              {detail?.memo || '-'}
+            </p>
           )}
         </div>
       </div>

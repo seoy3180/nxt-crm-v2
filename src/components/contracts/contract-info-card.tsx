@@ -165,12 +165,12 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
             </div>
           )}
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <p className="text-xs font-medium text-zinc-400">고객</p>
           {contract.client_id ? (
             <Link
               href={`${basePath}/clients/${contract.client_id}`}
-              className="text-base font-medium text-blue-600 hover:underline"
+              className="text-base font-medium text-blue-600 hover:underline break-words"
             >
               {contract.client_name ?? '-'}
             </Link>
@@ -183,7 +183,7 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
       <div className="h-px bg-zinc-100" />
 
       <div className="grid grid-cols-2 gap-8">
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <p className="text-xs font-medium text-zinc-400">사내 담당자</p>
           {editing ? (
             <Select
@@ -202,14 +202,16 @@ export function ContractInfoCard({ contract }: ContractInfoCardProps) {
               </SelectContent>
             </Select>
           ) : (
-            <p className="text-base font-medium text-zinc-900">
+            <p className="text-base font-medium text-zinc-900 break-words">
               {contract.assigned_to_name ?? '-'}
             </p>
           )}
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <p className="text-xs font-medium text-zinc-400">고객사 담당자</p>
-          <p className="text-base font-medium text-zinc-900">{contract.contact_name ?? '-'}</p>
+          <p className="text-base font-medium text-zinc-900 break-words">
+            {contract.contact_name ?? '-'}
+          </p>
         </div>
       </div>
     </div>

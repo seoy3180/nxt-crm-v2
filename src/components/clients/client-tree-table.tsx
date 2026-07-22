@@ -73,12 +73,12 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
           )}
         >
           <TableCell className={cn('px-4', isChild && 'pl-10')}>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               {hasChildren && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-5 w-5"
+                  className="h-5 w-5 shrink-0"
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleExpand(client.id);
@@ -91,9 +91,9 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
                   )}
                 </Button>
               )}
-              <span className="font-medium">{client.name}</span>
+              <span className="min-w-0 truncate font-medium">{client.name}</span>
               {hasChildren && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="shrink-0 text-xs">
                   상위
                 </Badge>
               )}
@@ -108,7 +108,10 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
                   dev: 'bg-zinc-100 text-zinc-600',
                 };
                 return (
-                  <span key={bt} className={`inline-block rounded px-2 py-0.5 text-[11px] font-semibold ${colors[bt] ?? 'bg-zinc-100 text-zinc-600'}`}>
+                  <span
+                    key={bt}
+                    className={`inline-block rounded px-2 py-0.5 text-[11px] font-semibold ${colors[bt] ?? 'bg-zinc-100 text-zinc-600'}`}
+                  >
                     {BUSINESS_TYPES[bt as keyof typeof BUSINESS_TYPES] ?? bt}
                   </span>
                 );
@@ -123,7 +126,9 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
               <span className="inline-block rounded bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
                 {client.grade}
               </span>
-            ) : '-'}
+            ) : (
+              '-'
+            )}
           </TableCell>
           <TableCell className="px-4">{client.contract_count ?? 0}</TableCell>
           <TableCell className="px-4">
@@ -135,8 +140,7 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
             </Link>
           </TableCell>
         </TableRow>
-        {isExpanded &&
-          children.map((child) => renderRow(child, true))}
+        {isExpanded && children.map((child) => renderRow(child, true))}
       </React.Fragment>
     );
   }
@@ -146,11 +150,21 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
       <Table>
         <TableHeader>
           <TableRow className="bg-zinc-50">
-            <TableHead className="h-11 w-[280px] px-4 text-[13px] font-medium text-zinc-500">고객명</TableHead>
-            <TableHead className="h-11 w-[120px] px-4 text-[13px] font-medium text-zinc-500">비즈니스</TableHead>
-            <TableHead className="h-11 w-[100px] px-4 text-[13px] font-medium text-zinc-500">유형</TableHead>
-            <TableHead className="h-11 w-[60px] px-4 text-[13px] font-medium text-zinc-500">등급</TableHead>
-            <TableHead className="h-11 w-[80px] px-4 text-[13px] font-medium text-zinc-500">계약 수</TableHead>
+            <TableHead className="h-11 w-[280px] px-4 text-[13px] font-medium text-zinc-500">
+              고객명
+            </TableHead>
+            <TableHead className="h-11 w-[120px] px-4 text-[13px] font-medium text-zinc-500">
+              비즈니스
+            </TableHead>
+            <TableHead className="h-11 w-[100px] px-4 text-[13px] font-medium text-zinc-500">
+              유형
+            </TableHead>
+            <TableHead className="h-11 w-[60px] px-4 text-[13px] font-medium text-zinc-500">
+              등급
+            </TableHead>
+            <TableHead className="h-11 w-[80px] px-4 text-[13px] font-medium text-zinc-500">
+              계약 수
+            </TableHead>
             <TableHead className="h-11 w-[90px] px-4" />
           </TableRow>
         </TableHeader>

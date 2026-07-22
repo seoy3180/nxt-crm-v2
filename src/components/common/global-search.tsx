@@ -57,79 +57,94 @@ export function GlobalSearch() {
     const searchTerm = `%${q}%`;
 
     try {
-    const [clientRes, contractRes, contactRes, awsRes] = await Promise.all([
-      supabase
-        .from('clients')
-        .select('id, name, client_id, client_type')
-        .is('deleted_at', null)
-        .ilike('name', searchTerm)
-        .limit(5),
-      supabase
-        .from('contracts')
-        .select('id, name, contract_id, stage, type')
-        .is('deleted_at', null)
-        .ilike('name', searchTerm)
-        .limit(5),
-      supabase
-        .from('contacts')
-        .select('id, name, phone, email, client_id, clients!contacts_client_id_fkey(name)')
-        .is('deleted_at', null)
-        .ilike('name', searchTerm)
-        .limit(5),
-      supabase
-        .from('contract_msp_details')
-        .select('contract_id, aws_account_ids, contracts!contract_msp_details_contract_id_fkey(id, name, contract_id, client_id, clients!contracts_client_id_fkey(id, name, client_id))')
-        .is('deleted_at', null)
-        .contains('aws_account_ids', [q])
-        .limit(5),
-    ]);
+      const [clientRes, contractRes, contactRes, awsRes] = await Promise.all([
+        supabase
+          .from('clients')
+          .select('id, name, client_id, client_type')
+          .is('deleted_at', null)
+          .ilike('name', searchTerm)
+          .limit(5),
+        supabase
+          .from('contracts')
+          .select('id, name, contract_id, stage, type')
+          .is('deleted_at', null)
+          .ilike('name', searchTerm)
+          .limit(5),
+        supabase
+          .from('contacts')
+          .select('id, name, phone, email, client_id, clients!contacts_client_id_fkey(name)')
+          .is('deleted_at', null)
+          .ilike('name', searchTerm)
+          .limit(5),
+        supabase
+          .from('contract_msp_details')
+          .select(
+            'contract_id, aws_account_ids, contracts!contract_msp_details_contract_id_fkey(id, name, contract_id, client_id, clients!contracts_client_id_fkey(id, name, client_id))',
+          )
+          .is('deleted_at', null)
+          .contains('aws_account_ids', [q])
+          .limit(5),
+      ]);
 
-    const clientTypes: Record<string, string> = { univ: '대학교', corp: '기업', govt: '공공기관', asso: '협회', etc: '기타' };
-    const mapped: SearchResult[] = [
-      ...(clientRes.data ?? []).map((c) => ({
-        id: c.id,
-        type: 'client' as const,
-        name: c.name,
-        meta: `${c.client_id} · ${clientTypes[c.client_type] ?? c.client_type}`,
-      })),
-      ...(contractRes.data ?? []).map((c) => ({
-        id: c.id,
-        type: 'contract' as const,
-        name: c.name,
-        meta: `${c.contract_id} · ${c.type?.toUpperCase()}`,
-      })),
-      ...(contactRes.data ?? []).map((c) => {
-        const clientName = (c.clients as { name: string } | null)?.name ?? '';
-        const parts = [clientName, c.phone, c.email].filter(Boolean);
-        return {
+      const clientTypes: Record<string, string> = {
+        univ: '대학교',
+        corp: '기업',
+        govt: '공공기관',
+        asso: '협회',
+        etc: '기타',
+      };
+      const mapped: SearchResult[] = [
+        ...(clientRes.data ?? []).map((c) => ({
           id: c.id,
-          type: 'contact' as const,
+          type: 'client' as const,
           name: c.name,
-          meta: parts.join(' · '),
-          linkId: c.client_id,
-        };
-      }),
-      ...(awsRes.data ?? []).filter((a) => {
-        const contract = a.contracts as { id: string } | null;
-        return contract && !contractRes.data?.some((c) => c.id === contract.id);
-      }).map((a) => {
-        const contract = a.contracts as { id: string; name: string; contract_id: string; type?: string };
-        return {
-          id: contract.id,
+          meta: `${c.client_id} · ${clientTypes[c.client_type] ?? c.client_type}`,
+        })),
+        ...(contractRes.data ?? []).map((c) => ({
+          id: c.id,
           type: 'contract' as const,
-          name: contract.name,
-          meta: `${contract.contract_id} · AWS 계정: ${q}`,
-        };
-      }),
-    ];
+          name: c.name,
+          meta: `${c.contract_id} · ${c.type?.toUpperCase()}`,
+        })),
+        ...(contactRes.data ?? []).map((c) => {
+          const clientName = (c.clients as { name: string } | null)?.name ?? '';
+          const parts = [clientName, c.phone, c.email].filter(Boolean);
+          return {
+            id: c.id,
+            type: 'contact' as const,
+            name: c.name,
+            meta: parts.join(' · '),
+            linkId: c.client_id,
+          };
+        }),
+        ...(awsRes.data ?? [])
+          .filter((a) => {
+            const contract = a.contracts as { id: string } | null;
+            return contract && !contractRes.data?.some((c) => c.id === contract.id);
+          })
+          .map((a) => {
+            const contract = a.contracts as {
+              id: string;
+              name: string;
+              contract_id: string;
+              type?: string;
+            };
+            return {
+              id: contract.id,
+              type: 'contract' as const,
+              name: contract.name,
+              meta: `${contract.contract_id} · AWS 계정: ${q}`,
+            };
+          }),
+      ];
 
-    if (clientRes.error || contractRes.error || contactRes.error || awsRes.error) {
-      setResults([]);
-      return;
-    }
+      if (clientRes.error || contractRes.error || contactRes.error || awsRes.error) {
+        setResults([]);
+        return;
+      }
 
-    setResults(mapped);
-    setSelectedIdx(0);
+      setResults(mapped);
+      setSelectedIdx(0);
     } catch {
       setResults([]);
     }
@@ -204,7 +219,9 @@ export function GlobalSearch() {
             aria-label="고객, 연락처, 계약 검색"
             className="flex-1 bg-transparent text-base text-zinc-900 outline-none placeholder:text-zinc-400"
           />
-          <span className="rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-400">ESC</span>
+          <span className="rounded bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-400">
+            ESC
+          </span>
         </div>
 
         {/* 결과 */}
@@ -233,9 +250,13 @@ export function GlobalSearch() {
                       idx === selectedIdx ? 'bg-blue-50' : 'hover:bg-zinc-50'
                     }`}
                   >
-                    <Users className={`h-4 w-4 ${idx === selectedIdx ? 'text-blue-600' : 'text-zinc-500'}`} />
-                    <span className="text-sm font-medium text-zinc-900">{r.name}</span>
-                    <span className="text-xs text-zinc-400">{r.meta}</span>
+                    <Users
+                      className={`h-4 w-4 shrink-0 ${idx === selectedIdx ? 'text-blue-600' : 'text-zinc-500'}`}
+                    />
+                    <span className="min-w-0 truncate text-sm font-medium text-zinc-900">
+                      {r.name}
+                    </span>
+                    <span className="min-w-0 truncate text-xs text-zinc-400">{r.meta}</span>
                   </button>
                 );
               })}
@@ -258,9 +279,13 @@ export function GlobalSearch() {
                       idx === selectedIdx ? 'bg-blue-50' : 'hover:bg-zinc-50'
                     }`}
                   >
-                    <FileText className={`h-4 w-4 ${idx === selectedIdx ? 'text-blue-600' : 'text-zinc-500'}`} />
-                    <span className="text-sm font-medium text-zinc-900">{r.name}</span>
-                    <span className="text-xs text-zinc-400">{r.meta}</span>
+                    <FileText
+                      className={`h-4 w-4 shrink-0 ${idx === selectedIdx ? 'text-blue-600' : 'text-zinc-500'}`}
+                    />
+                    <span className="min-w-0 truncate text-sm font-medium text-zinc-900">
+                      {r.name}
+                    </span>
+                    <span className="min-w-0 truncate text-xs text-zinc-400">{r.meta}</span>
                   </button>
                 );
               })}
@@ -283,9 +308,13 @@ export function GlobalSearch() {
                       idx === selectedIdx ? 'bg-blue-50' : 'hover:bg-zinc-50'
                     }`}
                   >
-                    <Contact className={`h-4 w-4 ${idx === selectedIdx ? 'text-blue-600' : 'text-zinc-500'}`} />
-                    <span className="text-sm font-medium text-zinc-900">{r.name}</span>
-                    <span className="text-xs text-zinc-400">{r.meta}</span>
+                    <Contact
+                      className={`h-4 w-4 shrink-0 ${idx === selectedIdx ? 'text-blue-600' : 'text-zinc-500'}`}
+                    />
+                    <span className="min-w-0 truncate text-sm font-medium text-zinc-900">
+                      {r.name}
+                    </span>
+                    <span className="min-w-0 truncate text-xs text-zinc-400">{r.meta}</span>
                   </button>
                 );
               })}

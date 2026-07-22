@@ -23,12 +23,23 @@ function getStageLabel(stage: string | null, type: string) {
 }
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
+  return new Date(dateStr).toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
-
-
-function renderChange(h: { field_name: string | null; old_value: string | null; new_value: string | null; from_stage: string | null; to_stage: string | null }, contractType: string) {
+function renderChange(
+  h: {
+    field_name: string | null;
+    old_value: string | null;
+    new_value: string | null;
+    from_stage: string | null;
+    to_stage: string | null;
+  },
+  contractType: string,
+) {
   if (h.field_name === 'stage' || (!h.field_name && h.to_stage)) {
     const from = h.old_value ?? h.from_stage;
     const to = h.new_value ?? h.to_stage;
@@ -46,7 +57,7 @@ function renderChange(h: { field_name: string | null; old_value: string | null; 
   return (
     <>
       <p className="text-[13px] font-medium text-zinc-900">{h.field_name}</p>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-zinc-500 break-words">
         {h.old_value ? `${h.old_value} → ` : ''}
         <span className="font-semibold text-zinc-700">{h.new_value || '(삭제)'}</span>
       </p>
@@ -54,7 +65,16 @@ function renderChange(h: { field_name: string | null; old_value: string | null; 
   );
 }
 
-function renderChangeSummary(h: { field_name: string | null; old_value: string | null; new_value: string | null; from_stage: string | null; to_stage: string | null }, contractType: string): string {
+function renderChangeSummary(
+  h: {
+    field_name: string | null;
+    old_value: string | null;
+    new_value: string | null;
+    from_stage: string | null;
+    to_stage: string | null;
+  },
+  contractType: string,
+): string {
   if (h.field_name === 'stage' || (!h.field_name && h.to_stage)) {
     const from = h.old_value ?? h.from_stage;
     const to = h.new_value ?? h.to_stage;
@@ -91,15 +111,22 @@ export function StageHistory({ contractId, contractType }: StageHistoryProps) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold text-zinc-900">변경 이력</h3>
-            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">{count}건</span>
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">
+              {count}건
+            </span>
           </div>
           {history && history.length > 0 && (
             <p className="mt-0.5 truncate text-[12px] text-zinc-400">
-              마지막: {history[0]!.changed_by_name ?? '알 수 없음'} · {renderChangeSummary(history[0]!, contractType)}
+              마지막: {history[0]!.changed_by_name ?? '알 수 없음'} ·{' '}
+              {renderChangeSummary(history[0]!, contractType)}
             </p>
           )}
         </div>
-        {open ? <ChevronUp className="h-4 w-4 shrink-0 text-zinc-400" /> : <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" />}
+        {open ? (
+          <ChevronUp className="h-4 w-4 shrink-0 text-zinc-400" />
+        ) : (
+          <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" />
+        )}
       </button>
       {open && (
         <div className="border-t px-5 pb-4">
@@ -108,13 +135,16 @@ export function StageHistory({ contractId, contractType }: StageHistoryProps) {
           ) : (
             <ScrollArea className="mt-3 h-[360px] pr-4" type="always">
               {history!.map((h, idx) => (
-                <div key={h.id} className={`flex items-center justify-between gap-2 py-3 ${idx < count - 1 ? 'border-b border-zinc-100' : ''}`}>
+                <div
+                  key={h.id}
+                  className={`flex items-center justify-between gap-2 py-3 ${idx < count - 1 ? 'border-b border-zinc-100' : ''}`}
+                >
                   <div className="space-y-1 min-w-0">
                     {renderChange(h, contractType)}
                     <p className="text-xs text-zinc-400">
                       {h.changed_by_name ?? '알 수 없음'} · {formatDate(h.created_at)}
                     </p>
-                    {h.note && <p className="text-xs text-zinc-500">{h.note}</p>}
+                    {h.note && <p className="text-xs text-zinc-500 break-words">{h.note}</p>}
                   </div>
                   <button
                     type="button"
