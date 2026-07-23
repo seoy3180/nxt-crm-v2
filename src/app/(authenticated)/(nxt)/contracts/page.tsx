@@ -20,6 +20,8 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { createClient } from '@/lib/supabase/client';
 import { invalidateContractStageQueries } from '@/lib/query-keys';
 import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
+import { getMatchingContractIds } from '@/lib/search/contract-search';
+import { normalizeSearchTerm } from '@/lib/search/escape';
 import {
   type ContractTableRow,
   type ContractColumnDef,
@@ -205,7 +207,30 @@ function ContractsPageInner() {
         .order('created_at', { ascending: false });
 
       if (stage) q = q.eq('stage', stage);
-      if (debouncedSearch) q = q.ilike('name', `%${debouncedSearch}%`);
+      let searchTruncated = false;
+      if (debouncedSearch) {
+        if (contractType === 'msp') {
+          const normalizedSearch = normalizeSearchTerm(debouncedSearch);
+          if (normalizedSearch) {
+            const { ids, truncated } = await getMatchingContractIds(supabase, normalizedSearch);
+            searchTruncated = truncated;
+            if (ids.length === 0) {
+              return {
+                data: [] as ContractTableRow[],
+                total: 0,
+                page,
+                pageSize,
+                totalPages: 0,
+                truncated: false,
+              };
+            }
+            q = q.in('id', ids);
+          }
+        } else {
+          // edu/dev 탭은 이번 범위 밖 — 기존 동작(계약명만, 정규화 없음) 유지
+          q = q.ilike('name', `%${debouncedSearch}%`);
+        }
+      }
       q = q.range(from, to);
 
       const { data, count, error } = await q;
@@ -263,6 +288,7 @@ function ContractsPageInner() {
         page,
         pageSize,
         totalPages: Math.ceil((count ?? 0) / pageSize),
+        truncated: searchTruncated,
       };
     },
     enabled: viewMode === 'table',
