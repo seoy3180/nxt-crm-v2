@@ -65,7 +65,8 @@ export default function DepositDashboardPage() {
       list = list.filter(
         (a) =>
           a.contract.name.toLowerCase().includes(q) ||
-          (a.contract.client_name ?? '').toLowerCase().includes(q),
+          (a.contract.client_name ?? '').toLowerCase().includes(q) ||
+          (a.contract.aws_account_search ?? '').toLowerCase().includes(q),
       );
     }
     return list;
