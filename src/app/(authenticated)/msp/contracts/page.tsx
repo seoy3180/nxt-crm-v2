@@ -23,6 +23,7 @@ import { invalidateContractStageQueries } from '@/lib/query-keys';
 import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import { getMatchingContractIds } from '@/lib/search/contract-search';
 import { normalizeSearchTerm } from '@/lib/search/escape';
+import { SearchTruncatedBanner } from '@/components/common/search-truncated-banner';
 import {
   type ContractTableRow,
   type ContractColumnDef,
@@ -358,6 +359,7 @@ function MspContractsInner() {
         />
       ) : (
         <>
+          <SearchTruncatedBanner show={!!tableContracts?.truncated} />
           <InlineEditTable<ContractTableRow, ContractColumnDef>
             data={tableContracts?.data ?? []}
             columns={columns}
