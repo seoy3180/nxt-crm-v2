@@ -6,19 +6,18 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { Input } from '@/components/ui/input';
 import { ColumnSettings } from '@/components/common/column-settings';
-import {
-  InlineEditTable,
-  type InlineEditColumnBase,
-} from '@/components/common/inline-edit-table';
-import {
-  InlineEditToggle,
-  InlineEditActions,
-} from '@/components/common/inline-edit-toolbar';
+import { InlineEditTable, type InlineEditColumnBase } from '@/components/common/inline-edit-table';
+import { InlineEditToggle, InlineEditActions } from '@/components/common/inline-edit-toolbar';
 import { Plus, Search } from 'lucide-react';
 import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { useInlineEdit } from '@/hooks/use-inline-edit';
 import { useColumnPreference } from '@/hooks/use-user-preferences';
 import { SEARCH_DEBOUNCE_MS, INDUSTRY_OPTIONS } from '@/lib/constants';
+import { getClientIdsByContactName } from '@/lib/search/client-search';
+import { normalizeSearchTerm, toLikePattern } from '@/lib/search/escape';
+import { computeUnionIds } from '@/lib/search/union';
+import { SEARCH_FINAL_ID_CAP, SEARCH_SOURCE_ID_CAP } from '@/lib/search/constants';
+import { SearchTruncatedBanner } from '@/components/common/search-truncated-banner';
 
 interface MspClient {
   id: string;
@@ -36,7 +35,14 @@ interface ColumnDef extends InlineEditColumnBase {
 
 const ALL_COLUMNS: ColumnDef[] = [
   { key: 'name', label: '고객명', editable: false },
-  { key: 'industry', label: '산업분야', width: 'w-[110px]', editable: true, type: 'select', options: INDUSTRY_OPTIONS },
+  {
+    key: 'industry',
+    label: '산업분야',
+    width: 'w-[110px]',
+    editable: true,
+    type: 'select',
+    options: INDUSTRY_OPTIONS,
+  },
   { key: 'contractCount', label: '계약 수', width: 'w-[80px]', editable: false },
   { key: 'memo', label: '메모', editable: true, type: 'text' },
   { key: 'actions', label: '', width: 'w-[90px]', editable: false },
@@ -61,11 +67,20 @@ export default function MspClientsPage() {
         if ('memo' in change) updateData.memo = change.memo || null;
         if (Object.keys(updateData).length === 0) return Promise.resolve();
         if (change.mspDetailId) {
-          return supabase.from('client_msp_details').update(updateData).eq('id', change.mspDetailId as string)
-            .then(({ error }) => { if (error) throw error; });
+          return supabase
+            .from('client_msp_details')
+            .update(updateData)
+            .eq('id', change.mspDetailId as string)
+            .then(({ error }) => {
+              if (error) throw error;
+            });
         }
-        return supabase.from('client_msp_details').insert({ client_id: change.clientId as string, ...updateData })
-          .then(({ error }) => { if (error) throw error; });
+        return supabase
+          .from('client_msp_details')
+          .insert({ client_id: change.clientId as string, ...updateData })
+          .then(({ error }) => {
+            if (error) throw error;
+          });
       });
       await Promise.all(promises);
       queryClient.invalidateQueries({ queryKey: ['msp-clients'] });
@@ -76,7 +91,10 @@ export default function MspClientsPage() {
   const { editMode, tempValue, setTempValue, saveCellEdit, setEditingCell } = inlineEdit;
 
   const defaultCols = useMemo(() => ALL_COLUMNS.map((c) => c.key), []);
-  const { columns: visibleColumns, saveColumns } = useColumnPreference('mspClientsColumns', defaultCols);
+  const { columns: visibleColumns, saveColumns } = useColumnPreference(
+    'mspClientsColumns',
+    defaultCols,
+  );
   const [showColumnSettings, setShowColumnSettings] = useState(false);
 
   const handleSearch = useCallback((value: string) => {
@@ -89,25 +107,77 @@ export default function MspClientsPage() {
     queryKey: ['msp-clients', debouncedSearch],
     queryFn: async () => {
       const supabase = createClient();
+
+      // MSP 고객 id (검색 스코프 계산에도 재사용)
+      const { data: mspClientIds } = await supabase
+        .from('clients')
+        .select('id')
+        .contains('business_types', ['msp'])
+        .is('deleted_at', null);
+      const scopeIds = (mspClientIds ?? []).map((c) => c.id);
+
+      let matchIds: string[] | null = null;
+      let searchTruncated = false;
+      const normalizedSearch = normalizeSearchTerm(debouncedSearch);
+      if (normalizedSearch) {
+        const pattern = toLikePattern(normalizedSearch);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sb = supabase as any;
+        const [nameRes, memoRes, contactClientIds] = await Promise.all([
+          sb
+            .from('clients')
+            .select('id')
+            .in('id', scopeIds)
+            .ilike('name', pattern)
+            .limit(SEARCH_SOURCE_ID_CAP),
+          sb
+            .from('client_msp_details')
+            .select('client_id')
+            .in('client_id', scopeIds)
+            .ilike('memo', pattern)
+            .limit(SEARCH_SOURCE_ID_CAP),
+          getClientIdsByContactName(supabase, normalizedSearch, scopeIds),
+        ]);
+
+        const unionResult = computeUnionIds(
+          [
+            (nameRes.data ?? []).map((r: { id: string }) => r.id),
+            (memoRes.data ?? []).map((r: { client_id: string }) => r.client_id),
+            contactClientIds,
+          ],
+          SEARCH_FINAL_ID_CAP,
+        );
+        matchIds = unionResult.ids;
+        searchTruncated = unionResult.truncated;
+      }
+
       let q = supabase
         .from('clients')
         .select('id, name, client_msp_details(id, industry, memo)')
         .contains('business_types', ['msp'])
         .is('deleted_at', null)
         .order('name', { ascending: true });
-      if (debouncedSearch) q = q.ilike('name', `%${debouncedSearch}%`);
+      if (matchIds) {
+        if (matchIds.length === 0) return { rows: [] as MspClient[], truncated: false };
+        q = q.in('id', matchIds);
+      }
       const { data, error } = await q;
       if (error) throw error;
 
       const { data: contractCounts } = await supabase
-        .from('contracts').select('client_id').eq('type', 'msp').is('deleted_at', null);
+        .from('contracts')
+        .select('client_id')
+        .eq('type', 'msp')
+        .is('deleted_at', null);
       const countMap = new Map<string, number>();
-      (contractCounts ?? []).forEach((c) => countMap.set(c.client_id, (countMap.get(c.client_id) ?? 0) + 1));
+      (contractCounts ?? []).forEach((c) =>
+        countMap.set(c.client_id, (countMap.get(c.client_id) ?? 0) + 1),
+      );
 
-      return (data ?? []).map((c): MspClient => {
-        const msp = (Array.isArray(c.client_msp_details) ? c.client_msp_details[0] : c.client_msp_details) as
-          | { id: string; industry: string | null; memo: string | null }
-          | null;
+      const rows = (data ?? []).map((c): MspClient => {
+        const msp = (
+          Array.isArray(c.client_msp_details) ? c.client_msp_details[0] : c.client_msp_details
+        ) as { id: string; industry: string | null; memo: string | null } | null;
         return {
           id: c.id,
           name: c.name,
@@ -117,6 +187,8 @@ export default function MspClientsPage() {
           memo: msp?.memo ?? null,
         };
       });
+
+      return { rows, truncated: searchTruncated };
     },
   });
 
@@ -131,7 +203,11 @@ export default function MspClientsPage() {
     if (col.key === 'contractCount') return `${client.contractCount}건`;
     if (col.key === 'memo') {
       if (!client.memo) return <span className="text-zinc-400">-</span>;
-      return <span className="line-clamp-1" title={client.memo}>{client.memo}</span>;
+      return (
+        <span className="line-clamp-1" title={client.memo}>
+          {client.memo}
+        </span>
+      );
     }
     if (col.key === 'actions') {
       return (
@@ -158,7 +234,11 @@ export default function MspClientsPage() {
           className="h-8 w-full rounded border border-blue-400 bg-blue-50 px-1 text-[13px] text-zinc-900 outline-none"
         >
           <option value="">미지정</option>
-          {col.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+          {col.options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
         </select>
       );
     }
@@ -214,21 +294,21 @@ export default function MspClientsPage() {
             disabled
             className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium text-white opacity-40 cursor-not-allowed"
           >
-            <Plus className="h-4 w-4" />
-            새 고객
+            <Plus className="h-4 w-4" />새 고객
           </button>
         ) : (
           <Link href="/msp/clients/new">
             <button className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium text-white hover:bg-blue-700">
-              <Plus className="h-4 w-4" />
-              새 고객
+              <Plus className="h-4 w-4" />새 고객
             </button>
           </Link>
         )}
       </div>
 
+      <SearchTruncatedBanner show={!!clients?.truncated} />
+
       <InlineEditTable<MspClient, ColumnDef>
-        data={clients ?? []}
+        data={clients?.rows ?? []}
         columns={columns}
         inlineEdit={inlineEdit}
         getId={(c) => c.id}
