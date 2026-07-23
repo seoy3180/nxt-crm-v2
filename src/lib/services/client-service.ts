@@ -1,5 +1,13 @@
 import { createClient } from '@/lib/supabase/client';
-import type { ClientCreateInput, ClientUpdateInput, ClientListQuery } from '@/lib/validators/client';
+import type {
+  ClientCreateInput,
+  ClientUpdateInput,
+  ClientListQuery,
+} from '@/lib/validators/client';
+import { getClientIdsByContactName } from '@/lib/search/client-search';
+import { normalizeSearchTerm, toLikePattern } from '@/lib/search/escape';
+import { computeUnionIds } from '@/lib/search/union';
+import { SEARCH_FINAL_ID_CAP, SEARCH_SOURCE_ID_CAP } from '@/lib/search/constants';
 
 export interface ClientRow {
   id: string;
@@ -51,8 +59,27 @@ export const clientService = {
       .order(sortBy, { ascending: sortOrder === 'asc' })
       .range(from, to);
 
-    if (search) {
-      q = q.ilike('name', `%${search}%`);
+    let truncated = false;
+    const normalizedSearch = search ? normalizeSearchTerm(search) : null;
+    if (normalizedSearch) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sb = supabase as any;
+      const pattern = toLikePattern(normalizedSearch);
+      const [nameRes, contactClientIds] = await Promise.all([
+        sb.from('clients').select('id').ilike('name', pattern).limit(SEARCH_SOURCE_ID_CAP),
+        getClientIdsByContactName(supabase, normalizedSearch),
+      ]);
+
+      const unionResult = computeUnionIds(
+        [(nameRes.data ?? []).map((r: { id: string }) => r.id), contactClientIds],
+        SEARCH_FINAL_ID_CAP,
+      );
+      truncated = unionResult.truncated;
+
+      if (unionResult.ids.length === 0) {
+        return { data: [], total: 0, page, pageSize, totalPages: 0, truncated: false };
+      }
+      q = q.in('id', unionResult.ids);
     }
     if (clientType) {
       q = q.eq('client_type', clientType);
@@ -70,6 +97,7 @@ export const clientService = {
       page,
       pageSize,
       totalPages: Math.ceil((count ?? 0) / pageSize),
+      truncated,
     };
   },
 
@@ -107,8 +135,9 @@ export const clientService = {
 
   async create(input: ClientCreateInput) {
     // client_id 자동 생성
-    const { data: clientId } = await supabase
-      .rpc('generate_client_id', { p_type: input.clientType });
+    const { data: clientId } = await supabase.rpc('generate_client_id', {
+      p_type: input.clientType,
+    });
 
     const { data, error } = await supabase
       .from('clients')
@@ -173,9 +202,7 @@ export const clientService = {
 
   // 사내 담당자 목록
   async getProfiles() {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, name, email, role');
+    const { data, error } = await supabase.from('profiles').select('id, name, email, role');
 
     if (error) throw error;
     return data ?? [];
