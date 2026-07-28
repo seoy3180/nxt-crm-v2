@@ -13,10 +13,8 @@ import { useSectionBasePath } from '@/hooks/use-section-base-path';
 import { useInlineEdit } from '@/hooks/use-inline-edit';
 import { useColumnPreference } from '@/hooks/use-user-preferences';
 import { SEARCH_DEBOUNCE_MS, INDUSTRY_OPTIONS } from '@/lib/constants';
-import { getClientIdsByContactName } from '@/lib/search/client-search';
-import { normalizeSearchTerm, toLikePattern } from '@/lib/search/escape';
-import { computeUnionIds } from '@/lib/search/union';
-import { SEARCH_FINAL_ID_CAP, SEARCH_SOURCE_ID_CAP } from '@/lib/search/constants';
+import { getMatchingClientIds } from '@/lib/search/client-search';
+import { normalizeSearchTerm } from '@/lib/search/escape';
 import { SearchTruncatedBanner } from '@/components/common/search-truncated-banner';
 
 interface MspClient {
@@ -52,6 +50,7 @@ export default function MspClientsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const isSearching = !!normalizeSearchTerm(debouncedSearch);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 인라인 편집 (공용 훅)
@@ -108,45 +107,22 @@ export default function MspClientsPage() {
     queryFn: async () => {
       const supabase = createClient();
 
-      // MSP 고객 id (검색 스코프 계산에도 재사용)
-      const { data: mspClientIds } = await supabase
-        .from('clients')
-        .select('id')
-        .contains('business_types', ['msp'])
-        .is('deleted_at', null);
-      const scopeIds = (mspClientIds ?? []).map((c) => c.id);
-
       let matchIds: string[] | null = null;
       let searchTruncated = false;
       const normalizedSearch = normalizeSearchTerm(debouncedSearch);
       if (normalizedSearch) {
-        const pattern = toLikePattern(normalizedSearch);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const sb = supabase as any;
-        const [nameRes, memoRes, contactClientIds] = await Promise.all([
-          sb
-            .from('clients')
-            .select('id')
-            .in('id', scopeIds)
-            .ilike('name', pattern)
-            .limit(SEARCH_SOURCE_ID_CAP),
-          sb
-            .from('client_msp_details')
-            .select('client_id')
-            .in('client_id', scopeIds)
-            .ilike('memo', pattern)
-            .limit(SEARCH_SOURCE_ID_CAP),
-          getClientIdsByContactName(supabase, normalizedSearch, scopeIds),
-        ]);
+        // MSP 고객으로 스코프 좁히기 (검색할 때만 필요)
+        const { data: mspClientIds } = await supabase
+          .from('clients')
+          .select('id')
+          .contains('business_types', ['msp'])
+          .is('deleted_at', null);
+        const scopeIds = (mspClientIds ?? []).map((c) => c.id);
 
-        const unionResult = computeUnionIds(
-          [
-            (nameRes.data ?? []).map((r: { id: string }) => r.id),
-            (memoRes.data ?? []).map((r: { client_id: string }) => r.client_id),
-            contactClientIds,
-          ],
-          SEARCH_FINAL_ID_CAP,
-        );
+        const unionResult = await getMatchingClientIds(supabase, normalizedSearch, {
+          scopeClientIds: scopeIds,
+          includeMspMemo: true,
+        });
         matchIds = unionResult.ids;
         searchTruncated = unionResult.truncated;
       }
@@ -313,7 +289,7 @@ export default function MspClientsPage() {
         inlineEdit={inlineEdit}
         getId={(c) => c.id}
         isLoading={isLoading}
-        emptyText="MSP 고객이 없습니다"
+        emptyText={isSearching ? '검색 결과가 없습니다' : 'MSP 고객이 없습니다'}
         renderCell={renderCell}
         renderEditingCell={renderEditingCell}
       />

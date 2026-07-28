@@ -1,7 +1,17 @@
-/** 앞뒤 공백을 trim. 빈/공백 문자열이면 null(검색 미적용 신호). */
+/** 문자열 내 모든 공백(앞뒤+중간)을 제거한다. */
+export function stripWhitespace(value: string): string {
+  return value.replace(/\s+/g, '');
+}
+
+/**
+ * 검색어 내 모든 공백을 제거해 표기 차이를 흡수한다.
+ * 빈/공백 문자열이면 null(검색 미적용 신호).
+ * 검색어 쪽 공백만 제거하므로, 대상 컬럼 값 자체에 공백이 섞여 있는 경우
+ * (예: "삼성 전자"로 저장된 값을 "삼성전자"로 검색)는 여전히 매칭되지 않는다.
+ */
 export function normalizeSearchTerm(raw: string): string | null {
-  const trimmed = raw.trim();
-  return trimmed === '' ? null : trimmed;
+  const stripped = stripWhitespace(raw);
+  return stripped === '' ? null : stripped;
 }
 
 /**

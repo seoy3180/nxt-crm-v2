@@ -47,6 +47,7 @@ function MspContractsInner() {
   const [stageEditMode, setStageEditMode] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const isSearching = !!normalizeSearchTerm(debouncedSearch);
   const [stage, setStage] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<string>('created_at');
@@ -367,7 +368,7 @@ function MspContractsInner() {
             getId={(c) => c.id}
             isLoading={tableLoading}
             skeletonRows={5}
-            emptyText="등록된 MSP 계약이 없습니다"
+            emptyText={isSearching ? '검색 결과가 없습니다' : '등록된 MSP 계약이 없습니다'}
             renderCell={(row, col, val) =>
               sharedRenderCell(row, col, val, { basePath, contractType: 'msp', dynamicOptions })
             }

@@ -21,9 +21,14 @@ import type { ClientRow } from '@/lib/services/client-service';
 interface ClientTreeTableProps {
   clients: ClientRow[];
   loading?: boolean;
+  emptyText?: string;
 }
 
-export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
+export function ClientTreeTable({
+  clients,
+  loading,
+  emptyText = '등록된 고객이 없습니다',
+}: ClientTreeTableProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   if (loading) {
@@ -172,7 +177,7 @@ export function ClientTreeTable({ clients, loading }: ClientTreeTableProps) {
           {roots.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                등록된 고객이 없습니다
+                {emptyText}
               </TableCell>
             </TableRow>
           ) : (

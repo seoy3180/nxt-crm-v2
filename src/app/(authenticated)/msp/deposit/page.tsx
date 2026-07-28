@@ -11,6 +11,7 @@ import { DepositCard } from '@/components/deposit/deposit-card';
 import { DepositActivatableRow } from '@/components/deposit/deposit-activatable-row';
 import { DepositEmptyState } from '@/components/deposit/deposit-empty-state';
 import { isEndedStage } from '@/lib/deposit/stage';
+import { normalizeSearchTerm, stripWhitespace } from '@/lib/search/escape';
 import type { AlertLevel } from '@/lib/deposit/types';
 
 const ORDER: Record<AlertLevel, number> = { critical: 0, warning: 1, ok: 2 };
@@ -27,7 +28,7 @@ export default function DepositDashboardPage() {
     currentUser?.role === 'c_level' ||
     currentUser?.role === 'team_lead';
 
-  const q = search.trim().toLowerCase();
+  const q = (normalizeSearchTerm(search) ?? '').toLowerCase();
 
   // 진행 중 / 종료(프로젝트 종료·미납/해지) 분리 — KPI·알림·홈 목록은 진행 중만
   const ongoing = useMemo(
@@ -64,9 +65,13 @@ export default function DepositDashboardPage() {
     if (q) {
       list = list.filter(
         (a) =>
-          a.contract.name.toLowerCase().includes(q) ||
-          (a.contract.client_name ?? '').toLowerCase().includes(q) ||
-          (a.contract.aws_account_search ?? '').toLowerCase().includes(q),
+          stripWhitespace(a.contract.name).toLowerCase().includes(q) ||
+          stripWhitespace(a.contract.client_name ?? '')
+            .toLowerCase()
+            .includes(q) ||
+          stripWhitespace(a.contract.aws_account_search ?? '')
+            .toLowerCase()
+            .includes(q),
       );
     }
     return list;
@@ -76,7 +81,11 @@ export default function DepositDashboardPage() {
   const inactiveList = useMemo(() => {
     if (!q) return activatable;
     return activatable.filter(
-      (c) => c.name.toLowerCase().includes(q) || (c.client_name ?? '').toLowerCase().includes(q),
+      (c) =>
+        stripWhitespace(c.name).toLowerCase().includes(q) ||
+        stripWhitespace(c.client_name ?? '')
+          .toLowerCase()
+          .includes(q),
     );
   }, [activatable, q]);
 

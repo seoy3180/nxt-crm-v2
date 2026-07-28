@@ -6,6 +6,7 @@ import { ClientTreeTable } from '@/components/clients/client-tree-table';
 import { ErrorState } from '@/components/common/error-state';
 import { useClients } from '@/hooks/use-clients';
 import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
+import { normalizeSearchTerm } from '@/lib/search/escape';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { SearchTruncatedBanner } from '@/components/common/search-truncated-banner';
@@ -28,6 +29,7 @@ function useDebounce(delay: number) {
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useDebounce(SEARCH_DEBOUNCE_MS);
+  const isSearching = !!normalizeSearchTerm(debouncedSearch);
   const [clientType, setClientType] = useState<string | undefined>();
   const [businessType, setBusinessType] = useState<string | undefined>();
   const [page, setPage] = useState(1);
@@ -73,7 +75,11 @@ export default function ClientsPage() {
 
       <SearchTruncatedBanner show={!!data?.truncated} />
 
-      <ClientTreeTable clients={data?.data ?? []} loading={isLoading} />
+      <ClientTreeTable
+        clients={data?.data ?? []}
+        loading={isLoading}
+        emptyText={isSearching ? '검색 결과가 없습니다' : '등록된 고객이 없습니다'}
+      />
 
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 py-4">

@@ -83,6 +83,7 @@ export default function MspContactsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const isSearching = !!normalizeSearchTerm(debouncedSearch);
   const [page, setPage] = useState(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -448,7 +449,7 @@ export default function MspContactsPage() {
               {contacts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="h-24 text-center text-zinc-400">
-                    등록된 연락처가 없습니다
+                    {isSearching ? '검색 결과가 없습니다' : '등록된 연락처가 없습니다'}
                   </TableCell>
                 </TableRow>
               ) : (

@@ -8,8 +8,14 @@ import {
 } from './escape';
 
 describe('normalizeSearchTerm', () => {
-  it('앞뒤 공백을 trim한다', () => {
+  it('앞뒤 공백을 제거한다', () => {
     expect(normalizeSearchTerm('  삼성SDS  ')).toBe('삼성SDS');
+  });
+  it('중간 공백도 제거한다', () => {
+    expect(normalizeSearchTerm('삼성 전자')).toBe('삼성전자');
+  });
+  it('여러 공백/탭이 섞여 있어도 모두 제거한다', () => {
+    expect(normalizeSearchTerm(' 삼성  전자\t주식회사 ')).toBe('삼성전자주식회사');
   });
   it('빈 문자열이면 null', () => {
     expect(normalizeSearchTerm('')).toBeNull();

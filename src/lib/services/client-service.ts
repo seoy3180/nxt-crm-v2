@@ -4,10 +4,8 @@ import type {
   ClientUpdateInput,
   ClientListQuery,
 } from '@/lib/validators/client';
-import { getClientIdsByContactName } from '@/lib/search/client-search';
-import { normalizeSearchTerm, toLikePattern } from '@/lib/search/escape';
-import { computeUnionIds } from '@/lib/search/union';
-import { SEARCH_FINAL_ID_CAP, SEARCH_SOURCE_ID_CAP } from '@/lib/search/constants';
+import { getMatchingClientIds } from '@/lib/search/client-search';
+import { normalizeSearchTerm } from '@/lib/search/escape';
 
 export interface ClientRow {
   id: string;
@@ -52,8 +50,7 @@ export const clientService = {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let q = (supabase as any)
+    let q = supabase
       .from('client_list_view')
       .select('*', { count: 'exact' })
       .order(sortBy, { ascending: sortOrder === 'asc' })
@@ -62,18 +59,7 @@ export const clientService = {
     let truncated = false;
     const normalizedSearch = search ? normalizeSearchTerm(search) : null;
     if (normalizedSearch) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = supabase as any;
-      const pattern = toLikePattern(normalizedSearch);
-      const [nameRes, contactClientIds] = await Promise.all([
-        sb.from('clients').select('id').ilike('name', pattern).limit(SEARCH_SOURCE_ID_CAP),
-        getClientIdsByContactName(supabase, normalizedSearch),
-      ]);
-
-      const unionResult = computeUnionIds(
-        [(nameRes.data ?? []).map((r: { id: string }) => r.id), contactClientIds],
-        SEARCH_FINAL_ID_CAP,
-      );
+      const unionResult = await getMatchingClientIds(supabase, normalizedSearch);
       truncated = unionResult.truncated;
 
       if (unionResult.ids.length === 0) {

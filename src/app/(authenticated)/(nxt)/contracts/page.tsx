@@ -61,6 +61,7 @@ function ContractsPageInner() {
   const [stageEditMode, setStageEditMode] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const isSearching = !!normalizeSearchTerm(debouncedSearch);
   const [stage, setStage] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -209,28 +210,21 @@ function ContractsPageInner() {
 
       if (stage) q = q.eq('stage', stage);
       let searchTruncated = false;
-      if (debouncedSearch) {
-        if (contractType === 'msp') {
-          const normalizedSearch = normalizeSearchTerm(debouncedSearch);
-          if (normalizedSearch) {
-            const { ids, truncated } = await getMatchingContractIds(supabase, normalizedSearch);
-            searchTruncated = truncated;
-            if (ids.length === 0) {
-              return {
-                data: [] as ContractTableRow[],
-                total: 0,
-                page,
-                pageSize,
-                totalPages: 0,
-                truncated: false,
-              };
-            }
-            q = q.in('id', ids);
-          }
-        } else {
-          // edu/dev 탭은 이번 범위 밖 — 기존 동작(계약명만, 정규화 없음) 유지
-          q = q.ilike('name', `%${debouncedSearch}%`);
+      const normalizedSearch = normalizeSearchTerm(debouncedSearch);
+      if (normalizedSearch) {
+        const { ids, truncated } = await getMatchingContractIds(supabase, normalizedSearch);
+        searchTruncated = truncated;
+        if (ids.length === 0) {
+          return {
+            data: [] as ContractTableRow[],
+            total: 0,
+            page,
+            pageSize,
+            totalPages: 0,
+            truncated: false,
+          };
         }
+        q = q.in('id', ids);
       }
       q = q.range(from, to);
 
@@ -423,7 +417,7 @@ function ContractsPageInner() {
             getId={(c) => c.id}
             isLoading={tableLoading}
             skeletonRows={5}
-            emptyText="등록된 계약이 없습니다"
+            emptyText={isSearching ? '검색 결과가 없습니다' : '등록된 계약이 없습니다'}
             renderCell={(row, col, val) =>
               sharedRenderCell(row, col, val, { basePath: '', contractType, dynamicOptions })
             }
