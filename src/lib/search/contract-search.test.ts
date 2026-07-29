@@ -9,6 +9,7 @@ type Row = Record<string, unknown>;
 interface FakeBuilder extends PromiseLike<{ data: Row[] }> {
   select: (...args: unknown[]) => FakeBuilder;
   ilike: (column: string, pattern: unknown) => FakeBuilder;
+  regexIMatch: (column: string, pattern: unknown) => FakeBuilder;
   is: (...args: unknown[]) => FakeBuilder;
   eq: (...args: unknown[]) => FakeBuilder;
   or: (...args: unknown[]) => FakeBuilder;
@@ -36,6 +37,10 @@ function createFakeSupabase(responses: Record<string, Row[]>) {
         return builder;
       },
       ilike: (column) => {
+        routeKey = `${table}.${column}`;
+        return builder;
+      },
+      regexIMatch: (column) => {
         routeKey = `${table}.${column}`;
         return builder;
       },

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
-import { toLikePattern } from './escape';
+import { toWhitespaceInsensitiveRegexPattern } from './escape';
 import { computeUnionIds, type UnionIdsResult } from './union';
 import { SEARCH_FINAL_ID_CAP, SEARCH_SOURCE_ID_CAP } from './constants';
 
@@ -15,13 +15,13 @@ export async function getClientIdsByContactName(
   normalizedSearchTerm: string,
   scopeClientIds?: string[],
 ): Promise<string[]> {
-  const pattern = toLikePattern(normalizedSearchTerm);
+  const pattern = toWhitespaceInsensitiveRegexPattern(normalizedSearchTerm);
 
   let q = supabase
     .from('contacts')
     .select('client_id')
     .is('deleted_at', null)
-    .ilike('name', pattern);
+    .regexIMatch('name', pattern);
   if (scopeClientIds) {
     if (scopeClientIds.length === 0) return [];
     q = q.in('client_id', scopeClientIds);
@@ -47,12 +47,12 @@ export async function getMatchingClientIds(
     return { ids: [], truncated: false };
   }
 
-  const pattern = toLikePattern(normalizedSearchTerm);
+  const pattern = toWhitespaceInsensitiveRegexPattern(normalizedSearchTerm);
 
   let nameQuery = supabase
     .from('clients')
     .select('id')
-    .ilike('name', pattern)
+    .regexIMatch('name', pattern)
     .limit(SEARCH_SOURCE_ID_CAP);
   if (scopeClientIds) nameQuery = nameQuery.in('id', scopeClientIds);
 
@@ -60,7 +60,7 @@ export async function getMatchingClientIds(
     ? supabase
         .from('client_msp_details')
         .select('client_id')
-        .ilike('memo', pattern)
+        .regexIMatch('memo', pattern)
         .limit(SEARCH_SOURCE_ID_CAP)
     : null;
   if (memoQuery && scopeClientIds) memoQuery = memoQuery.in('client_id', scopeClientIds);

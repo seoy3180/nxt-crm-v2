@@ -35,7 +35,12 @@ import { useInlineEdit } from '@/hooks/use-inline-edit';
 import { useColumnPreference } from '@/hooks/use-user-preferences';
 import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import { toast } from 'sonner';
-import { toLikePattern, buildIlikeOrClause, normalizeSearchTerm } from '@/lib/search/escape';
+import {
+  toLikePattern,
+  toWhitespaceInsensitiveRegexPattern,
+  buildIlikeOrClause,
+  normalizeSearchTerm,
+} from '@/lib/search/escape';
 import { computeUnionIds } from '@/lib/search/union';
 import { SEARCH_FINAL_ID_CAP, SEARCH_SOURCE_ID_CAP } from '@/lib/search/constants';
 import { SearchTruncatedBanner } from '@/components/common/search-truncated-banner';
@@ -204,14 +209,13 @@ export default function MspContactsPage() {
       const normalizedSearch = normalizeSearchTerm(debouncedSearch);
       if (normalizedSearch) {
         const pattern = toLikePattern(normalizedSearch);
-        const orClause = buildIlikeOrClause(
-          ['name', 'phone', 'email', 'department', 'position'],
-          pattern,
-        );
+        const regexPattern = toWhitespaceInsensitiveRegexPattern(normalizedSearch);
+        // name은 값 자체에 공백이 섞여 있을 수 있어 공백 무시 정규식으로 별도 매칭
+        const orClause = buildIlikeOrClause(['phone', 'email', 'department', 'position'], pattern);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const sb = supabase as any;
-        const [ownFieldRes, matchingClientRes] = await Promise.all([
+        const [ownFieldRes, ownNameRes, matchingClientRes] = await Promise.all([
           sb
             .from('contacts')
             .select('id')
@@ -220,10 +224,17 @@ export default function MspContactsPage() {
             .or(orClause)
             .limit(SEARCH_SOURCE_ID_CAP),
           sb
+            .from('contacts')
+            .select('id')
+            .in('client_id', clientIds)
+            .is('deleted_at', null)
+            .regexIMatch('name', regexPattern)
+            .limit(SEARCH_SOURCE_ID_CAP),
+          sb
             .from('clients')
             .select('id')
             .in('id', clientIds)
-            .ilike('name', pattern)
+            .regexIMatch('name', regexPattern)
             .limit(SEARCH_SOURCE_ID_CAP),
         ]);
 
@@ -243,6 +254,7 @@ export default function MspContactsPage() {
         const { ids, truncated } = computeUnionIds(
           [
             (ownFieldRes.data ?? []).map((r: { id: string }) => r.id),
+            (ownNameRes.data ?? []).map((r: { id: string }) => r.id),
             (byClientNameRes.data ?? []).map((r: { id: string }) => r.id),
           ],
           SEARCH_FINAL_ID_CAP,

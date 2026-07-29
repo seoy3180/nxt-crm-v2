@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
-import { toLikePattern, buildIlikeOrClause } from './escape';
+import { toLikePattern, toWhitespaceInsensitiveRegexPattern, buildImatchOrClause } from './escape';
 import { computeUnionIds, type UnionIdsResult } from './union';
 import { SEARCH_FINAL_ID_CAP, SEARCH_SOURCE_ID_CAP } from './constants';
 
@@ -16,10 +16,11 @@ export async function getMatchingContractIds(
   supabase: SupabaseClient,
   normalizedSearchTerm: string,
 ): Promise<UnionIdsResult> {
-  const pattern = toLikePattern(normalizedSearchTerm);
-  const mspTextOrClause = buildIlikeOrClause(
+  const regexPattern = toWhitespaceInsensitiveRegexPattern(normalizedSearchTerm);
+  const awsPattern = toLikePattern(normalizedSearchTerm);
+  const mspTextOrClause = buildImatchOrClause(
     ['root_account_email', 'billing_on_alias', 'aws_am'],
-    pattern,
+    regexPattern,
   );
 
   const [nameRes, clientNameRes, employeeNameRes, contactNameRes, mspTextRes, awsRes] =
@@ -28,25 +29,25 @@ export async function getMatchingContractIds(
         .from('contracts')
         .select('id')
         .is('deleted_at', null)
-        .ilike('name', pattern)
+        .regexIMatch('name', regexPattern)
         .limit(SEARCH_SOURCE_ID_CAP),
       supabase
         .from('clients')
         .select('id')
         .is('deleted_at', null)
-        .ilike('name', pattern)
+        .regexIMatch('name', regexPattern)
         .limit(SEARCH_SOURCE_ID_CAP),
       supabase
         .from('employees')
         .select('id')
         .eq('is_active', true)
-        .ilike('name', pattern)
+        .regexIMatch('name', regexPattern)
         .limit(SEARCH_SOURCE_ID_CAP),
       supabase
         .from('contacts')
         .select('id')
         .is('deleted_at', null)
-        .ilike('name', pattern)
+        .regexIMatch('name', regexPattern)
         .limit(SEARCH_SOURCE_ID_CAP),
       supabase
         .from('contract_msp_details')
@@ -54,11 +55,12 @@ export async function getMatchingContractIds(
         .is('deleted_at', null)
         .or(mspTextOrClause)
         .limit(SEARCH_SOURCE_ID_CAP),
+      // AWS 계정 ID는 값 자체에 공백이 섞일 일이 없어 ilike(트리그램 인덱스 가속) 유지
       supabase
         .from('contract_msp_details')
         .select('contract_id')
         .is('deleted_at', null)
-        .ilike('aws_account_search', pattern)
+        .ilike('aws_account_search', awsPattern)
         .limit(SEARCH_SOURCE_ID_CAP),
     ]);
 

@@ -8,7 +8,7 @@ type Row = Record<string, unknown>;
 
 interface FakeBuilder extends PromiseLike<{ data: Row[] }> {
   select: (...args: unknown[]) => FakeBuilder;
-  ilike: (...args: unknown[]) => FakeBuilder;
+  regexIMatch: (...args: unknown[]) => FakeBuilder;
   is: (...args: unknown[]) => FakeBuilder;
   limit: (...args: unknown[]) => FakeBuilder;
   in: (column: string, values: unknown[]) => FakeBuilder;
@@ -22,7 +22,7 @@ function createFakeSupabase(tables: Record<string, Row[]>) {
     const promise: Promise<{ data: Row[] }> = Promise.resolve({ data: tables[table] ?? [] });
     const builder: FakeBuilder = {
       select: () => builder,
-      ilike: () => builder,
+      regexIMatch: () => builder,
       is: () => builder,
       limit: () => builder,
       in: (column, values) => {

@@ -6,8 +6,8 @@ export function stripWhitespace(value: string): string {
 /**
  * 검색어 내 모든 공백을 제거해 표기 차이를 흡수한다.
  * 빈/공백 문자열이면 null(검색 미적용 신호).
- * 검색어 쪽 공백만 제거하므로, 대상 컬럼 값 자체에 공백이 섞여 있는 경우
- * (예: "삼성 전자"로 저장된 값을 "삼성전자"로 검색)는 여전히 매칭되지 않는다.
+ * 대상 컬럼 값 자체에 공백이 섞여 있는 경우(예: "삼성 전자"로 저장된 값을 "삼성전자"로 검색)는
+ * toWhitespaceInsensitiveRegexPattern으로 만든 패턴을 imatch와 함께 써야 매칭된다.
  */
 export function normalizeSearchTerm(raw: string): string | null {
   const stripped = stripWhitespace(raw);
@@ -41,4 +41,25 @@ export function toOrFilterValue(value: string): string {
 export function buildIlikeOrClause(columns: string[], pattern: string): string {
   const safeValue = toOrFilterValue(pattern);
   return columns.map((col) => `${col}.ilike.${safeValue}`).join(',');
+}
+
+/** 정규식(POSIX ERE) 메타문자를 이스케이프해 리터럴로 취급되게 한다. */
+export function escapeRegexChar(ch: string): string {
+  return ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 정규화된 검색어(공백 제거 완료)의 글자 사이에 `\s*`(공백 있어도/없어도 됨)를 끼워 넣어
+ * 대상 컬럼 값에 공백이 섞여 있어도 매칭되는 정규식 패턴을 만든다.
+ * `.filter(col, 'imatch', pattern)` (Postgres `~*`)와 함께 쓴다.
+ * 앵커가 없으므로 LIKE '%...%'처럼 부분일치로 동작한다.
+ */
+export function toWhitespaceInsensitiveRegexPattern(normalizedSearchTerm: string): string {
+  return Array.from(normalizedSearchTerm).map(escapeRegexChar).join('\\s*');
+}
+
+/** 여러 컬럼에 동일 정규식 패턴을 imatch(대소문자 무시 정규식)로 매칭하는 PostgREST or() 필터 문자열을 만든다. */
+export function buildImatchOrClause(columns: string[], pattern: string): string {
+  const safeValue = toOrFilterValue(pattern);
+  return columns.map((col) => `${col}.imatch.${safeValue}`).join(',');
 }

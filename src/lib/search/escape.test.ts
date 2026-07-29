@@ -5,6 +5,9 @@ import {
   toLikePattern,
   toOrFilterValue,
   buildIlikeOrClause,
+  escapeRegexChar,
+  toWhitespaceInsensitiveRegexPattern,
+  buildImatchOrClause,
 } from './escape';
 
 describe('normalizeSearchTerm', () => {
@@ -71,5 +74,41 @@ describe('buildIlikeOrClause', () => {
   it('쉼표가 포함된 검색어도 하나의 값으로 안전하게 처리된다', () => {
     const pattern = toLikePattern('a,b');
     expect(buildIlikeOrClause(['name'], pattern)).toBe('name.ilike."%a,b%"');
+  });
+});
+
+describe('escapeRegexChar', () => {
+  it('정규식 메타문자를 이스케이프한다', () => {
+    expect(escapeRegexChar('(')).toBe('\\(');
+    expect(escapeRegexChar(')')).toBe('\\)');
+    expect(escapeRegexChar('.')).toBe('\\.');
+  });
+  it('일반 문자는 그대로 반환한다', () => {
+    expect(escapeRegexChar('가')).toBe('가');
+  });
+});
+
+describe('toWhitespaceInsensitiveRegexPattern', () => {
+  it('글자 사이에 \\s*를 끼워 넣는다', () => {
+    expect(toWhitespaceInsensitiveRegexPattern('새고객')).toBe('새\\s*고\\s*객');
+  });
+  it('컬럼 값에 공백이 섞여 있어도 매칭되는 정규식을 만든다', () => {
+    const pattern = toWhitespaceInsensitiveRegexPattern(normalizeSearchTerm('새고객')!);
+    expect(new RegExp(pattern, 'i').test('새 고객 테스트')).toBe(true);
+    expect(new RegExp(pattern, 'i').test('새고객테스트')).toBe(true);
+    expect(new RegExp(pattern, 'i').test('전혀다른이름')).toBe(false);
+  });
+  it('괄호 등 메타문자가 섞인 검색어도 리터럴로 매칭된다', () => {
+    const pattern = toWhitespaceInsensitiveRegexPattern('(주)삼성');
+    expect(new RegExp(pattern).test('(주) 삼성')).toBe(true);
+  });
+});
+
+describe('buildImatchOrClause', () => {
+  it('여러 컬럼에 동일 정규식 패턴을 imatch로 매칭하는 or() 문자열을 만든다', () => {
+    const pattern = toWhitespaceInsensitiveRegexPattern('ab');
+    expect(buildImatchOrClause(['name', 'phone'], pattern)).toBe(
+      'name.imatch."a\\\\s*b",phone.imatch."a\\\\s*b"',
+    );
   });
 });
