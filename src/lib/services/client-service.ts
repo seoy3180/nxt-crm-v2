@@ -5,7 +5,7 @@ import type {
   ClientListQuery,
 } from '@/lib/validators/client';
 import { getMatchingClientIds } from '@/lib/search/client-search';
-import { normalizeSearchTerm } from '@/lib/search/escape';
+import { normalizeSearchTerm, toWhitespaceInsensitiveRegexPattern } from '@/lib/search/escape';
 
 export interface ClientRow {
   id: string;
@@ -174,13 +174,15 @@ export const clientService = {
 
   // 부모 고객 검색 (드롭다운용)
   async searchParents(search: string) {
-    const { data, error } = await supabase
+    const normalized = normalizeSearchTerm(search);
+    let q = supabase
       .from('clients')
       .select('id, name, client_id')
       .is('deleted_at', null)
-      .is('parent_id', null) // 부모만 (2단계 제한)
-      .ilike('name', `%${search}%`)
-      .limit(20);
+      .is('parent_id', null); // 부모만 (2단계 제한)
+    if (normalized) q = q.regexIMatch('name', toWhitespaceInsensitiveRegexPattern(normalized));
+
+    const { data, error } = await q.limit(20);
 
     if (error) throw error;
     return data ?? [];
