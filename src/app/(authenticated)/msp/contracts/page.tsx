@@ -21,6 +21,9 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { createClient } from '@/lib/supabase/client';
 import { invalidateContractStageQueries } from '@/lib/query-keys';
 import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
+import { getMatchingContractIds } from '@/lib/search/contract-search';
+import { normalizeSearchTerm } from '@/lib/search/escape';
+import { SearchTruncatedBanner } from '@/components/common/search-truncated-banner';
 import {
   type ContractTableRow,
   type ContractColumnDef,
@@ -44,6 +47,7 @@ function MspContractsInner() {
   const [stageEditMode, setStageEditMode] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const isSearching = !!normalizeSearchTerm(debouncedSearch);
   const [stage, setStage] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<string>('created_at');
@@ -176,49 +180,22 @@ function MspContractsInner() {
         .order(sortKey, { ascending: sortOrder === 'asc' });
 
       if (stage) q = q.eq('stage', stage);
-      if (debouncedSearch) {
-        // `.or()` 문자열 인터폴(PostgREST 메타문자 주입 위험) 회피.
-        // 각 매칭 id를 모은 뒤 `.in('id', ids)`로 합침. `.ilike()`는 안전 파라미터.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const sb = supabase as any;
-        const [nameRes, clientHitsRes, accountRes] = await Promise.all([
-          sb
-            .from('contracts')
-            .select('id')
-            .eq('type', 'msp')
-            .is('deleted_at', null)
-            .ilike('name', `%${debouncedSearch}%`),
-          sb
-            .from('clients')
-            .select('id')
-            .is('deleted_at', null)
-            .ilike('name', `%${debouncedSearch}%`),
-          sb
-            .from('contract_msp_details')
-            .select('contract_id')
-            .is('deleted_at', null)
-            .ilike('aws_account_search', `%${debouncedSearch}%`),
-        ]);
-
-        const ids = new Set<string>();
-        (nameRes.data ?? []).forEach((r: { id: string }) => ids.add(r.id));
-        (accountRes.data ?? []).forEach((r: { contract_id: string }) => ids.add(r.contract_id));
-
-        const clientHitIds: string[] = (clientHitsRes.data ?? []).map((r: { id: string }) => r.id);
-        if (clientHitIds.length > 0) {
-          const { data: byClient } = await sb
-            .from('contracts')
-            .select('id')
-            .eq('type', 'msp')
-            .is('deleted_at', null)
-            .in('client_id', clientHitIds);
-          (byClient ?? []).forEach((r: { id: string }) => ids.add(r.id));
+      let searchTruncated = false;
+      const normalizedSearch = normalizeSearchTerm(debouncedSearch);
+      if (normalizedSearch) {
+        const { ids, truncated } = await getMatchingContractIds(supabase, normalizedSearch);
+        searchTruncated = truncated;
+        if (ids.length === 0) {
+          return {
+            data: [] as ContractTableRow[],
+            total: 0,
+            page,
+            pageSize,
+            totalPages: 0,
+            truncated: false,
+          };
         }
-
-        if (ids.size === 0) {
-          return { data: [] as ContractTableRow[], total: 0, page, pageSize, totalPages: 0 };
-        }
-        q = q.in('id', Array.from(ids));
+        q = q.in('id', ids);
       }
       q = q.range(from, to);
 
@@ -271,6 +248,7 @@ function MspContractsInner() {
         page,
         pageSize,
         totalPages: Math.ceil((count ?? 0) / pageSize),
+        truncated: searchTruncated,
       };
     },
     enabled: viewMode === 'table',
@@ -382,6 +360,7 @@ function MspContractsInner() {
         />
       ) : (
         <>
+          <SearchTruncatedBanner show={!!tableContracts?.truncated} />
           <InlineEditTable<ContractTableRow, ContractColumnDef>
             data={tableContracts?.data ?? []}
             columns={columns}
@@ -389,7 +368,7 @@ function MspContractsInner() {
             getId={(c) => c.id}
             isLoading={tableLoading}
             skeletonRows={5}
-            emptyText="등록된 MSP 계약이 없습니다"
+            emptyText={isSearching ? '검색 결과가 없습니다' : '등록된 MSP 계약이 없습니다'}
             renderCell={(row, col, val) =>
               sharedRenderCell(row, col, val, { basePath, contractType: 'msp', dynamicOptions })
             }

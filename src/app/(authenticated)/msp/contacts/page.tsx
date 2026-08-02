@@ -5,18 +5,27 @@ import { useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { Label } from '@/components/ui/label';
 import { Search, Plus, ChevronsUpDown, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -26,6 +35,15 @@ import { useInlineEdit } from '@/hooks/use-inline-edit';
 import { useColumnPreference } from '@/hooks/use-user-preferences';
 import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import { toast } from 'sonner';
+import {
+  toLikePattern,
+  toWhitespaceInsensitiveRegexPattern,
+  buildIlikeOrClause,
+  normalizeSearchTerm,
+} from '@/lib/search/escape';
+import { computeUnionIds } from '@/lib/search/union';
+import { SEARCH_FINAL_ID_CAP, SEARCH_SOURCE_ID_CAP } from '@/lib/search/constants';
+import { SearchTruncatedBanner } from '@/components/common/search-truncated-banner';
 
 // ─── 타입 ─────────────────────────────────────────────
 interface MspContact {
@@ -70,6 +88,7 @@ export default function MspContactsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const isSearching = !!normalizeSearchTerm(debouncedSearch);
   const [page, setPage] = useState(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -88,20 +107,42 @@ export default function MspContactsPage() {
           if (dbCol) updateData[dbCol] = change[col.key];
         });
         if (Object.keys(updateData).length === 0) return Promise.resolve();
-        return supabase.from('contacts').update(updateData).eq('id', change.contactId as string)
-          .then(({ error }) => { if (error) throw error; });
+        return supabase
+          .from('contacts')
+          .update(updateData)
+          .eq('id', change.contactId as string)
+          .then(({ error }) => {
+            if (error) throw error;
+          });
       });
       await Promise.all(promises);
       queryClient.invalidateQueries({ queryKey: ['msp-contacts'] });
     },
   });
 
-  const { editMode, setEditMode, changeCount, saving, editingCell, tempValue, setTempValue,
-    startCellEdit, saveCellEdit, getDisplayValue, handleSave, handleCancelEdit, setEditingCell, pendingChanges } = inlineEdit;
+  const {
+    editMode,
+    setEditMode,
+    changeCount,
+    saving,
+    editingCell,
+    tempValue,
+    setTempValue,
+    startCellEdit,
+    saveCellEdit,
+    getDisplayValue,
+    handleSave,
+    handleCancelEdit,
+    setEditingCell,
+    pendingChanges,
+  } = inlineEdit;
 
   // 컬럼 설정
   const defaultCols = useMemo(() => ALL_COLUMNS.map((c) => c.key), []);
-  const { columns: visibleColumns, saveColumns } = useColumnPreference('mspContactsColumns', defaultCols);
+  const { columns: visibleColumns, saveColumns } = useColumnPreference(
+    'mspContactsColumns',
+    defaultCols,
+  );
   const [showColumnSettings, setShowColumnSettings] = useState(false);
 
   // 연락처 추가 모달
@@ -109,16 +150,30 @@ export default function MspContactsPage() {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [selectedClientName, setSelectedClientName] = useState('');
   const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
-  const [addForm, setAddForm] = useState({ name: '', department: '', position: '', phone: '', email: '' });
+  const [addForm, setAddForm] = useState({
+    name: '',
+    department: '',
+    position: '',
+    phone: '',
+    email: '',
+  });
   const [addLoading, setAddLoading] = useState(false);
 
-  const { data: clientsData } = useClients({ page: 1, pageSize: 200, sortBy: 'name', sortOrder: 'asc' });
+  const { data: clientsData } = useClients({
+    page: 1,
+    pageSize: 200,
+    sortBy: 'name',
+    sortOrder: 'asc',
+  });
   const mspClients = (clientsData?.data ?? []).filter((c) => c.business_types?.includes('msp'));
 
   const handleSearch = useCallback((value: string) => {
     setSearch(value);
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => { setDebouncedSearch(value); setPage(1); }, SEARCH_DEBOUNCE_MS);
+    timerRef.current = setTimeout(() => {
+      setDebouncedSearch(value);
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
   }, []);
 
   // ─── 서버 사이드 쿼리 (페이지네이션 + 검색) ─────────────
@@ -137,18 +192,77 @@ export default function MspContactsPage() {
         .is('deleted_at', null);
 
       const clientIds = (mspClientIds ?? []).map((c) => c.id);
-      if (clientIds.length === 0) return { data: [], total: 0 };
+      if (clientIds.length === 0) return { data: [], total: 0, truncated: false };
 
       let q = supabase
         .from('contacts')
-        .select('id, name, email, phone, department, position, client_id, clients!contacts_client_id_fkey(name)', { count: 'exact' })
+        .select(
+          'id, name, email, phone, department, position, client_id, clients!contacts_client_id_fkey(name)',
+          { count: 'exact' },
+        )
         .in('client_id', clientIds)
         .is('deleted_at', null)
         .order('name', { ascending: true })
         .range(from, to);
 
-      if (debouncedSearch) {
-        q = q.or(`name.ilike.%${debouncedSearch}%,phone.ilike.%${debouncedSearch}%,email.ilike.%${debouncedSearch}%`);
+      let searchTruncated = false;
+      const normalizedSearch = normalizeSearchTerm(debouncedSearch);
+      if (normalizedSearch) {
+        const pattern = toLikePattern(normalizedSearch);
+        const regexPattern = toWhitespaceInsensitiveRegexPattern(normalizedSearch);
+        // name은 값 자체에 공백이 섞여 있을 수 있어 공백 무시 정규식으로 별도 매칭
+        const orClause = buildIlikeOrClause(['phone', 'email', 'department', 'position'], pattern);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sb = supabase as any;
+        const [ownFieldRes, ownNameRes, matchingClientRes] = await Promise.all([
+          sb
+            .from('contacts')
+            .select('id')
+            .in('client_id', clientIds)
+            .is('deleted_at', null)
+            .or(orClause)
+            .limit(SEARCH_SOURCE_ID_CAP),
+          sb
+            .from('contacts')
+            .select('id')
+            .in('client_id', clientIds)
+            .is('deleted_at', null)
+            .regexIMatch('name', regexPattern)
+            .limit(SEARCH_SOURCE_ID_CAP),
+          sb
+            .from('clients')
+            .select('id')
+            .in('id', clientIds)
+            .regexIMatch('name', regexPattern)
+            .limit(SEARCH_SOURCE_ID_CAP),
+        ]);
+
+        const matchingClientIds: string[] = (matchingClientRes.data ?? []).map(
+          (r: { id: string }) => r.id,
+        );
+        const byClientNameRes =
+          matchingClientIds.length > 0
+            ? await sb
+                .from('contacts')
+                .select('id')
+                .in('client_id', matchingClientIds)
+                .is('deleted_at', null)
+                .limit(SEARCH_SOURCE_ID_CAP)
+            : { data: [] };
+
+        const { ids, truncated } = computeUnionIds(
+          [
+            (ownFieldRes.data ?? []).map((r: { id: string }) => r.id),
+            (ownNameRes.data ?? []).map((r: { id: string }) => r.id),
+            (byClientNameRes.data ?? []).map((r: { id: string }) => r.id),
+          ],
+          SEARCH_FINAL_ID_CAP,
+        );
+        searchTruncated = truncated;
+
+        if (ids.length === 0) return { data: [], total: 0, truncated: false };
+        q = q.in('id', ids);
       }
 
       const { data, count, error } = await q;
@@ -165,7 +279,7 @@ export default function MspContactsPage() {
         email: c.email,
       }));
 
-      return { data: contacts, total: count ?? 0 };
+      return { data: contacts, total: count ?? 0, truncated: searchTruncated };
     },
   });
 
@@ -239,11 +353,18 @@ export default function MspContactsPage() {
           }}
           className={cn(
             'flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-semibold transition-colors',
-            editMode ? 'bg-blue-50 text-blue-600 border border-blue-600' : 'border border-zinc-200 text-zinc-500 hover:bg-zinc-50',
+            editMode
+              ? 'bg-blue-50 text-blue-600 border border-blue-600'
+              : 'border border-zinc-200 text-zinc-500 hover:bg-zinc-50',
           )}
         >
           편집 모드
-          <div className={cn('flex h-[18px] w-8 items-center rounded-full px-0.5 transition-colors', editMode ? 'bg-blue-600 justify-end' : 'bg-zinc-300 justify-start')}>
+          <div
+            className={cn(
+              'flex h-[18px] w-8 items-center rounded-full px-0.5 transition-colors',
+              editMode ? 'bg-blue-600 justify-end' : 'bg-zinc-300 justify-start',
+            )}
+          >
             <div className="h-3.5 w-3.5 rounded-full bg-white" />
           </div>
         </button>
@@ -252,7 +373,12 @@ export default function MspContactsPage() {
 
         <div className="relative w-60">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-          <Input placeholder="이름, 전화, 이메일 검색..." value={search} onChange={(e) => handleSearch(e.target.value)} className="h-8 rounded-md border-zinc-200 pl-9 text-[13px]" />
+          <Input
+            placeholder="이름, 전화, 이메일 검색..."
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="h-8 rounded-md border-zinc-200 pl-9 text-[13px]"
+          />
         </div>
 
         {editMode && changeCount > 0 && (
@@ -279,23 +405,40 @@ export default function MspContactsPage() {
         )}
 
         {editMode ? (
-          <button disabled className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium text-white opacity-40 cursor-not-allowed">
+          <button
+            disabled
+            className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium text-white opacity-40 cursor-not-allowed"
+          >
             <Plus className="h-4 w-4" />
             연락처 추가
           </button>
         ) : (
-          <Button onClick={() => setAddOpen(true)} className="h-9 gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium hover:bg-blue-700">
+          <Button
+            onClick={() => setAddOpen(true)}
+            className="h-9 gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-medium hover:bg-blue-700"
+          >
             <Plus className="h-4 w-4" />
             연락처 추가
           </Button>
         )}
       </div>
 
+      <SearchTruncatedBanner show={!!queryResult?.truncated} />
+
       {/* 테이블 */}
       {isLoading ? (
-        <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-11 w-full" />
+          ))}
+        </div>
       ) : (
-        <div className={cn('overflow-hidden rounded-xl border', editMode ? 'border-blue-600' : 'border-zinc-200')}>
+        <div
+          className={cn(
+            'overflow-hidden rounded-xl border',
+            editMode ? 'border-blue-600' : 'border-zinc-200',
+          )}
+        >
           <Table>
             <TableHeader>
               <TableRow className={editMode ? 'bg-blue-50' : 'bg-zinc-50'}>
@@ -316,21 +459,36 @@ export default function MspContactsPage() {
             </TableHeader>
             <TableBody>
               {contacts.length === 0 ? (
-                <TableRow><TableCell colSpan={columns.length} className="h-24 text-center text-zinc-400">등록된 연락처가 없습니다</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center text-zinc-400">
+                    {isSearching ? '검색 결과가 없습니다' : '등록된 연락처가 없습니다'}
+                  </TableCell>
+                </TableRow>
               ) : (
                 contacts.map((c) => (
                   <TableRow
                     key={c.id}
                     tabIndex={editMode ? undefined : 0}
-                    className={cn('h-11 border-b border-zinc-100', !editMode && 'cursor-pointer hover:bg-zinc-50')}
+                    className={cn(
+                      'h-11 border-b border-zinc-100',
+                      !editMode && 'cursor-pointer hover:bg-zinc-50',
+                    )}
                     onClick={editMode ? undefined : () => router.push(`/msp/clients/${c.clientId}`)}
-                    onKeyDown={editMode ? undefined : (e) => { if (e.key === 'Enter') router.push(`/msp/clients/${c.clientId}`); }}
+                    onKeyDown={
+                      editMode
+                        ? undefined
+                        : (e) => {
+                            if (e.key === 'Enter') router.push(`/msp/clients/${c.clientId}`);
+                          }
+                    }
                   >
                     {columns.map((col) => {
                       const displayValue = getDisplayValue(c, col.key);
                       const canEdit = editMode && col.editable;
-                      const isEditing = editingCell?.rowId === c.id && editingCell?.colKey === col.key;
-                      const isChanged = pendingChanges.has(c.id) && col.key in (pendingChanges.get(c.id) ?? {});
+                      const isEditing =
+                        editingCell?.rowId === c.id && editingCell?.colKey === col.key;
+                      const isChanged =
+                        pendingChanges.has(c.id) && col.key in (pendingChanges.get(c.id) ?? {});
 
                       if (isEditing) {
                         return (
@@ -340,7 +498,10 @@ export default function MspContactsPage() {
                               value={tempValue}
                               onChange={(e) => setTempValue(e.target.value)}
                               onBlur={() => saveCellEdit(c)}
-                              onKeyDown={(e) => { if (e.key === 'Enter') saveCellEdit(c); if (e.key === 'Escape') setEditingCell(null); }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveCellEdit(c);
+                                if (e.key === 'Escape') setEditingCell(null);
+                              }}
                               className="h-8 w-full rounded border border-blue-400 bg-blue-50 px-2 text-[13px] text-zinc-900 outline-none"
                             />
                           </TableCell>
@@ -352,12 +513,23 @@ export default function MspContactsPage() {
                           <TableCell
                             key={col.key}
                             className={cn('px-2', col.width)}
-                            onClick={(e) => { e.stopPropagation(); startCellEdit(c.id, col.key, displayValue === '-' ? '' : displayValue); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startCellEdit(
+                                c.id,
+                                col.key,
+                                displayValue === '-' ? '' : displayValue,
+                              );
+                            }}
                           >
-                            <span className={cn(
-                              'block cursor-text rounded border px-3 py-1 text-center text-[13px]',
-                              isChanged ? 'border-blue-400 bg-blue-100/50 text-zinc-900' : 'border-blue-200 bg-[#FAFCFF] text-zinc-500',
-                            )}>
+                            <span
+                              className={cn(
+                                'block cursor-text rounded border px-3 py-1 text-center text-[13px]',
+                                isChanged
+                                  ? 'border-blue-400 bg-blue-100/50 text-zinc-900'
+                                  : 'border-blue-200 bg-[#FAFCFF] text-zinc-500',
+                              )}
+                            >
                               {displayValue || '-'}
                             </span>
                           </TableCell>
@@ -370,7 +542,9 @@ export default function MspContactsPage() {
                           className={cn(
                             'px-4',
                             col.width,
-                            col.key === 'name' ? 'text-sm font-medium text-zinc-900' : 'text-center text-[13px] text-zinc-500',
+                            col.key === 'name'
+                              ? 'text-sm font-medium text-zinc-900'
+                              : 'text-center text-[13px] text-zinc-500',
                           )}
                         >
                           {displayValue || '-'}
@@ -388,11 +562,23 @@ export default function MspContactsPage() {
       {/* 페이지네이션 */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 py-4">
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={page <= 1}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => p - 1)}
+            disabled={page <= 1}
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm text-zinc-500">{page} / {totalPages}</span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages}>
+          <span className="text-sm text-zinc-500">
+            {page} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={page >= totalPages}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -424,9 +610,18 @@ export default function MspContactsPage() {
                           <CommandItem
                             key={c.id}
                             value={c.name}
-                            onSelect={() => { setSelectedClientId(c.id); setSelectedClientName(c.name); setClientPopoverOpen(false); }}
+                            onSelect={() => {
+                              setSelectedClientId(c.id);
+                              setSelectedClientName(c.name);
+                              setClientPopoverOpen(false);
+                            }}
                           >
-                            <Check className={cn('mr-2 h-4 w-4', selectedClientId === c.id ? 'opacity-100' : 'opacity-0')} />
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                selectedClientId === c.id ? 'opacity-100' : 'opacity-0',
+                              )}
+                            />
                             {c.name}
                           </CommandItem>
                         ))}
@@ -439,33 +634,57 @@ export default function MspContactsPage() {
 
             <div className="space-y-1.5">
               <Label>이름 *</Label>
-              <Input value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} placeholder="이름" autoFocus />
+              <Input
+                value={addForm.name}
+                onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                placeholder="이름"
+                autoFocus
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>부서</Label>
-                <Input value={addForm.department} onChange={(e) => setAddForm({ ...addForm, department: e.target.value })} placeholder="부서" />
+                <Input
+                  value={addForm.department}
+                  onChange={(e) => setAddForm({ ...addForm, department: e.target.value })}
+                  placeholder="부서"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>직책</Label>
-                <Input value={addForm.position} onChange={(e) => setAddForm({ ...addForm, position: e.target.value })} placeholder="직책" />
+                <Input
+                  value={addForm.position}
+                  onChange={(e) => setAddForm({ ...addForm, position: e.target.value })}
+                  placeholder="직책"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>전화</Label>
-                <Input value={addForm.phone} onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })} placeholder="010-0000-0000" />
+                <Input
+                  value={addForm.phone}
+                  onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
+                  placeholder="010-0000-0000"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>이메일</Label>
-                <Input value={addForm.email} onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} type="email" placeholder="email@example.com" />
+                <Input
+                  value={addForm.email}
+                  onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                  type="email"
+                  placeholder="email@example.com"
+                />
               </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>취소</Button>
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
+                취소
+              </Button>
               <Button type="submit" disabled={addLoading} className="bg-blue-600 hover:bg-blue-700">
                 {addLoading ? '추가 중...' : '추가'}
               </Button>

@@ -1,5 +1,11 @@
 import { createClient } from '@/lib/supabase/client';
-import type { ClientCreateInput, ClientUpdateInput, ClientListQuery } from '@/lib/validators/client';
+import type {
+  ClientCreateInput,
+  ClientUpdateInput,
+  ClientListQuery,
+} from '@/lib/validators/client';
+import { getMatchingClientIds } from '@/lib/search/client-search';
+import { normalizeSearchTerm, toWhitespaceInsensitiveRegexPattern } from '@/lib/search/escape';
 
 export interface ClientRow {
   id: string;
@@ -44,15 +50,22 @@ export const clientService = {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let q = (supabase as any)
+    let q = supabase
       .from('client_list_view')
       .select('*', { count: 'exact' })
       .order(sortBy, { ascending: sortOrder === 'asc' })
       .range(from, to);
 
-    if (search) {
-      q = q.ilike('name', `%${search}%`);
+    let truncated = false;
+    const normalizedSearch = search ? normalizeSearchTerm(search) : null;
+    if (normalizedSearch) {
+      const unionResult = await getMatchingClientIds(supabase, normalizedSearch);
+      truncated = unionResult.truncated;
+
+      if (unionResult.ids.length === 0) {
+        return { data: [], total: 0, page, pageSize, totalPages: 0, truncated: false };
+      }
+      q = q.in('id', unionResult.ids);
     }
     if (clientType) {
       q = q.eq('client_type', clientType);
@@ -70,6 +83,7 @@ export const clientService = {
       page,
       pageSize,
       totalPages: Math.ceil((count ?? 0) / pageSize),
+      truncated,
     };
   },
 
@@ -107,8 +121,9 @@ export const clientService = {
 
   async create(input: ClientCreateInput) {
     // client_id 자동 생성
-    const { data: clientId } = await supabase
-      .rpc('generate_client_id', { p_type: input.clientType });
+    const { data: clientId } = await supabase.rpc('generate_client_id', {
+      p_type: input.clientType,
+    });
 
     const { data, error } = await supabase
       .from('clients')
@@ -159,13 +174,15 @@ export const clientService = {
 
   // 부모 고객 검색 (드롭다운용)
   async searchParents(search: string) {
-    const { data, error } = await supabase
+    const normalized = normalizeSearchTerm(search);
+    let q = supabase
       .from('clients')
       .select('id, name, client_id')
       .is('deleted_at', null)
-      .is('parent_id', null) // 부모만 (2단계 제한)
-      .ilike('name', `%${search}%`)
-      .limit(20);
+      .is('parent_id', null); // 부모만 (2단계 제한)
+    if (normalized) q = q.regexIMatch('name', toWhitespaceInsensitiveRegexPattern(normalized));
+
+    const { data, error } = await q.limit(20);
 
     if (error) throw error;
     return data ?? [];
@@ -173,9 +190,7 @@ export const clientService = {
 
   // 사내 담당자 목록
   async getProfiles() {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, name, email, role');
+    const { data, error } = await supabase.from('profiles').select('id, name, email, role');
 
     if (error) throw error;
     return data ?? [];

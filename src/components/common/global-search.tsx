@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Users, FileText, Contact } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { normalizeSearchTerm, toWhitespaceInsensitiveRegexPattern } from '@/lib/search/escape';
 
 interface SearchResult {
   id: string;
@@ -48,13 +49,14 @@ export function GlobalSearch() {
 
   // 검색
   const search = useCallback(async (q: string) => {
-    if (!q.trim()) {
+    const normalized = normalizeSearchTerm(q);
+    if (!normalized) {
       setResults([]);
       return;
     }
 
     const supabase = createClient();
-    const searchTerm = `%${q}%`;
+    const regexPattern = toWhitespaceInsensitiveRegexPattern(normalized);
 
     try {
       const [clientRes, contractRes, contactRes, awsRes] = await Promise.all([
@@ -62,19 +64,19 @@ export function GlobalSearch() {
           .from('clients')
           .select('id, name, client_id, client_type')
           .is('deleted_at', null)
-          .ilike('name', searchTerm)
+          .regexIMatch('name', regexPattern)
           .limit(5),
         supabase
           .from('contracts')
           .select('id, name, contract_id, stage, type')
           .is('deleted_at', null)
-          .ilike('name', searchTerm)
+          .regexIMatch('name', regexPattern)
           .limit(5),
         supabase
           .from('contacts')
           .select('id, name, phone, email, client_id, clients!contacts_client_id_fkey(name)')
           .is('deleted_at', null)
-          .ilike('name', searchTerm)
+          .regexIMatch('name', regexPattern)
           .limit(5),
         supabase
           .from('contract_msp_details')

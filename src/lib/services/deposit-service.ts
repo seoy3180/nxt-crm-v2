@@ -26,6 +26,7 @@ export interface DepositAccountWithContract extends DepositAccount {
     client_id: string;
     client_name: string | null;
     stage: MspStage | null;
+    aws_account_search: string | null;
   };
 }
 
@@ -147,7 +148,7 @@ export const depositService = {
     const { data, error } = await supabase
       .from('deposit_accounts')
       .select(
-        'id, contract_id, balance, total_deposit, total_usage, last_recalc_at, start_date, end_date, created_at, updated_at, deleted_at, contract:contracts!inner(id, name, contract_id, currency, client_id, stage, clients(name))',
+        'id, contract_id, balance, total_deposit, total_usage, last_recalc_at, start_date, end_date, created_at, updated_at, deleted_at, contract:contracts!inner(id, name, contract_id, currency, client_id, stage, clients(name), contract_msp_details(aws_account_search))',
       )
       .is('deleted_at', null);
     if (error) throw error;
@@ -161,6 +162,7 @@ export const depositService = {
         client_id: string;
         stage: MspStage | null;
         clients: { name: string } | null;
+        contract_msp_details: { aws_account_search: string | null } | null;
       };
     };
 
@@ -184,6 +186,7 @@ export const depositService = {
         client_id: row.contract.client_id,
         client_name: row.contract.clients?.name ?? null,
         stage: row.contract.stage,
+        aws_account_search: row.contract.contract_msp_details?.aws_account_search ?? null,
       },
     }));
   },

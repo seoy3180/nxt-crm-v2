@@ -7,6 +7,8 @@ import type {
   StageChangeInput,
   ContractListQuery,
 } from '@/lib/validators/contract';
+import { getMatchingContractIds } from '@/lib/search/contract-search';
+import { normalizeSearchTerm } from '@/lib/search/escape';
 
 export interface ContractRow {
   id: string;
@@ -96,7 +98,9 @@ export interface ContractHistoryRow {
   changed_by_name?: string;
 }
 
-function getClient() { return createClient(); }
+function getClient() {
+  return createClient();
+}
 
 export const contractService = {
   async list(query: ContractListQuery) {
@@ -106,58 +110,30 @@ export const contractService = {
 
     let q = getClient()
       .from('contracts')
-      .select(`
+      .select(
+        `
         *,
         clients!contracts_client_id_fkey(name, client_id),
         employees!contracts_assigned_to_fkey(name),
         contacts!contracts_contact_id_fkey(name)
-      `, { count: 'exact' })
+      `,
+        { count: 'exact' },
+      )
       .is('deleted_at', null)
       .order(sortBy, { ascending: sortOrder === 'asc' });
 
     if (type) q = q.eq('type', type);
     if (stage) q = q.eq('stage', stage);
 
-    // DB 단 검색: 계약명 + 고객명 + AWS account ID 부분매칭(union).
-    // `.or()` 문자열 인터폴(PostgREST 메타문자 주입 위험)을 피해, 각 매칭 id를 모은 뒤
-    // `.in('id', ids)` 한 절로 합친다. `.ilike()` 값은 PostgREST가 안전하게 파라미터화.
-    if (search) {
-      const [nameRes, clientHitsRes, accountRes] = await Promise.all([
-        getClient()
-          .from('contracts')
-          .select('id')
-          .is('deleted_at', null)
-          .ilike('name', `%${search}%`),
-        getClient()
-          .from('clients')
-          .select('id')
-          .is('deleted_at', null)
-          .ilike('name', `%${search}%`),
-        getClient()
-          .from('contract_msp_details')
-          .select('contract_id')
-          .is('deleted_at', null)
-          .ilike('aws_account_search', `%${search}%`),
-      ]);
-
-      const ids = new Set<string>();
-      (nameRes.data ?? []).forEach((r) => ids.add(r.id));
-      (accountRes.data ?? []).forEach((r) => ids.add(r.contract_id));
-
-      const clientHitIds = (clientHitsRes.data ?? []).map((r) => r.id);
-      if (clientHitIds.length > 0) {
-        const { data: byClient } = await getClient()
-          .from('contracts')
-          .select('id')
-          .is('deleted_at', null)
-          .in('client_id', clientHitIds);
-        (byClient ?? []).forEach((r) => ids.add(r.id));
-      }
-
-      if (ids.size === 0) {
+    // DB 단 검색: 계약명·고객명·담당자명·담당연락처명·MSP 텍스트·AWS 계정 부분매칭(union).
+    // 공용 헬퍼(src/lib/search/contract-search.ts)가 소스별 상한·소프트삭제 제외까지 처리한다.
+    const normalizedSearch = search ? normalizeSearchTerm(search) : null;
+    if (normalizedSearch) {
+      const { ids } = await getMatchingContractIds(getClient(), normalizedSearch);
+      if (ids.length === 0) {
         return { data: [], total: 0, page, pageSize, totalPages: 0 };
       }
-      q = q.in('id', Array.from(ids));
+      q = q.in('id', ids);
     }
 
     q = q.range(from, to);
@@ -184,14 +160,16 @@ export const contractService = {
   async getById(id: string) {
     const { data, error } = await getClient()
       .from('contracts')
-      .select(`
+      .select(
+        `
         *,
         clients!contracts_client_id_fkey(name, client_id),
         employees!contracts_assigned_to_fkey(name),
         contacts!contracts_contact_id_fkey(name),
         contract_msp_details(*, employees!contract_msp_details_sales_rep_id_fkey(name)),
         contract_tech_leads(employee_id, employees!contract_tech_leads_employee_id_fkey(name))
-      `)
+      `,
+      )
       .eq('id', id)
       .is('deleted_at', null)
       .single();
@@ -211,8 +189,8 @@ export const contractService = {
       contact_name: (row.contacts as { name: string } | null)?.name ?? null,
       msp_details: (() => {
         const raw = Array.isArray(row.contract_msp_details)
-          ? (row.contract_msp_details as Record<string, unknown>[])[0] ?? null
-          : (row.contract_msp_details as Record<string, unknown> | null) ?? null;
+          ? ((row.contract_msp_details as Record<string, unknown>[])[0] ?? null)
+          : ((row.contract_msp_details as Record<string, unknown> | null) ?? null);
         if (!raw) return null;
         const emp = raw.employees as { name: string } | null;
         return { ...raw, sales_rep_name: emp?.name ?? null, employees: undefined };
@@ -273,14 +251,16 @@ export const contractService = {
     if (input.payer !== undefined) updateData.payer = input.payer;
     if (input.salesRepId !== undefined) updateData.sales_rep_id = input.salesRepId;
     if (input.awsAmount !== undefined) updateData.aws_amount = input.awsAmount;
-    if (input.hasManagementFee !== undefined) updateData.has_management_fee = input.hasManagementFee;
+    if (input.hasManagementFee !== undefined)
+      updateData.has_management_fee = input.hasManagementFee;
     if (input.billingMethod !== undefined) updateData.billing_method = input.billingMethod;
     if (input.awsAm !== undefined) updateData.aws_am = input.awsAm;
     if (input.awsAccountIds !== undefined) updateData.aws_account_ids = input.awsAccountIds;
     if (input.mspGrade !== undefined) updateData.msp_grade = input.mspGrade;
     if (input.billingOn !== undefined) updateData.billing_on = input.billingOn;
     if (input.billingOnAlias !== undefined) updateData.billing_on_alias = input.billingOnAlias;
-    if (input.rootAccountEmail !== undefined) updateData.root_account_email = input.rootAccountEmail;
+    if (input.rootAccountEmail !== undefined)
+      updateData.root_account_email = input.rootAccountEmail;
     if (input.tags !== undefined) updateData.tags = input.tags;
 
     const { data, error } = await getClient()
@@ -352,10 +332,7 @@ export const contractService = {
   },
 
   async deleteHistoryEntry(historyId: string) {
-    const { error } = await getClient()
-      .from('contract_history')
-      .delete()
-      .eq('id', historyId);
+    const { error } = await getClient().from('contract_history').delete().eq('id', historyId);
     if (error) throw error;
   },
 
@@ -366,9 +343,7 @@ export const contractService = {
    * - 활성 deposit_accounts가 있고 balance != 0이면 차단 후 { blocked }를 반환.
    * - DB 트리거 `guard_contract_delete_with_deposit`이 최종 안전망.
    */
-  async softDelete(
-    id: string,
-  ): Promise<{ blocked?: { balance: number; currency: string } }> {
+  async softDelete(id: string): Promise<{ blocked?: { balance: number; currency: string } }> {
     // 사전 체크: 예치금 잔액 != 0이면 차단
     const { data: acct } = await getClient()
       .from('deposit_accounts')
@@ -378,8 +353,7 @@ export const contractService = {
       .maybeSingle();
 
     if (acct && acct.balance !== 0) {
-      const currency =
-        (acct.contract as unknown as { currency: string } | null)?.currency ?? 'KRW';
+      const currency = (acct.contract as unknown as { currency: string } | null)?.currency ?? 'KRW';
       return { blocked: { balance: acct.balance, currency } };
     }
 
@@ -439,11 +413,13 @@ export const educationOpService = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error: datesError } = await (getClient() as any)
         .from('education_operation_dates')
-        .insert(sortedDates.map((d: { date: string; hours: number }) => ({
-          operation_id: data.id,
-          education_date: d.date,
-          hours: d.hours ?? 0,
-        })));
+        .insert(
+          sortedDates.map((d: { date: string; hours: number }) => ({
+            operation_id: data.id,
+            education_date: d.date,
+            hours: d.hours ?? 0,
+          })),
+        );
       if (datesError) throw datesError;
     }
 
@@ -458,7 +434,8 @@ export const educationOpService = {
     if (input.dates !== undefined) {
       const sortedDates = (input.dates ?? []).sort((a, b) => a.date.localeCompare(b.date));
       updateData.start_date = sortedDates.length > 0 ? sortedDates[0]!.date : null;
-      updateData.end_date = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1]!.date : null;
+      updateData.end_date =
+        sortedDates.length > 0 ? sortedDates[sortedDates.length - 1]!.date : null;
       updateData.total_hours = sortedDates.reduce((sum, d) => sum + (d.hours ?? 0), 0) || null;
     }
     if (input.contractedCount !== undefined) updateData.contracted_count = input.contractedCount;

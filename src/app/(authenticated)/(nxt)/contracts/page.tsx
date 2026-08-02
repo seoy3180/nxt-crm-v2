@@ -20,6 +20,9 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { createClient } from '@/lib/supabase/client';
 import { invalidateContractStageQueries } from '@/lib/query-keys';
 import { SEARCH_DEBOUNCE_MS } from '@/lib/constants';
+import { getMatchingContractIds } from '@/lib/search/contract-search';
+import { normalizeSearchTerm } from '@/lib/search/escape';
+import { SearchTruncatedBanner } from '@/components/common/search-truncated-banner';
 import {
   type ContractTableRow,
   type ContractColumnDef,
@@ -58,6 +61,7 @@ function ContractsPageInner() {
   const [stageEditMode, setStageEditMode] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const isSearching = !!normalizeSearchTerm(debouncedSearch);
   const [stage, setStage] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -205,7 +209,23 @@ function ContractsPageInner() {
         .order('created_at', { ascending: false });
 
       if (stage) q = q.eq('stage', stage);
-      if (debouncedSearch) q = q.ilike('name', `%${debouncedSearch}%`);
+      let searchTruncated = false;
+      const normalizedSearch = normalizeSearchTerm(debouncedSearch);
+      if (normalizedSearch) {
+        const { ids, truncated } = await getMatchingContractIds(supabase, normalizedSearch);
+        searchTruncated = truncated;
+        if (ids.length === 0) {
+          return {
+            data: [] as ContractTableRow[],
+            total: 0,
+            page,
+            pageSize,
+            totalPages: 0,
+            truncated: false,
+          };
+        }
+        q = q.in('id', ids);
+      }
       q = q.range(from, to);
 
       const { data, count, error } = await q;
@@ -263,6 +283,7 @@ function ContractsPageInner() {
         page,
         pageSize,
         totalPages: Math.ceil((count ?? 0) / pageSize),
+        truncated: searchTruncated,
       };
     },
     enabled: viewMode === 'table',
@@ -388,6 +409,7 @@ function ContractsPageInner() {
         />
       ) : (
         <>
+          <SearchTruncatedBanner show={!!tableData?.truncated} />
           <InlineEditTable<ContractTableRow, ContractColumnDef>
             data={tableData?.data ?? []}
             columns={columns}
@@ -395,7 +417,7 @@ function ContractsPageInner() {
             getId={(c) => c.id}
             isLoading={tableLoading}
             skeletonRows={5}
-            emptyText="등록된 계약이 없습니다"
+            emptyText={isSearching ? '검색 결과가 없습니다' : '등록된 계약이 없습니다'}
             renderCell={(row, col, val) =>
               sharedRenderCell(row, col, val, { basePath: '', contractType, dynamicOptions })
             }
