@@ -170,8 +170,11 @@ ALTER TYPE "public"."msp_grade_type" OWNER TO "postgres";
 
 
 CREATE TYPE "public"."payer_type" AS ENUM (
+    'ETV-AWS-11',
     'ETV-AWS-13',
     'ETV-AWS-14',
+    'ETV-AWS-44',
+    'ETV-AWS-54',
     'Org-001',
     'Billing Transfer'
 );

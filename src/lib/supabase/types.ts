@@ -1251,7 +1251,7 @@ export type Database = {
         | "서울대 연구실"
         | "기타"
       msp_grade_type: "None" | "FREE" | "MSP10" | "MSP15" | "MSP20" | "ETC"
-      payer_type: "ETV-AWS-13" | "ETV-AWS-14" | "Org-001" | "Billing Transfer"
+      payer_type: "ETV-AWS-11" | "ETV-AWS-13" | "ETV-AWS-14" | "ETV-AWS-44" | "ETV-AWS-54" | "Org-001" | "Billing Transfer"
       team_type: "msp" | "tt" | "dev" | "ops" | "ai" | "ptn"
       user_role: "staff" | "team_lead" | "admin" | "c_level"
     }
@@ -1419,7 +1419,7 @@ export const Constants = {
         "기타",
       ],
       msp_grade_type: ["None", "FREE", "MSP10", "MSP15", "MSP20", "ETC"],
-      payer_type: ["ETV-AWS-13", "ETV-AWS-14", "Org-001", "Billing Transfer"],
+      payer_type: ["ETV-AWS-11", "ETV-AWS-13", "ETV-AWS-14", "ETV-AWS-44", "ETV-AWS-54", "Org-001", "Billing Transfer"],
       team_type: ["msp", "tt", "dev", "ops", "ai", "ptn"],
       user_role: ["staff", "team_lead", "admin", "c_level"],
     },

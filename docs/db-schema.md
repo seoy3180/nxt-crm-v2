@@ -400,7 +400,7 @@ clients ──┬──1 client_msp_details
 | `currency_type` | KRW, USD |
 | `credit_share_type` | 가능, 불가능, 미정 |
 | `msp_grade_type` | None, FREE, MSP10, MSP15, MSP20, ETC |
-| `payer_type` | ETV-AWS-13, ETV-AWS-14, Org-001, Billing Transfer |
+| `payer_type` | ETV-AWS-11, ETV-AWS-13, ETV-AWS-14, ETV-AWS-44, ETV-AWS-54, Org-001, Billing Transfer |
 | `billing_method_type` | 대표님 직접 청구, 매월 10일 세금계산서 발행, 공공기관 별도 청구 |
 | `deposit_txn_type` | deposit, usage, adjustment, refund |
 | `deposit_txn_source` | manual, aws_api, billing_on |
