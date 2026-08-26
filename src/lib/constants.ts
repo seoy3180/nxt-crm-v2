@@ -135,7 +135,7 @@ export const CREDIT_SHARE_COLORS: Record<string, string> = {
   '불가능': 'bg-red-100 text-red-600',
   '미정': 'bg-zinc-100 text-zinc-500',
 };
-export const PAYER_OPTIONS = ['ETV-AWS-13', 'ETV-AWS-14', 'Org-001', 'Billing Transfer'] as const;
+export const PAYER_OPTIONS = ['ETV-AWS-11', 'ETV-AWS-13', 'ETV-AWS-14', 'ETV-AWS-44', 'ETV-AWS-54', 'Org-001', 'Billing Transfer'] as const;
 export const BILLING_METHOD_OPTIONS = ['대표님 직접 청구', '매월 10일 세금계산서 발행', '공공기관 별도 청구'] as const;
 export const AWS_AM_OPTIONS = ['이가현', 'Albert Park', '고의준', '김은서', '김병준', '변지혜', '오진택', '방승훈', '민재기', '이영은'] as const;
 export const AWS_AM_COLORS: Record<string, string> = {

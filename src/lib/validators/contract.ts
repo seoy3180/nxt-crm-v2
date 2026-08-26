@@ -23,7 +23,7 @@ export type ContractUpdateInput = z.infer<typeof contractUpdateSchema>;
 export const mspDetailSchema = z.object({
   creditShare: z.enum(['가능', '불가능', '미정']).optional().nullable(),
   expectedMrr: z.number().int().min(0).optional().nullable(),
-  payer: z.enum(['ETV-AWS-13', 'ETV-AWS-14', 'Org-001', 'Billing Transfer']).optional().nullable(),
+  payer: z.enum(['ETV-AWS-11', 'ETV-AWS-13', 'ETV-AWS-14', 'ETV-AWS-44', 'ETV-AWS-54', 'Org-001', 'Billing Transfer']).optional().nullable(),
   salesRepId: z.string().uuid().optional().nullable(),
   awsAmount: z.number().int().min(0).optional().nullable(),
   hasManagementFee: z.boolean().default(false),
